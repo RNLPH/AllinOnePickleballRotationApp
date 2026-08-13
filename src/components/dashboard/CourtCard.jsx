@@ -1,0 +1,506 @@
+import DroppableCourt from "../dnd/DroppableCourt";
+import DroppableCourtPlayer from "../dnd/DroppableCourtPlayer";
+import DraggableCourtPlayer from "../dnd/DraggableCourtPlayer";
+import { getCourtDuration, getCourtMinutes } from "../../utils/playerUtils";
+
+export default function CourtCard({
+  court,
+  courtPreviews,
+  selectedPreviewPlayer,
+  onEndGame,
+  onRemoveCourtPlayer,
+  onSetCourtForEdit,
+  onGeneratePreview,
+  onRegeneratePreview,
+  onConfirmPreview,
+  onPreviewPlayerClick,
+  onRemovePreviewPlayer,
+  onSetSelectedPreviewCourt,
+  onSetSelectedPreviewPlayer,
+}) {
+  const preview = courtPreviews[court.id] || [];
+
+  return (
+    <DroppableCourt courtId={court.id}>
+      <div
+        className="
+          bg-white
+          rounded-2xl
+          shadow-lg
+          p-5
+          border
+          border-slate-200
+          hover:shadow-xl
+          transition-all
+          hover:-translate-y-1
+        "
+      >
+        {/* Court Header */}
+        <div
+          className="
+            flex
+            justify-between
+            items-start
+            mb-3
+            pb-3
+            border-b
+            border-blue-100
+          "
+        >
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-2xl font-bold text-blue-700">
+                {court.type === "king" && "👑 King's Court"}
+                {court.type === "knight" && "⚔️ Knight Court"}
+                {court.type === "squire" && "🛡️ Squire Court"}
+                {!court.type && "📌 Court"}
+                {" "}#{court.id}
+              </h2>
+
+              <button
+                onClick={() => onSetCourtForEdit(court.id)}
+                className="text-lg hover:scale-110 transition-all"
+                title="Change Court Type"
+              >
+                ⚙️
+              </button>
+            </div>
+
+            {court.players.length === 4 && (
+              <span
+                className="
+                  inline-block
+                  mt-1
+                  bg-green-100
+                  text-green-700
+                  px-2
+                  py-1
+                  rounded-full
+                  text-xs
+                  font-semibold
+                "
+              >
+                🟢 Active Match
+              </span>
+            )}
+          </div>
+
+          <span
+            className="
+              bg-blue-500
+              text-white
+              px-3
+              py-1
+              rounded-full
+              text-sm
+              font-semibold
+            "
+          >
+            {court.players.length}/4
+          </span>
+        </div>
+
+        {/* Timer */}
+        {court.startedAt && (
+          <div
+            className={`
+              mb-3
+              font-bold
+              text-lg
+              ${
+                getCourtMinutes(court.startedAt) >= 20
+                  ? "text-red-600 animate-pulse"
+                  : getCourtMinutes(court.startedAt) >= 15
+                  ? "text-yellow-600"
+                  : "text-green-600"
+              }
+            `}
+          >
+            ⏱ {getCourtDuration(court.startedAt)}
+          </div>
+        )}
+
+        {/* Players */}
+        {court.players.length === 0 ? (
+          <div
+            className="
+              text-center
+              py-8
+              border-2
+              border-dashed
+              border-gray-300
+              rounded-xl
+              text-gray-400
+            "
+          >
+            Drag players here
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="text-center mb-2">
+              <span className="font-bold text-blue-600">🔵 Team A</span>
+              <span className="mx-3 text-gray-400">VS</span>
+              <span className="font-bold text-purple-600">🟣 Team B</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {/* Team A */}
+              <div>
+                <span
+                  className="
+                    inline-block
+                    bg-blue-500
+                    text-white
+                    px-3
+                    py-1
+                    rounded-full
+                    text-sm
+                    font-bold
+                  "
+                >
+                  Team A
+                </span>
+
+                {court.players
+                  .filter(Boolean)
+                  .slice(0, 2)
+                  .map((player) => (
+                    <div
+                      key={player.id}
+                      className="
+                        bg-white
+                        border-l-4
+                        border-blue-500
+                        p-3
+                        rounded-lg
+                        mb-2
+                        flex
+                        items-center
+                        shadow-sm
+                        min-h-[72px]
+                      "
+                    >
+                      <div className="flex-1 min-w-0">
+                        <DroppableCourtPlayer player={player}>
+                          <DraggableCourtPlayer player={player} />
+                        </DroppableCourtPlayer>
+                      </div>
+
+                      <button
+                        onClick={() => onRemoveCourtPlayer(court.id, player.id)}
+                        className="ml-2 flex-shrink-0 text-red-600 font-bold"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+              </div>
+
+              {/* Team B */}
+              <div>
+                <span
+                  className="
+                    inline-block
+                    bg-purple-500
+                    text-white
+                    px-3
+                    py-1
+                    rounded-full
+                    text-sm
+                    font-bold
+                  "
+                >
+                  Team B
+                </span>
+
+                {court.players
+                  .filter(Boolean)
+                  .slice(2, 4)
+                  .map((player) => (
+                    <div
+                      key={player.id}
+                      className="
+                        bg-white
+                        border-l-4
+                        border-purple-500
+                        p-3
+                        rounded-lg
+                        mb-2
+                        flex
+                        items-center
+                        shadow-sm
+                        min-h-[72px]
+                      "
+                    >
+                      <div className="flex-1 min-w-0">
+                        <DroppableCourtPlayer player={player}>
+                          <DraggableCourtPlayer player={player} color="purple" />
+                        </DroppableCourtPlayer>
+                      </div>
+
+                      <button
+                        onClick={() => onRemoveCourtPlayer(court.id, player.id)}
+                        className="ml-2 flex-shrink-0 text-red-600 font-bold"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Preview Controls */}
+        <button
+          onClick={() => onGeneratePreview(court)}
+          className="
+            w-full
+            mb-3
+            bg-slate-700
+            hover:bg-slate-800
+            text-white
+            py-2
+            rounded-xl
+          "
+        >
+          👀 Preview Next Match
+        </button>
+
+        {preview.length > 0 && (
+          <button
+            onClick={() => onRegeneratePreview(court)}
+            className="
+              w-full
+              mb-3
+              bg-orange-500
+              hover:bg-orange-600
+              text-white
+              py-2
+              rounded-xl
+            "
+          >
+            🔄 Regenerate Preview
+          </button>
+        )}
+
+        {/* Preview Panel */}
+        {preview.length > 0 && (
+          <div className="mb-4 border rounded-xl p-3 bg-slate-50">
+            <div className="font-bold mb-2">Next Match Preview</div>
+
+            {selectedPreviewPlayer && (
+              <div
+                className="
+                  mb-3
+                  rounded-lg
+                  bg-yellow-100
+                  text-yellow-800
+                  p-2
+                  text-xs
+                  font-semibold
+                "
+              >
+                <div>🔄 Selected: {selectedPreviewPlayer.playerName}</div>
+                <div className="mt-1">Click another player to swap.</div>
+
+                <button
+                  onClick={() => onSetSelectedPreviewPlayer(null)}
+                  className="
+                    mt-2
+                    px-2
+                    py-1
+                    rounded
+                    bg-red-500
+                    text-white
+                    text-xs
+                    hover:bg-red-600
+                  "
+                >
+                  🚫 Cancel Selection
+                </button>
+              </div>
+            )}
+
+            <p className="text-xs text-gray-500 mb-2">
+              Click two players to swap positions.
+            </p>
+
+            {/* Team A Preview */}
+            <div className="text-sm">
+              🔵 Team A
+              <br />
+              {preview.slice(0, 2).map((player) => (
+                <div
+                  key={player.id}
+                  className={`
+                    flex
+                    justify-between
+                    items-center
+                    p-2
+                    rounded
+                    mb-1
+                    ${
+                      selectedPreviewPlayer?.playerId === player.id
+                        ? "bg-yellow-200"
+                        : "bg-white"
+                    }
+                  `}
+                >
+                  <span
+                    className="flex-1 cursor-pointer"
+                    onClick={() => onPreviewPlayerClick(court.id, player)}
+                  >
+                    {player.name}
+                  </span>
+
+                  <button
+                    onClick={() => onRemovePreviewPlayer(court.id, player.id)}
+                    className="ml-2 text-red-500 font-bold"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Team B Preview */}
+            <div className="text-sm mt-2">
+              🟣 Team B
+              {preview.slice(2, 4).map((player) => (
+                <div
+                  key={player.id}
+                  className={`
+                    flex
+                    justify-between
+                    items-center
+                    p-2
+                    rounded
+                    mb-1
+                    ${
+                      selectedPreviewPlayer?.playerId === player.id
+                        ? "bg-yellow-200"
+                        : "bg-white"
+                    }
+                  `}
+                >
+                  <span
+                    className="flex-1 cursor-pointer"
+                    onClick={() => onPreviewPlayerClick(court.id, player)}
+                  >
+                    {player.name}
+                  </span>
+
+                  <button
+                    onClick={() => onRemovePreviewPlayer(court.id, player.id)}
+                    className="ml-2 text-red-500 font-bold"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Add / Replace player */}
+            {preview.length < 4 ? (
+              <button
+                onClick={() => onSetSelectedPreviewCourt(court.id)}
+                className="
+                  w-full
+                  mt-2
+                  bg-green-500
+                  hover:bg-green-600
+                  text-white
+                  py-2
+                  rounded-xl
+                "
+              >
+                ➕ Add Missing Player
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  if (!selectedPreviewPlayer) {
+                    alert("Select a preview player to replace first.");
+                    return;
+                  }
+                  onSetSelectedPreviewCourt(court.id);
+                }}
+                className="
+                  w-full
+                  mt-2
+                  bg-blue-500
+                  hover:bg-blue-600
+                  text-white
+                  py-2
+                  rounded-xl
+                "
+              >
+                🔄 Replace Preview Player
+              </button>
+            )}
+
+            <button
+              onClick={() => onConfirmPreview(court.id)}
+              disabled={!!selectedPreviewPlayer}
+              className="
+                w-full
+                mt-3
+                bg-green-600
+                hover:bg-green-700
+                text-white
+                py-2
+                rounded-xl
+                disabled:bg-gray-400
+                disabled:cursor-not-allowed
+              "
+            >
+              ✅ Confirm Match
+            </button>
+          </div>
+        )}
+
+        {/* End Game */}
+        <div className="grid grid-cols-2 gap-2 mt-4">
+          <button
+            onClick={() => onEndGame(court.id, "A")}
+            disabled={court.players.length !== 4}
+            className="
+              bg-gradient-to-r
+              from-blue-500
+              to-blue-700
+              text-white
+              font-semibold
+              py-2
+              rounded-xl
+              shadow-sm
+              hover:shadow-md
+              disabled:bg-gray-400
+            "
+          >
+            Team A Wins
+          </button>
+
+          <button
+            onClick={() => onEndGame(court.id, "B")}
+            disabled={court.players.length !== 4}
+            className="
+              bg-gradient-to-r
+              from-purple-500
+              to-purple-700
+              text-white
+              font-semibold
+              py-2
+              rounded-xl
+              shadow-sm
+              hover:shadow-md
+              disabled:bg-gray-400
+            "
+          >
+            Team B Wins
+          </button>
+        </div>
+      </div>
+    </DroppableCourt>
+  );
+}

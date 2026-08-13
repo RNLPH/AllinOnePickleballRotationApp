@@ -1,0 +1,1501 @@
+import { useEffect, useRef, useState } from "react";
+import { DndContext, DragOverlay } from "@dnd-kit/core";
+
+import { getDirectory, saveDirectoryPlayer, deleteDirectoryPlayer } from "./db/directoryService";
+import { getPlayers, savePlayers } from "./db/playerService";
+import { saveMatch, getMatches, updateMatch, deleteMatchesBySession, clearAllMatches } from "./db/matchService";
+import { getAttendance, saveAttendance, clearAttendance, deleteAttendanceBySession } from "./db/attendanceService";
+import { getStandingsHistory, saveStandingsHistory, clearStandingsHistory } from "./db/standingsHistoryService";
+
+import { DEFAULT_COURTS, STORAGE_KEYS, TIER_LIMITS } from "./constants";
+import { sortPlayers, shufflePlayers } from "./utils/playerUtils";
+import {
+  buildRotationGroup,
+  eligiblePlayers,
+  resetRestedPlayers,
+  createBalancedTeams,
+} from "./utils/teamUtils";
+
+import SessionControls from "./components/dashboard/SessionControls";
+import PlayerQueue from "./components/dashboard/PlayerQueue";
+import CourtCard from "./components/dashboard/CourtCard";
+import StandingsTab from "./components/tabs/StandingsTab";
+import AttendanceTab from "./components/tabs/AttendanceTab";
+import HistoryTab from "./components/tabs/HistoryTab";
+import TierModal from "./components/modals/TierModal";
+import CourtTypeModal from "./components/modals/CourtTypeModal";
+import CourtSettingsModal from "./components/modals/CourtSettingsModal";
+import PlayerTierModal from "./components/modals/PlayerTierModal";
+import PlayerProfileModal from "./components/modals/PlayerProfileModal";
+import PreviewPlayerModal from "./components/modals/PreviewPlayerModal";
+
+export default function App() {
+
+  // ===== REFS =====
+  const inputRef = useRef(null);
+
+  // ===== UI STATE =====
+  const [name, setName] = useState("");
+  const [error, setError] = useState("");
+  const [activeTab, setActiveTab] = useState("dashboard");
+  const [, forceUpdate] = useState(0);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [showTierModal, setShowTierModal] = useState(false);
+  const [pendingPlayerName, setPendingPlayerName] = useState("");
+  const [showCourtTypeModal, setShowCourtTypeModal] = useState(false);
+  const [selectedCourtForEdit, setSelectedCourtForEdit] = useState(null);
+  const [selectedPlayerForEdit, setSelectedPlayerForEdit] = useState(null);
+  const [selectedPlayerProfile, setSelectedPlayerProfile] = useState(null);
+  const [selectedPreviewPlayer, setSelectedPreviewPlayer] = useState(null);
+  const [selectedPreviewCourt, setSelectedPreviewCourt] = useState(null);
+  const [activePlayer, setActivePlayer] = useState(null);
+  const [selectedCourt, setSelectedCourt] = useState({});
+
+  // ===== DATA STATE =====
+  const [players, setPlayers] = useState([]);
+  const [playersLoaded, setPlayersLoaded] = useState(false);
+  const [directory, setDirectory] = useState([]);
+  const [matches, setMatches] = useState([]);
+  const [standingsHistory, setStandingsHistory] = useState([]);
+  const [attendance, setAttendance] = useState([]);
+  const [courtPreviews, setCourtPreviews] = useState({});
+
+  const [courts, setCourts] = useState(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.COURTS);
+    return saved ? JSON.parse(saved) : DEFAULT_COURTS;
+  });
+
+  const [sessionId, setSessionId] = useState(() => {
+    return Number(localStorage.getItem(STORAGE_KEYS.SESSION) || 1);
+  });
+
+  // ===== EFFECTS =====
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.SESSION, sessionId);
+  }, [sessionId]);
+
+  useEffect(() => {
+    const timer = setInterval(() => forceUpdate((prev) => prev + 1), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    async function loadPlayers() {
+      const storedPlayers = await getPlayers();
+      setPlayers(storedPlayers);
+      setPlayersLoaded(true);
+    }
+    loadPlayers();
+  }, []);
+
+  useEffect(() => {
+    if (!playersLoaded) return;
+    async function persistPlayers() {
+      await savePlayers(players);
+    }
+    persistPlayers();
+  }, [players, playersLoaded]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.COURTS, JSON.stringify(courts));
+  }, [courts]);
+
+  useEffect(() => {
+    async function loadMatches() {
+      const savedMatches = await getMatches();
+      setMatches(savedMatches);
+    }
+    loadMatches();
+  }, []);
+
+  useEffect(() => {
+    async function loadHistory() {
+      const history = await getStandingsHistory();
+      setStandingsHistory(history);
+    }
+    loadHistory();
+  }, []);
+
+  useEffect(() => {
+    async function loadAttendance() {
+      const records = await getAttendance();
+      setAttendance(records);
+    }
+    loadAttendance();
+  }, []);
+
+  useEffect(() => {
+    async function loadDirectory() {
+      const players = await getDirectory();
+      setDirectory(players);
+    }
+    loadDirectory();
+  }, []);
+
+  // ===== DERIVED DATA =====
+
+  const sortedPlayers = sortPlayers(players);
+  const waitingPlayers = sortedPlayers;
+
+  const kingQueue = waitingPlayers.filter((p) => p.tier === "king");
+  const knightQueue = waitingPlayers.filter((p) => p.tier === "knight");
+  const squireQueue = waitingPlayers.filter((p) => p.tier === "squire");
+
+  const getQueueByCourtType = (courtType) => {
+    if (courtType === "king") return kingQueue;
+    if (courtType === "knight") return knightQueue;
+    if (courtType === "squire") return squireQueue;
+    return [];
+  };
+
+  const getTierCounts = () => ({
+    king: kingQueue.length,
+    knight: knightQueue.length,
+    squire: squireQueue.length,
+  });
+
+  const getEffectiveTier = (currentTier, nextTier) => {
+    if (currentTier === nextTier) return currentTier;
+    const counts = getTierCounts();
+    const limit = TIER_LIMITS[nextTier];
+    const currentCount = counts[nextTier] || 0;
+    if (currentCount >= limit) return currentTier;
+    return nextTier;
+  };
+
+  const activePlayers = courts.reduce((count, court) => count + court.players.length, 0);
+  const totalPlayers = players.length + activePlayers;
+  const totalGamesPlayed = matches.length;
+
+  const matchingPlayers =
+    name.trim().length > 0
+      ? directory
+          .filter((player) => {
+            const playerName = player.name.toLowerCase();
+            const searchName = name.toLowerCase();
+            return playerName.includes(searchName) && playerName !== searchName;
+          })
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .slice(0, 5)
+      : [];
+
+  const currentAttendance = attendance.filter((r) => r.sessionId === sessionId);
+
+  const attendanceMap = {};
+  currentAttendance.forEach((record) => {
+    if (!attendanceMap[record.playerId]) {
+      attendanceMap[record.playerId] = {
+        playerId: record.playerId,
+        playerName: record.playerName,
+        count: 0,
+      };
+    }
+    attendanceMap[record.playerId].count++;
+  });
+  const attendanceLeaders = Object.values(attendanceMap).sort((a, b) => b.count - a.count);
+
+  const totalSessions = Math.max(
+    new Set(attendance.map((r) => r.sessionId)).size,
+    1
+  );
+
+  const groupedAttendance = attendance.reduce((groups, record) => {
+    const key = record.sessionId;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(record);
+    return groups;
+  }, {});
+
+  const currentMatches = matches.filter((m) => m.sessionId === sessionId);
+
+  const groupedMatches = matches.reduce((groups, match) => {
+    const key = match.sessionId || 1;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(match);
+    return groups;
+  }, {});
+
+  const standings = directory
+    .filter((player) => (player.gamesPlayed || 0) > 0)
+    .sort((a, b) => {
+      const winRateA =
+        (a.wins || 0) + (a.losses || 0) > 0
+          ? (a.wins || 0) / ((a.wins || 0) + (a.losses || 0))
+          : 0;
+      const winRateB =
+        (b.wins || 0) + (b.losses || 0) > 0
+          ? (b.wins || 0) / ((b.wins || 0) + (b.losses || 0))
+          : 0;
+      if (winRateB !== winRateA) return winRateB - winRateA;
+      return (b.wins || 0) - (a.wins || 0);
+    });
+
+  const editingCourt = courts.find((c) => c.id === selectedCourtForEdit);
+
+  const hasActiveGames = () => courts.some((court) => court.players.length > 0);
+
+  // ===== HELPER FUNCTIONS =====
+
+  const getStandingRank = (standings, index) => {
+    let rank = 1;
+    for (let i = 1; i <= index; i++) {
+      const current = standings[i];
+      const previous = standings[i - 1];
+      const currentWinRate = current.gamesPlayed > 0 ? current.wins / current.gamesPlayed : 0;
+      const previousWinRate = previous.gamesPlayed > 0 ? previous.wins / previous.gamesPlayed : 0;
+      const tied =
+        currentWinRate === previousWinRate &&
+        current.wins === previous.wins &&
+        current.losses === previous.losses;
+      if (!tied) rank++;
+    }
+    return rank;
+  };
+
+  const getAttendanceCount = (playerId) =>
+    attendance.filter((r) => r.playerId === playerId).length;
+
+  const getPlayerNameById = (id) => {
+    const found = directory.find((p) => p.id === id);
+    return found ? found.name : "Unknown";
+  };
+
+  const getNextTier = (courtType, won) => {
+    if (courtType === "king") return won ? "king" : "knight";
+    if (courtType === "knight") return won ? "king" : "squire";
+    if (courtType === "squire") return won ? "knight" : "squire";
+    return "squire";
+  };
+
+  const recordPartners = (playerA, playerB) => {
+    playerA.partnerHistory = {
+      ...(playerA.partnerHistory || {}),
+      [playerB.id]: (playerA.partnerHistory?.[playerB.id] || 0) + 1,
+    };
+    playerB.partnerHistory = {
+      ...(playerB.partnerHistory || {}),
+      [playerA.id]: (playerB.partnerHistory?.[playerA.id] || 0) + 1,
+    };
+    playerA.lastPartnerId = playerB.id;
+    playerB.lastPartnerId = playerA.id;
+  };
+
+  const recordOpponents = (teamA, teamB) => {
+    teamA.forEach((a) => { a.lastOpponents = teamB.map((p) => p.id); });
+    teamB.forEach((b) => { b.lastOpponents = teamA.map((p) => p.id); });
+  };
+
+  const getSessionStats = (playerName) => {
+    const sessionMatches = matches.filter(
+      (m) =>
+        m.sessionId === sessionId &&
+        (m.teamA.includes(playerName) || m.teamB.includes(playerName))
+    );
+    const wins = sessionMatches.filter(
+      (m) =>
+        (m.winner === "A" && m.teamA.includes(playerName)) ||
+        (m.winner === "B" && m.teamB.includes(playerName))
+    ).length;
+    const losses = sessionMatches.length - wins;
+    return {
+      gamesPlayed: sessionMatches.length,
+      wins,
+      losses,
+      winRate:
+        sessionMatches.length > 0
+          ? Math.round((wins / sessionMatches.length) * 100)
+          : 0,
+    };
+  };
+
+  const getSessionSummary = (sessionMatches) => {
+    const playerStats = {};
+    sessionMatches.forEach((match) => {
+      [...match.teamA, ...match.teamB].forEach((player) => {
+        if (!playerStats[player]) playerStats[player] = { wins: 0, losses: 0 };
+        const won =
+          (match.winner === "A" && match.teamA.includes(player)) ||
+          (match.winner === "B" && match.teamB.includes(player));
+        if (won) playerStats[player].wins++;
+        else playerStats[player].losses++;
+      });
+    });
+
+    const durations = sessionMatches
+      .filter((m) => m.startedAt && m.endedAt)
+      .map((m) => (m.endedAt - m.startedAt) / 60000)
+      .filter((d) => d <= 120);
+
+    const avgDuration =
+      durations.length > 0
+        ? Math.max(1, Math.round(durations.reduce((a, b) => a + b, 0) / durations.length))
+        : 0;
+
+    const longestMatch =
+      durations.length > 0 ? Math.max(1, Math.round(Math.max(...durations))) : 0;
+
+    const leaderboard = Object.entries(playerStats)
+      .map(([name, stats]) => ({
+        name,
+        ...stats,
+        winRate:
+          stats.wins + stats.losses > 0
+            ? stats.wins / (stats.wins + stats.losses)
+            : 0,
+      }))
+      .sort((a, b) => {
+        if (b.winRate !== a.winRate) return b.winRate - a.winRate;
+        if (b.wins !== a.wins) return b.wins - a.wins;
+        return a.losses - b.losses;
+      });
+
+    const bestRecord = leaderboard[0];
+    const topRecordPlayers = leaderboard.filter(
+      (p) =>
+        p.winRate === bestRecord?.winRate &&
+        p.wins === bestRecord?.wins &&
+        p.losses === bestRecord?.losses
+    );
+
+    return {
+      players: Object.keys(playerStats).length,
+      matches: sessionMatches.length,
+      avgDuration,
+      longestMatch,
+      bestRecord,
+      topRecordPlayers,
+    };
+  };
+
+  const getAvailablePreviewPlayers = (court) => {
+    if (!court) return [];
+    const previewPlayers = courtPreviews[court.id] || [];
+    return getQueueByCourtType(court.type).filter(
+      (player) => !previewPlayers.some((pp) => pp.id === player.id)
+    );
+  };
+
+  // ===== PLAYER ACTIONS =====
+
+  function openTierSelection() {
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      setError("Please enter a player name.");
+      return;
+    }
+    setPendingPlayerName(trimmedName);
+    setShowTierModal(true);
+  }
+
+  const addPlayer = async (tier) => {
+    const trimmedName = pendingPlayerName.trim();
+    const tierCount = players.filter((p) => p.tier === tier).length;
+
+    if (tierCount >= TIER_LIMITS[tier]) {
+      setError(`${tier.toUpperCase()} queue reached its limit of ${TIER_LIMITS[tier]} players.`);
+      setShowTierModal(false);
+      return;
+    }
+    if (!trimmedName) { setError("Please enter a player name."); return; }
+    if (trimmedName.length < 2) { setError("Player name must be at least 2 characters."); return; }
+    if (trimmedName.length > 20) { setError("Player name cannot exceed 20 characters."); return; }
+
+    const validName = /^[a-zA-Z0-9\s]+$/;
+    if (!validName.test(trimmedName)) {
+      setError("Only letters, numbers and spaces are allowed.");
+      return;
+    }
+
+    const existsInQueue = players.some((p) => p.name.toLowerCase() === trimmedName.toLowerCase());
+    const existsInCourts = courts.some((court) =>
+      court.players.some((p) => p.name.toLowerCase() === trimmedName.toLowerCase())
+    );
+    if (existsInQueue || existsInCourts) {
+      setError(`"${trimmedName}" is already checked in.`);
+      return;
+    }
+
+    const existingDirectoryPlayer = directory.find(
+      (p) => p.name.toLowerCase() === trimmedName.toLowerCase()
+    );
+
+    let newPlayer;
+    if (existingDirectoryPlayer) {
+      newPlayer = {
+        ...existingDirectoryPlayer,
+        tier: existingDirectoryPlayer.tier || tier,
+        consecutiveGames: existingDirectoryPlayer.consecutiveGames ?? 0,
+        restedOnce: existingDirectoryPlayer.restedOnce ?? false,
+        lastPartnerId: existingDirectoryPlayer.lastPartnerId ?? null,
+        lastOpponents: existingDirectoryPlayer.lastOpponents ?? [],
+        partnerHistory: existingDirectoryPlayer.partnerHistory || {},
+        priority: existingDirectoryPlayer.priority ?? false,
+        noPriority: existingDirectoryPlayer.noPriority ?? false,
+        currentStreak: existingDirectoryPlayer.currentStreak ?? 0,
+        bestStreak: existingDirectoryPlayer.bestStreak ?? 0,
+        kingCourtEntries: existingDirectoryPlayer.kingCourtEntries ?? 0,
+        waitingSince: Date.now(),
+      };
+    } else {
+      newPlayer = {
+        id: crypto.randomUUID(),
+        name: trimmedName,
+        consecutiveGames: 0,
+        tier,
+        restedOnce: false,
+        lastPartnerId: null,
+        lastOpponents: [],
+        priority: false,
+        noPriority: false,
+        gamesPlayed: 0,
+        wins: 0,
+        losses: 0,
+        currentStreak: 0,
+        bestStreak: 0,
+        kingCourtEntries: 0,
+        partnerHistory: {},
+        queueGroup: "unmatched",
+        waitingSince: Date.now(),
+      };
+      await saveDirectoryPlayer(newPlayer);
+      setDirectory((prev) => [...prev, newPlayer]);
+    }
+
+    const alreadyAttended = attendance.some(
+      (r) => r.sessionId === sessionId && r.playerId === newPlayer.id
+    );
+    if (!alreadyAttended) {
+      const attendanceRecord = {
+        id: crypto.randomUUID(),
+        playerId: newPlayer.id,
+        playerName: newPlayer.name,
+        sessionId,
+        timestamp: Date.now(),
+      };
+      await saveAttendance(attendanceRecord);
+      setAttendance((prev) => [...prev, attendanceRecord]);
+    }
+
+    setPlayers((prev) => [...prev, newPlayer]);
+    setName("");
+    setError("");
+    setPendingPlayerName("");
+    setShowTierModal(false);
+    inputRef.current?.focus();
+  };
+
+  const removePlayer = (id) => {
+    const player = players.find((p) => p.id === id);
+    if (!player) return;
+    if (!window.confirm(`Remove ${player.name} from the waiting queue?`)) return;
+    setPlayers((prev) => prev.filter((p) => p.id !== id));
+  };
+
+  const handleTogglePriority = async (player) => {
+    const updatedPlayers = players.map((p) =>
+      p.id === player.id ? { ...p, priority: !p.priority } : p
+    );
+    setPlayers(updatedPlayers);
+    await saveDirectoryPlayer({ ...player, priority: !player.priority });
+  };
+
+  const handleToggleNoPriority = async (player) => {
+    const updatedPlayers = players.map((p) =>
+      p.id === player.id ? { ...p, noPriority: !p.noPriority } : p
+    );
+    setPlayers(updatedPlayers);
+    await saveDirectoryPlayer({ ...player, noPriority: !player.noPriority });
+  };
+
+  const handleDeleteDirectoryPlayer = async (e, player) => {
+    e.stopPropagation();
+    const confirmed = window.confirm(`Delete ${player.name} permanently?`);
+    if (!confirmed) return;
+
+    const isActive =
+      players.some((p) => p.id === player.id) ||
+      courts.some((court) => court.players.some((p) => p.id === player.id));
+    if (isActive) {
+      alert("Cannot delete a player currently in the queue or on a court.");
+      return;
+    }
+    await deleteDirectoryPlayer(player.id);
+    setDirectory((prev) => prev.filter((p) => p.id !== player.id));
+    if (name.toLowerCase() === player.name.toLowerCase()) setName("");
+  };
+
+  // ===== COURT ACTIONS =====
+
+  const addCourt = (courtType) => {
+    setCourts((prev) => {
+      const nextId = Math.max(...prev.map((c) => c.id), 0) + 1;
+      return [...prev, { id: nextId, type: courtType, players: [] }];
+    });
+    setShowCourtTypeModal(false);
+  };
+
+  const updateCourtType = (courtId, courtType) => {
+    const targetCourt = courts.find((c) => c.id === courtId);
+    if (!targetCourt) return;
+    if (targetCourt.players.length > 0) {
+      alert("Cannot change court type while players are on the court.");
+      return;
+    }
+    setCourts((prev) =>
+      prev.map((c) => (c.id === courtId ? { ...c, type: courtType } : c))
+    );
+    setSelectedCourtForEdit(null);
+  };
+
+  const updatePlayerTier = async (playerId, newTier) => {
+    const tierCounts = getTierCounts();
+    const currentPlayer = players.find((p) => p.id === playerId);
+    if (!currentPlayer) return;
+    if (currentPlayer.tier !== newTier && tierCounts[newTier] >= TIER_LIMITS[newTier]) {
+      alert(`${newTier.toUpperCase()} queue is already full (${TIER_LIMITS[newTier]}/${TIER_LIMITS[newTier]}).`);
+      return;
+    }
+    const updatedPlayers = players.map((p) =>
+      p.id === playerId ? { ...p, tier: newTier } : p
+    );
+    setPlayers(updatedPlayers);
+    const targetPlayer = updatedPlayers.find((p) => p.id === playerId);
+    if (targetPlayer) await saveDirectoryPlayer(targetPlayer);
+    setSelectedPlayerForEdit(null);
+  };
+
+  const removeCourtPlayer = (courtId, playerId) => {
+    const court = courts.find((c) => c.id === courtId);
+    if (!court) return;
+    const player = court.players.find((p) => p.id === playerId);
+    if (!player) return;
+    if (!window.confirm(`Remove ${player.name} from the court?`)) return;
+
+    setPlayers((prev) =>
+      sortPlayers([
+        ...prev,
+        {
+          ...player,
+          consecutiveGames: Math.max(0, (player.consecutiveGames || 0) - 1),
+          waitingSince: Date.now(),
+        },
+      ])
+    );
+    setCourts((prev) =>
+      prev.map((c) => {
+        if (c.id !== courtId) return c;
+        const updatedPlayers = c.players.filter((p) => p.id !== playerId);
+        return {
+          ...c,
+          players: updatedPlayers,
+          startedAt: updatedPlayers.length < 4 ? null : c.startedAt,
+        };
+      })
+    );
+  };
+
+  const addPlayerToCourt = (playerId, courtId) => {
+    const player = players.find((p) => p.id === playerId);
+    if (!player) return;
+    const court = courts.find((c) => c.id === Number(courtId));
+    if (!court) return;
+    if (court.type && player.tier !== court.type) {
+      alert(
+        `${player.name} belongs to the ${player.tier.toUpperCase()} queue and cannot be assigned to a ${court.type.toUpperCase()} court.`
+      );
+      return;
+    }
+    if (court.players.length >= 4) { alert("Court is already full."); return; }
+    if (!window.confirm(`Add ${player.name} to Court ${court.id}?`)) return;
+
+    setCourts((prev) =>
+      prev.map((c) => {
+        if (c.id !== Number(courtId)) return c;
+        const updatedPlayers = [...c.players, player];
+        return {
+          ...c,
+          players: updatedPlayers,
+          startedAt: updatedPlayers.length === 4 && !c.startedAt ? Date.now() : c.startedAt,
+        };
+      })
+    );
+    setPlayers((prev) => prev.filter((p) => p.id !== playerId));
+  };
+
+  const removeCourt = () => {
+    if (courts.length <= 1) return;
+    const lastCourt = courts[courts.length - 1];
+    if (lastCourt.players.length > 0) {
+      setPlayers((prev) =>
+        sortPlayers([
+          ...prev,
+          ...lastCourt.players.map((p) => ({ ...p, waitingSince: Date.now() })),
+        ])
+      );
+    }
+    setCourts((prev) => prev.slice(0, -1));
+  };
+
+  const deleteSpecificCourt = (courtId) => {
+    const targetCourt = courts.find((c) => c.id === courtId);
+    if (!targetCourt) return;
+    const confirmed = window.confirm(
+      `Delete ${targetCourt.type ? targetCourt.type.toUpperCase() : "COURT"} #${targetCourt.id}?`
+    );
+    if (!confirmed) return;
+    if (courts.length <= 1) { alert("At least one court must remain."); return; }
+    if (targetCourt.players.length > 0) {
+      const confirmed2 = window.confirm("Delete this court and return all players to the queue?");
+      if (!confirmed2) return;
+      setPlayers((prev) =>
+        sortPlayers([
+          ...prev,
+          ...targetCourt.players.map((p) => ({ ...p, waitingSince: Date.now() })),
+        ])
+      );
+    }
+    setCourts((prev) => prev.filter((c) => c.id !== courtId));
+    setSelectedCourtForEdit(null);
+  };
+
+  // ===== DRAG & DROP ACTIONS =====
+
+  const swapCourtPlayers = (sourcePlayerId, targetPlayerId) => {
+    setCourts((prevCourts) => {
+      const updatedCourts = JSON.parse(JSON.stringify(prevCourts));
+      let sourceLocation = null;
+      let targetLocation = null;
+
+      updatedCourts.forEach((court, courtIndex) => {
+        court.players.forEach((player, playerIndex) => {
+          if (player.id === sourcePlayerId) sourceLocation = { courtIndex, playerIndex };
+          if (player.id === targetPlayerId) targetLocation = { courtIndex, playerIndex };
+        });
+      });
+
+      if (!sourceLocation || !targetLocation) return prevCourts;
+
+      const sourceCourt = updatedCourts[sourceLocation.courtIndex];
+      const targetCourt = updatedCourts[targetLocation.courtIndex];
+      const sourcePlayer = sourceCourt.players[sourceLocation.playerIndex];
+      const targetPlayer = targetCourt.players[targetLocation.playerIndex];
+
+      if (sourceCourt.type !== targetCourt.type) {
+        alert(
+          `Cannot swap players between ${sourceCourt.type?.toUpperCase()} and ${targetCourt.type?.toUpperCase()} courts.`
+        );
+        return prevCourts;
+      }
+
+      updatedCourts[sourceLocation.courtIndex].players[sourceLocation.playerIndex] = targetPlayer;
+      updatedCourts[targetLocation.courtIndex].players[targetLocation.playerIndex] = sourcePlayer;
+      return updatedCourts;
+    });
+  };
+
+  const swapQueueAndCourtPlayer = (queuePlayerId, courtPlayerId) => {
+    const queuePlayer = players.find((p) => p.id === queuePlayerId);
+    if (!queuePlayer) return;
+    const courtPlayer = courts.flatMap((c) => c.players).find((p) => p.id === courtPlayerId);
+    if (!courtPlayer) return;
+
+    setCourts((prevCourts) =>
+      prevCourts.map((court) => ({
+        ...court,
+        players: court.players.map((p) => (p.id === courtPlayerId ? queuePlayer : p)),
+      }))
+    );
+    setPlayers((prev) =>
+      sortPlayers([
+        ...prev.filter((p) => p.id !== queuePlayerId),
+        {
+          ...courtPlayer,
+          consecutiveGames: Math.max(0, (courtPlayer.consecutiveGames || 0) - 1),
+          waitingSince: Date.now(),
+        },
+      ])
+    );
+  };
+
+  const moveCourtPlayerToQueue = (playerId) => {
+    let playerToMove = null;
+    setCourts((prev) =>
+      prev.map((court) => {
+        const found = court.players.find((p) => p.id === playerId);
+        if (found) playerToMove = found;
+        const updatedPlayers = court.players.filter((p) => p.id !== playerId);
+        return {
+          ...court,
+          players: updatedPlayers,
+          startedAt: updatedPlayers.length < 4 ? null : court.startedAt,
+        };
+      })
+    );
+    if (playerToMove) {
+      setPlayers((prev) =>
+        sortPlayers([
+          ...prev,
+          {
+            ...playerToMove,
+            consecutiveGames: Math.max(0, (playerToMove.consecutiveGames || 0) - 1),
+            waitingSince: Date.now(),
+          },
+        ])
+      );
+    }
+  };
+
+  const moveCourtPlayer = (playerId, targetCourtId) => {
+    const sourceCourt = courts.find((c) => c.players.some((p) => p.id === playerId));
+    const targetCourt = courts.find((c) => c.id === targetCourtId);
+    if (!targetCourt) return;
+
+    const playerToCheck = sourceCourt?.players.find((p) => p.id === playerId);
+    if (playerToCheck && targetCourt.type && playerToCheck.tier !== targetCourt.type) {
+      alert(`Cannot move ${playerToCheck.name} from ${playerToCheck.tier.toUpperCase()} to ${targetCourt.type.toUpperCase()} court.`);
+      return;
+    }
+    if (sourceCourt && sourceCourt.players.length === 4) {
+      alert("Cannot move players while a match is active.");
+      return;
+    }
+    if (sourceCourt && sourceCourt.id === targetCourtId) return;
+
+    let playerToMove = null;
+    setCourts((prev) => {
+      const updated = prev.map((court) => {
+        const found = court.players.find((p) => p.id === playerId);
+        if (found) playerToMove = found;
+        return { ...court, players: court.players.filter((p) => p.id !== playerId) };
+      });
+      return updated.map((court) => {
+        if (court.id !== targetCourtId) return court;
+        if (court.players.length >= 4) { alert("Court is full."); return court; }
+        const updatedPlayers = [...court.players, playerToMove];
+        return {
+          ...court,
+          players: updatedPlayers,
+          startedAt: updatedPlayers.length === 4 && !court.startedAt ? Date.now() : court.startedAt,
+        };
+      });
+    });
+  };
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (!over) return;
+    const dragData = active.data.current;
+    if (!dragData) return;
+
+    if (over.id === "waiting-queue" && dragData.source === "court") {
+      moveCourtPlayerToQueue(active.id.replace("court-player-", ""));
+      return;
+    }
+
+    const targetCourtId = Number(over.id.replace("court-", ""));
+
+    if (dragData.source === "queue") {
+      const playerId = active.id.replace("queue-player-", "");
+      if (over.id.startsWith("court-player-")) {
+        swapQueueAndCourtPlayer(playerId, over.id.replace("court-player-", ""));
+        return;
+      }
+      addPlayerToCourt(playerId, targetCourtId);
+      return;
+    }
+
+    if (dragData.source === "court") {
+      const playerId = active.id.replace("court-player-", "");
+      if (over.id.startsWith("court-player-")) {
+        const sourcePlayerId = active.id.replace("court-player-", "");
+        const targetPlayerId = over.id.replace("court-player-", "");
+        if (sourcePlayerId !== targetPlayerId) swapCourtPlayers(sourcePlayerId, targetPlayerId);
+        return;
+      }
+      moveCourtPlayer(playerId, targetCourtId);
+    }
+  };
+
+  // ===== PREVIEW ACTIONS =====
+
+  const generatePreviewForCourt = (court) => {
+    const courtQueue = getQueueByCourtType(court.type);
+    const selectedPlayers = buildRotationGroup(eligiblePlayers(courtQueue));
+    if (selectedPlayers.length < 4) return [];
+    return createBalancedTeams(selectedPlayers);
+  };
+
+  const handleGeneratePreview = (court) => {
+    const preview = generatePreviewForCourt(court);
+    setCourtPreviews((prev) => ({ ...prev, [court.id]: preview }));
+  };
+
+  const regeneratePreview = (court) => {
+    const currentPreview = courtPreviews[court.id];
+    if (!currentPreview || currentPreview.length !== 4) return;
+    const shuffled = shufflePlayers(currentPreview);
+    const preview = createBalancedTeams(shuffled);
+    setCourtPreviews((prev) => ({ ...prev, [court.id]: preview }));
+    setSelectedPreviewPlayer(null);
+  };
+
+  const swapPreviewPlayers = (courtId, firstPlayerId, secondPlayerId) => {
+    setCourtPreviews((prev) => {
+      const preview = [...(prev[courtId] || [])];
+      const firstIndex = preview.findIndex((p) => p.id === firstPlayerId);
+      const secondIndex = preview.findIndex((p) => p.id === secondPlayerId);
+      if (firstIndex === -1 || secondIndex === -1) return prev;
+      [preview[firstIndex], preview[secondIndex]] = [preview[secondIndex], preview[firstIndex]];
+      return { ...prev, [courtId]: preview };
+    });
+  };
+
+  const handlePreviewPlayerClick = (courtId, player) => {
+    if (!selectedPreviewPlayer) {
+      setSelectedPreviewPlayer({ courtId, playerId: player.id, playerName: player.name });
+      return;
+    }
+    if (selectedPreviewPlayer.playerId === player.id) {
+      setSelectedPreviewPlayer(null);
+      return;
+    }
+    if (selectedPreviewPlayer.courtId !== courtId) {
+      setSelectedPreviewPlayer(null);
+      return;
+    }
+    swapPreviewPlayers(courtId, selectedPreviewPlayer.playerId, player.id);
+    setSelectedPreviewPlayer(null);
+  };
+
+  const addPreviewPlayer = (courtId, player) => {
+    setCourtPreviews((prev) => ({
+      ...prev,
+      [courtId]: [...(prev[courtId] || []), player],
+    }));
+    setSelectedPreviewCourt(null);
+  };
+
+  const replacePreviewPlayer = (courtId, oldPlayerId, newPlayer) => {
+    setCourtPreviews((prev) => ({
+      ...prev,
+      [courtId]: (prev[courtId] || []).map((p) => (p.id === oldPlayerId ? newPlayer : p)),
+    }));
+    setSelectedPreviewPlayer(null);
+    setSelectedPreviewCourt(null);
+  };
+
+  const removePreviewPlayer = (courtId, playerId) => {
+    setCourtPreviews((prev) => ({
+      ...prev,
+      [courtId]: (prev[courtId] || []).filter((p) => p.id !== playerId),
+    }));
+    setSelectedPreviewPlayer(null);
+  };
+
+  const confirmPreview = (courtId) => {
+    const preview = courtPreviews[courtId];
+    if (!preview || preview.length !== 4) {
+      alert("Preview requires exactly 4 players.");
+      return;
+    }
+    const court = courts.find((c) => c.id === courtId);
+    if (court && court.players.length > 0) {
+      alert("Court already has an active match.");
+      return;
+    }
+    const previewIds = preview.map((p) => p.id);
+    setCourts((prev) =>
+      prev.map((c) =>
+        c.id === courtId
+          ? {
+              ...c,
+              players: preview.map((p) => ({
+                ...p,
+                consecutiveGames: (p.consecutiveGames || 0) + 1,
+              })),
+              startedAt: Date.now(),
+            }
+          : c
+      )
+    );
+    setPlayers((prev) => prev.filter((p) => !previewIds.includes(p.id)));
+    setCourtPreviews((prev) => {
+      const updated = { ...prev };
+      delete updated[courtId];
+      return updated;
+    });
+  };
+
+  // ===== GAME ACTIONS =====
+
+  const assignPlayersToAllCourts = () => {
+    const emptyCourts = courts.filter((c) => c.players.length === 0);
+    if (emptyCourts.length === 0) { alert("No empty court available."); return; }
+
+    const updatedCourts = courts.map((court) => {
+      if (court.players.length > 0) return court;
+      const courtQueue = getQueueByCourtType(court.type);
+      const selectedPlayers = buildRotationGroup(eligiblePlayers(courtQueue));
+      if (selectedPlayers.length < 4) return court;
+
+      const teams = createBalancedTeams(
+        selectedPlayers.map((p) => ({
+          ...p,
+          consecutiveGames: (p.consecutiveGames || 0) + 1,
+        }))
+      );
+      return { ...court, players: teams, startedAt: Date.now() };
+    });
+
+    setCourts(updatedCourts);
+
+    const selectedIds = updatedCourts.flatMap((c) => c.players || []).map((p) => p.id);
+    setPlayers(
+      resetRestedPlayers(
+        players.filter((p) => !selectedIds.includes(p.id)),
+        selectedIds
+      )
+    );
+  };
+
+  const startNextGame = () => {
+    assignPlayersToAllCourts();
+  };
+
+  const endGame = async (courtId, winningTeam) => {
+    const court = courts.find((c) => c.id === courtId);
+    if (!court) return;
+
+    const matchRecord = {
+      sessionId,
+      startedAt: court.startedAt,
+      endedAt: Date.now(),
+      sessionTimestamp: new Date().toISOString(),
+      date: Date.now(),
+      courtId,
+      teamA: court.players.slice(0, 2).map((p) => p.name),
+      teamB: court.players.slice(2, 4).map((p) => p.name),
+      winner: winningTeam,
+    };
+
+    const matchId = await saveMatch(matchRecord);
+    const savedMatch = { ...matchRecord, id: matchId };
+    setMatches((prev) => [savedMatch, ...prev]);
+
+    recordPartners(court.players[0], court.players[1]);
+    recordPartners(court.players[2], court.players[3]);
+    recordOpponents(court.players.slice(0, 2), court.players.slice(2, 4));
+
+    const returningPlayers = court.players.map((player, index) => {
+      const isTeamA = index < 2;
+      const won =
+        (winningTeam === "A" && isTeamA) || (winningTeam === "B" && !isTeamA);
+      const rawNextTier = getNextTier(court.type, won);
+      const nextTier = getEffectiveTier(player.tier, rawNextTier);
+      const currentStreak = won ? (player.currentStreak || 0) + 1 : 0;
+
+      return {
+        ...player,
+        tier: nextTier,
+        kingCourtEntries:
+          player.kingCourtEntries || 0 +
+          (nextTier === "king" && player.tier !== "king" ? 1 : 0),
+        consecutiveGames: player.consecutiveGames || 0,
+        priority: false,
+        noPriority: false,
+        gamesPlayed: player.gamesPlayed + 1,
+        wins: (player.wins || 0) + (won ? 1 : 0),
+        losses: (player.losses || 0) + (won ? 0 : 1),
+        currentStreak,
+        bestStreak: Math.max(player.bestStreak || 0, currentStreak),
+        queueGroup: "matched",
+        lastResult: won ? "win" : "loss",
+        waitingSince: Date.now(),
+      };
+    });
+
+    const updatedDirectory = directory.map((dp) => {
+      const updated = returningPlayers.find((p) => p.id === dp.id);
+      return updated ? updated : dp;
+    });
+
+    setDirectory(updatedDirectory);
+    await Promise.all(updatedDirectory.map((p) => saveDirectoryPlayer(p)));
+
+    setPlayers((prev) => sortPlayers([...prev, ...returningPlayers]));
+    setCourts((prev) =>
+      prev.map((c) => (c.id === courtId ? { ...c, players: [], startedAt: null } : c))
+    );
+  };
+
+  // ===== SESSION ACTIONS =====
+
+  const startNewSession = async () => {
+    if (hasActiveGames()) {
+      alert("Finish or clear all active games before starting a new session.");
+      return;
+    }
+    const confirmed = window.confirm(
+      `End Session ${sessionId} and start Session ${sessionId + 1}?`
+    );
+    if (!confirmed) return;
+
+    setPlayers([]);
+    setCourts(DEFAULT_COURTS);
+    setName("");
+    setError("");
+
+    const latestMatches = await getMatches();
+    const sessionMatches = latestMatches.filter((m) => m.sessionId === sessionId);
+    const historyRecord = {
+      id: crypto.randomUUID(),
+      sessionId,
+      timestamp: Date.now(),
+      matchCount: sessionMatches.length,
+      standings: standings.map((p) => ({
+        playerId: p.id,
+        playerName: p.name,
+        gamesPlayed: p.gamesPlayed,
+        wins: p.wins,
+        losses: p.losses,
+        currentStreak: p.currentStreak || 0,
+        bestStreak: p.bestStreak || 0,
+      })),
+    };
+    await saveStandingsHistory(historyRecord);
+    setStandingsHistory((prev) => [...prev, historyRecord]);
+
+    const resetDirectory = directory.map((p) => ({
+      ...p,
+      gamesPlayed: 0,
+      wins: 0,
+      losses: 0,
+      currentStreak: 0,
+      bestStreak: 0,
+      queueGroup: "unmatched",
+    }));
+    await Promise.all(resetDirectory.map((p) => saveDirectoryPlayer(p)));
+    setDirectory(resetDirectory);
+    setSessionId((prev) => prev + 1);
+    alert(`Session ${sessionId + 1} started.`);
+  };
+
+  const resetSession = () => {
+    if (hasActiveGames()) {
+      alert("Finish or clear all active games before resetting the session.");
+      return;
+    }
+    const confirmed = window.confirm(`Reset Session ${sessionId}?`);
+    if (!confirmed) return;
+    setPlayers([]);
+    setCourts(DEFAULT_COURTS);
+    setName("");
+    setError("");
+    alert(`Session ${sessionId} has been reset.`);
+  };
+
+  const deleteSession = async (sessionToDelete) => {
+    const confirmed = window.confirm(`Delete Session ${sessionToDelete}?`);
+    if (!confirmed) return;
+    await deleteMatchesBySession(sessionToDelete);
+    await deleteAttendanceBySession(sessionToDelete);
+    setMatches((prev) => prev.filter((m) => m.sessionId !== sessionToDelete));
+    setAttendance((prev) => prev.filter((r) => r.sessionId !== sessionToDelete));
+  };
+
+  const editMatchWinner = async (matchId, newWinner) => {
+    const confirmed = window.confirm(`Change winner to Team ${newWinner}?`);
+    if (!confirmed) return;
+    const updatedMatches = matches.map((m) =>
+      m.id === matchId ? { ...m, winner: newWinner } : m
+    );
+    const targetMatch = updatedMatches.find((m) => m.id === matchId);
+    if (!targetMatch) { alert("Match not found."); return; }
+    await updateMatch(targetMatch);
+    setMatches(updatedMatches);
+    await recalculateStandings(updatedMatches);
+    alert("Match updated and standings recalculated.");
+  };
+
+  const clearHistory = async () => {
+    const confirmed = window.confirm("Delete ALL match history?");
+    if (!confirmed) return;
+    await clearAllMatches();
+    setMatches([]);
+    alert("All match history cleared.");
+  };
+
+  const clearAttendanceRecords = async () => {
+    const confirmed = window.confirm("Reset all attendance records?");
+    if (!confirmed) return;
+    await clearAttendance();
+    setAttendance([]);
+    alert("Attendance records cleared.");
+  };
+
+  const clearStandings = async () => {
+    const confirmed = window.confirm("Reset ALL player statistics?");
+    if (!confirmed) return;
+    await clearStandingsHistory();
+    setStandingsHistory([]);
+    const resetPlayers = directory.map((p) => ({
+      ...p,
+      gamesPlayed: 0,
+      wins: 0,
+      losses: 0,
+      currentStreak: 0,
+      bestStreak: 0,
+      queueGroup: "unmatched",
+    }));
+    await Promise.all(resetPlayers.map((p) => saveDirectoryPlayer(p)));
+    setDirectory(resetPlayers);
+    setPlayers((prev) =>
+      prev.map((p) => ({
+        ...p,
+        gamesPlayed: 0,
+        wins: 0,
+        losses: 0,
+        currentStreak: 0,
+        bestStreak: 0,
+        queueGroup: "unmatched",
+      }))
+    );
+    setCourts((prev) =>
+      prev.map((court) => ({
+        ...court,
+        players: court.players.map((p) => ({
+          ...p,
+          gamesPlayed: 0,
+          wins: 0,
+          losses: 0,
+          currentStreak: 0,
+          bestStreak: 0,
+          queueGroup: "unmatched",
+        })),
+      }))
+    );
+    alert("All standings have been reset.");
+  };
+
+  const factoryReset = async () => {
+    const confirmed = window.confirm(
+      "WARNING: This will permanently delete ALL data including saved players. Continue?"
+    );
+    if (!confirmed) return;
+    await clearAllMatches();
+    await clearAttendance();
+    await clearStandingsHistory();
+    for (const player of directory) {
+      await deleteDirectoryPlayer(player.id);
+    }
+    setMatches([]);
+    setAttendance([]);
+    setDirectory([]);
+    setStandingsHistory([]);
+    setPlayers([]);
+    setExpandedAttendance && setExpandedAttendance(null);
+    localStorage.removeItem(STORAGE_KEYS.COURTS);
+    setCourts(DEFAULT_COURTS);
+    setSessionId(1);
+    localStorage.setItem(STORAGE_KEYS.SESSION, "1");
+    alert("Factory Reset completed.");
+  };
+
+  const recalculateStandings = async (updatedMatches) => {
+    const playerStats = {};
+    directory.forEach((p) => {
+      playerStats[p.id] = {
+        ...p,
+        gamesPlayed: 0,
+        wins: 0,
+        losses: 0,
+        currentStreak: 0,
+        bestStreak: 0,
+        queueGroup: "unmatched",
+      };
+    });
+    updatedMatches.forEach((match) => {
+      const winningPlayers = match.winner === "A" ? match.teamA : match.teamB;
+      const losingPlayers = match.winner === "A" ? match.teamB : match.teamA;
+      directory.forEach((p) => {
+        if (winningPlayers.includes(p.name)) {
+          playerStats[p.id].gamesPlayed++;
+          playerStats[p.id].wins++;
+        } else if (losingPlayers.includes(p.name)) {
+          playerStats[p.id].gamesPlayed++;
+          playerStats[p.id].losses++;
+        }
+      });
+    });
+    const updatedDirectory = Object.values(playerStats);
+    await Promise.all(updatedDirectory.map((p) => saveDirectoryPlayer(p)));
+    setDirectory(updatedDirectory);
+    setPlayers((prev) =>
+      prev.map((p) => {
+        const updated = updatedDirectory.find((d) => d.id === p.id);
+        return updated
+          ? { ...p, gamesPlayed: updated.gamesPlayed, wins: updated.wins, losses: updated.losses }
+          : p;
+      })
+    );
+  };
+
+  // ===== RENDER =====
+
+  return (
+    <div
+      className="
+        min-h-screen
+        bg-gradient-to-br
+        from-slate-100
+        via-blue-50
+        to-purple-50
+        p-3
+        md:p-6
+      "
+    >
+      <div className="max-w-7xl mx-auto w-full">
+
+        {/* Header */}
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl p-6 mb-6 shadow-lg">
+          <h1 className="text-4xl font-bold">🏓 PickleStack</h1>
+        </div>
+
+        <div className="text-center mb-6">
+          <div className="text-lg font-semibold text-blue-600">
+            🏷️ Session {sessionId}
+          </div>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6">
+          {["dashboard", "standings", "attendance", "history"].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`
+                h-11
+                rounded-lg
+                font-medium
+                transition-all
+                shadow-sm
+                hover:shadow-md
+                ${
+                  activeTab === tab
+                    ? "bg-blue-600 text-white"
+                    : "bg-white border border-slate-200 hover:bg-slate-50"
+                }
+              `}
+            >
+              {tab === "dashboard" && "🏠 Dashboard"}
+              {tab === "standings" && "🏆 Standings"}
+              {tab === "attendance" && "👥 Attendance"}
+              {tab === "history" && "📜Match History"}
+            </button>
+          ))}
+        </div>
+
+        {/* Dashboard Tab */}
+        {activeTab === "dashboard" && (
+          <>
+            <SessionControls
+              name={name}
+              setName={setName}
+              error={error}
+              sessionId={sessionId}
+              players={players}
+              courts={courts}
+              directory={directory}
+              matchingPlayers={matchingPlayers}
+              highlightedIndex={highlightedIndex}
+              setHighlightedIndex={setHighlightedIndex}
+              activePlayers={activePlayers}
+              totalPlayers={totalPlayers}
+              totalGamesPlayed={totalGamesPlayed}
+              inputRef={inputRef}
+              onOpenTierSelection={openTierSelection}
+              onStartNextGame={startNextGame}
+              onShowCourtTypeModal={() => setShowCourtTypeModal(true)}
+              onRemoveCourt={removeCourt}
+              onStartNewSession={startNewSession}
+              onResetSession={resetSession}
+              onFactoryReset={factoryReset}
+              onDeleteDirectoryPlayer={handleDeleteDirectoryPlayer}
+            />
+
+            <DndContext
+              onDragStart={(event) => setActivePlayer(event.active.data.current?.player)}
+              onDragEnd={(event) => { handleDragEnd(event); setActivePlayer(null); }}
+              onDragCancel={() => setActivePlayer(null)}
+            >
+              <div className="space-y-6">
+                <div>
+                  <PlayerQueue
+                    kingQueue={kingQueue}
+                    knightQueue={knightQueue}
+                    squireQueue={squireQueue}
+                    courts={courts}
+                    selectedCourt={selectedCourt}
+                    setSelectedCourt={setSelectedCourt}
+                    onAddToCourt={addPlayerToCourt}
+                    onRemovePlayer={removePlayer}
+                    onTogglePriority={handleTogglePriority}
+                    onToggleNoPriority={handleToggleNoPriority}
+                    onEditTier={(playerId) => setSelectedPlayerForEdit(playerId)}
+                    onViewProfile={(player) => setSelectedPlayerProfile(player)}
+                  />
+                </div>
+
+                <div className="my-6">
+                  <hr className="border-slate-300" />
+                  <div className="text-center font-bold text-xl text-slate-700 my-4">
+                    🏓 Active Courts
+                  </div>
+                  <hr className="border-slate-300" />
+                </div>
+
+                <div>
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                    {courts.map((court) => (
+                      <CourtCard
+                        key={court.id}
+                        court={court}
+                        courtPreviews={courtPreviews}
+                        selectedPreviewPlayer={selectedPreviewPlayer}
+                        onEndGame={endGame}
+                        onRemoveCourtPlayer={removeCourtPlayer}
+                        onSetCourtForEdit={setSelectedCourtForEdit}
+                        onGeneratePreview={handleGeneratePreview}
+                        onRegeneratePreview={regeneratePreview}
+                        onConfirmPreview={confirmPreview}
+                        onPreviewPlayerClick={handlePreviewPlayerClick}
+                        onRemovePreviewPlayer={removePreviewPlayer}
+                        onSetSelectedPreviewCourt={setSelectedPreviewCourt}
+                        onSetSelectedPreviewPlayer={setSelectedPreviewPlayer}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <DragOverlay>
+                {activePlayer ? (
+                  <div
+                    className="
+                      w-12 h-12 rounded-full bg-blue-500 text-white
+                      flex items-center justify-center font-bold
+                      shadow-xl border-2 border-white
+                    "
+                    style={{ zIndex: 999999 }}
+                  >
+                    {activePlayer.name.charAt(0).toUpperCase()}
+                  </div>
+                ) : null}
+              </DragOverlay>
+            </DndContext>
+          </>
+        )}
+
+        {/* Standings Tab */}
+        {activeTab === "standings" && (
+          <StandingsTab
+            standings={standings}
+            standingsHistory={standingsHistory}
+            sessionId={sessionId}
+            getSessionStats={getSessionStats}
+            getStandingRank={getStandingRank}
+            getAttendanceCount={getAttendanceCount}
+            onClearStandings={clearStandings}
+          />
+        )}
+
+        {/* Attendance Tab */}
+        {activeTab === "attendance" && (
+          <AttendanceTab
+            attendance={attendance}
+            attendanceLeaders={attendanceLeaders}
+            currentAttendance={currentAttendance}
+            groupedAttendance={groupedAttendance}
+            groupedMatches={groupedMatches}
+            sessionId={sessionId}
+            totalSessions={totalSessions}
+            getSessionSummary={getSessionSummary}
+            onClearAttendance={clearAttendanceRecords}
+          />
+        )}
+
+        {/* History Tab */}
+        {activeTab === "history" && (
+          <HistoryTab
+            matches={matches}
+            groupedMatches={groupedMatches}
+            getSessionSummary={getSessionSummary}
+            onEditMatchWinner={editMatchWinner}
+            onDeleteSession={deleteSession}
+            onClearHistory={clearHistory}
+          />
+        )}
+
+      </div>
+
+      {/* Modals */}
+
+      {showTierModal && (
+        <TierModal
+          pendingPlayerName={pendingPlayerName}
+          onSelect={addPlayer}
+          onCancel={() => setShowTierModal(false)}
+        />
+      )}
+
+      {showCourtTypeModal && (
+        <CourtTypeModal
+          onSelect={addCourt}
+          onCancel={() => setShowCourtTypeModal(false)}
+        />
+      )}
+
+      {selectedCourtForEdit && (
+        <CourtSettingsModal
+          editingCourt={editingCourt}
+          selectedCourtForEdit={selectedCourtForEdit}
+          onUpdateType={updateCourtType}
+          onDeleteCourt={deleteSpecificCourt}
+          onCancel={() => setSelectedCourtForEdit(null)}
+        />
+      )}
+
+      {selectedPlayerForEdit && (
+        <PlayerTierModal
+          selectedPlayerForEdit={selectedPlayerForEdit}
+          onUpdateTier={updatePlayerTier}
+          onCancel={() => setSelectedPlayerForEdit(null)}
+        />
+      )}
+
+      {selectedPlayerProfile && (
+        <PlayerProfileModal
+          player={selectedPlayerProfile}
+          getAttendanceCount={getAttendanceCount}
+          getPlayerNameById={getPlayerNameById}
+          onClose={() => setSelectedPlayerProfile(null)}
+        />
+      )}
+
+      {selectedPreviewCourt && (
+        <PreviewPlayerModal
+          selectedPreviewCourt={selectedPreviewCourt}
+          selectedPreviewPlayer={selectedPreviewPlayer}
+          courts={courts}
+          courtPreviews={courtPreviews}
+          getAvailablePreviewPlayers={getAvailablePreviewPlayers}
+          addPreviewPlayer={addPreviewPlayer}
+          replacePreviewPlayer={replacePreviewPlayer}
+          onCancel={() => setSelectedPreviewCourt(null)}
+        />
+      )}
+
+    </div>
+  );
+}
