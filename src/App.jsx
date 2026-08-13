@@ -7,7 +7,7 @@ import { saveMatch, getMatches, updateMatch, deleteMatchesBySession, clearAllMat
 import { getAttendance, saveAttendance, clearAttendance, deleteAttendanceBySession } from "./db/attendanceService";
 import { getStandingsHistory, saveStandingsHistory, clearStandingsHistory } from "./db/standingsHistoryService";
 
-import { DEFAULT_COURTS, STORAGE_KEYS, TIER_LIMITS } from "./constants";
+import { DEFAULT_COURTS, STORAGE_KEYS, TIER_LIMITS, EXTENDED_TIER_LIMITS, EXTENDED_TIER_TRANSITIONS, SESSION_MODES, OPEN_COURT_TYPES } from "./constants";
 import { sortPlayers, shufflePlayers } from "./utils/playerUtils";
 import {
   buildRotationGroup,
@@ -18,6 +18,7 @@ import {
 
 import SessionControls from "./components/dashboard/SessionControls";
 import PlayerQueue from "./components/dashboard/PlayerQueue";
+import OpenPlayerQueue from "./components/dashboard/OpenPlayerQueue";
 import CourtCard from "./components/dashboard/CourtCard";
 import StandingsTab from "./components/tabs/StandingsTab";
 import AttendanceTab from "./components/tabs/AttendanceTab";
@@ -28,6 +29,9 @@ import CourtSettingsModal from "./components/modals/CourtSettingsModal";
 import PlayerTierModal from "./components/modals/PlayerTierModal";
 import PlayerProfileModal from "./components/modals/PlayerProfileModal";
 import PreviewPlayerModal from "./components/modals/PreviewPlayerModal";
+import SessionModeModal from "./components/modals/SessionModeModal";
+import EditPlayerNameModal from "./components/modals/EditPlayerNameModal";
+import TierAssignmentPreviewModal from "./components/modals/TierAssignmentPreviewModal";
 
 export default function App() {
 
@@ -50,6 +54,90 @@ export default function App() {
   const [selectedPreviewCourt, setSelectedPreviewCourt] = useState(null);
   const [activePlayer, setActivePlayer] = useState(null);
   const [selectedCourt, setSelectedCourt] = useState({});
+  const [editingPlayer, setEditingPlayer] = useState(null);
+  const [tierAssignmentPreview, setTierAssignmentPreview] = useState(null);
+  // { assignments: [{player, tier}], targetMode: "ladder" | "extended_ladder" }
+
+  // ===== SESSION MODE =====
+  // null means "not yet chosen for this session" — triggers the mode picker modal
+  const [sessionMode, setSessionMode] = useState(() => {
+    return localStorage.getItem(STORAGE_KEYS.SESSION_MODE) || null;
+  });
+
+  const handleSelectSessionMode = (mode) => {
+    // If switching to a ladder mode and there are players in the queue,
+    // build a tier assignment preview first
+    if (
+      (mode === SESSION_MODES.LADDER || mode === SESSION_MODES.EXTENDED_LADDER) &&
+      players.length > 0
+    ) {
+      const assignments = buildTierAssignment(players, mode);
+      setTierAssignmentPreview({ assignments, targetMode: mode });
+      return;
+    }
+
+    // Open Mode or no players in queue — switch directly
+    setSessionMode(mode);
+    localStorage.setItem(STORAGE_KEYS.SESSION_MODE, mode);
+  };
+
+  // ===== TIER AUTO-ASSIGNMENT =====
+  // Ranks queue players by win rate (then wins as tiebreaker),
+  // fills tier slots top-down, remaining players go to Squire.
+  const buildTierAssignment = (queuePlayers, targetMode) => {
+    const sorted = [...queuePlayers].sort((a, b) => {
+      const wrA = a.gamesPlayed > 0 ? a.wins / a.gamesPlayed : 0;
+      const wrB = b.gamesPlayed > 0 ? b.wins / b.gamesPlayed : 0;
+      if (wrB !== wrA) return wrB - wrA;
+      return (b.wins || 0) - (a.wins || 0);
+    });
+
+    const slots = targetMode === SESSION_MODES.EXTENDED_LADDER
+      ? [
+          { tier: "king",    limit: 8  },
+          { tier: "general", limit: 10 },
+          { tier: "knight",  limit: 10 },
+          { tier: "squire",  limit: 8  },
+        ]
+      : [
+          { tier: "king",   limit: 8  },
+          { tier: "knight", limit: 10 },
+          { tier: "squire", limit: 10 },
+        ];
+
+    const assignments = [];
+    let playerIndex = 0;
+
+    for (const { tier, limit } of slots) {
+      let filled = 0;
+      while (filled < limit && playerIndex < sorted.length) {
+        assignments.push({ player: sorted[playerIndex], tier });
+        playerIndex++;
+        filled++;
+      }
+      if (playerIndex >= sorted.length) break;
+    }
+
+    // Any remaining players beyond the defined slots → Squire
+    while (playerIndex < sorted.length) {
+      assignments.push({ player: sorted[playerIndex], tier: "squire" });
+      playerIndex++;
+    }
+
+    return assignments;
+  };
+
+  const applyTierAssignment = (assignments, targetMode) => {
+    const updatedPlayers = players.map((player) => {
+      const assignment = assignments.find((a) => a.player.id === player.id);
+      return assignment ? { ...player, tier: assignment.tier } : player;
+    });
+
+    setPlayers(updatedPlayers);
+    setSessionMode(targetMode);
+    localStorage.setItem(STORAGE_KEYS.SESSION_MODE, targetMode);
+    setTierAssignmentPreview(null);
+  };
 
   // ===== DATA STATE =====
   const [players, setPlayers] = useState([]);
@@ -142,23 +230,55 @@ export default function App() {
   const knightQueue = waitingPlayers.filter((p) => p.tier === "knight");
   const squireQueue = waitingPlayers.filter((p) => p.tier === "squire");
 
+  // Open Mode queues — split by last result regardless of tier
+  const winnerQueue = waitingPlayers.filter((p) => p.lastResult === "win");
+  const loserQueue  = waitingPlayers.filter((p) => p.lastResult === "loss");
+  const newQueue    = waitingPlayers.filter((p) => !p.lastResult);
+
+  const isOpenMode     = sessionMode === SESSION_MODES.OPEN;
+  const isExtendedMode = sessionMode === SESSION_MODES.EXTENDED_LADDER;
+  const isLadderMode   = sessionMode === SESSION_MODES.LADDER;
+
+  // Extended Ladder queues (4-tier)
+  const generalQueue = waitingPlayers.filter((p) => p.tier === "general");
+
   const getQueueByCourtType = (courtType) => {
-    if (courtType === "king") return kingQueue;
-    if (courtType === "knight") return knightQueue;
-    if (courtType === "squire") return squireQueue;
+    // Open Mode court types
+    if (courtType === OPEN_COURT_TYPES.WINNER) return winnerQueue;
+    if (courtType === OPEN_COURT_TYPES.LOSER)  return loserQueue;
+    if (courtType === OPEN_COURT_TYPES.ANY)    return waitingPlayers;
+    // Ladder + Extended Ladder court types
+    if (courtType === "king")    return kingQueue;
+    if (courtType === "general") return generalQueue;
+    if (courtType === "knight")  return knightQueue;
+    if (courtType === "squire")  return squireQueue;
     return [];
   };
 
-  const getTierCounts = () => ({
-    king: kingQueue.length,
-    knight: knightQueue.length,
-    squire: squireQueue.length,
-  });
+  const getTierCounts = () => {
+    if (isExtendedMode) {
+      return {
+        king:    kingQueue.length,
+        general: generalQueue.length,
+        knight:  knightQueue.length,
+        squire:  squireQueue.length,
+      };
+    }
+    return {
+      king:   kingQueue.length,
+      knight: knightQueue.length,
+      squire: squireQueue.length,
+    };
+  };
+
+  const getActiveTierLimits = () => isExtendedMode ? EXTENDED_TIER_LIMITS : TIER_LIMITS;
 
   const getEffectiveTier = (currentTier, nextTier) => {
     if (currentTier === nextTier) return currentTier;
     const counts = getTierCounts();
-    const limit = TIER_LIMITS[nextTier];
+    const limits = getActiveTierLimits();
+    const limit = limits[nextTier];
+    if (!limit) return currentTier;
     const currentCount = counts[nextTier] || 0;
     if (currentCount >= limit) return currentTier;
     return nextTier;
@@ -262,8 +382,15 @@ export default function App() {
   };
 
   const getNextTier = (courtType, won) => {
-    if (courtType === "king") return won ? "king" : "knight";
-    if (courtType === "knight") return won ? "king" : "squire";
+    // Extended Ladder uses the transition table
+    if (isExtendedMode && EXTENDED_TIER_TRANSITIONS[courtType]) {
+      return won
+        ? EXTENDED_TIER_TRANSITIONS[courtType].win
+        : EXTENDED_TIER_TRANSITIONS[courtType].loss;
+    }
+    // Ladder Mode (3-tier)
+    if (courtType === "king")   return won ? "king"   : "knight";
+    if (courtType === "knight") return won ? "king"   : "squire";
     if (courtType === "squire") return won ? "knight" : "squire";
     return "squire";
   };
@@ -371,7 +498,11 @@ export default function App() {
   const getAvailablePreviewPlayers = (court) => {
     if (!court) return [];
     const previewPlayers = courtPreviews[court.id] || [];
-    return getQueueByCourtType(court.type).filter(
+
+    // Use the same pool that generatePreviewForCourt uses
+    const courtQueue = getQueueByCourtType(court.type);
+
+    return courtQueue.filter(
       (player) => !previewPlayers.some((pp) => pp.id === player.id)
     );
   };
@@ -384,18 +515,30 @@ export default function App() {
       setError("Please enter a player name.");
       return;
     }
+
+    // In Open Mode skip tier selection — add directly with a neutral tier
+    if (isOpenMode) {
+      setPendingPlayerName(trimmedName);
+      addPlayer("squire", trimmedName);
+      return;
+    }
+
     setPendingPlayerName(trimmedName);
     setShowTierModal(true);
   }
 
-  const addPlayer = async (tier) => {
-    const trimmedName = pendingPlayerName.trim();
-    const tierCount = players.filter((p) => p.tier === tier).length;
+  const addPlayer = async (tier, overrideName) => {
+    const trimmedName = (overrideName ?? pendingPlayerName).trim();
 
-    if (tierCount >= TIER_LIMITS[tier]) {
-      setError(`${tier.toUpperCase()} queue reached its limit of ${TIER_LIMITS[tier]} players.`);
-      setShowTierModal(false);
-      return;
+    // Tier limit only enforced in Ladder/Extended Ladder Mode
+    if (!isOpenMode) {
+      const limits = getActiveTierLimits();
+      const tierCount = players.filter((p) => p.tier === tier).length;
+      if (tierCount >= (limits[tier] || Infinity)) {
+        setError(`${tier.toUpperCase()} queue reached its limit of ${limits[tier]} players.`);
+        setShowTierModal(false);
+        return;
+      }
     }
     if (!trimmedName) { setError("Please enter a player name."); return; }
     if (trimmedName.length < 2) { setError("Player name must be at least 2 characters."); return; }
@@ -525,6 +668,59 @@ export default function App() {
     if (name.toLowerCase() === player.name.toLowerCase()) setName("");
   };
 
+  const handleEditPlayerName = async (player, newName) => {
+    const oldName = player.name;
+
+    // Update the queue
+    setPlayers((prev) =>
+      prev.map((p) => p.id === player.id ? { ...p, name: newName } : p)
+    );
+
+    // Update players on courts
+    setCourts((prev) =>
+      prev.map((court) => ({
+        ...court,
+        players: court.players.map((p) =>
+          p.id === player.id ? { ...p, name: newName } : p
+        ),
+      }))
+    );
+
+    // Update the directory in state + IndexedDB
+    const updatedDirectoryPlayer = { ...player, name: newName };
+    setDirectory((prev) =>
+      prev.map((p) => p.id === player.id ? updatedDirectoryPlayer : p)
+    );
+    await saveDirectoryPlayer(updatedDirectoryPlayer);
+
+    // Update match history — replace old name string in teamA/teamB arrays
+    const updatedMatches = matches.map((match) => ({
+      ...match,
+      teamA: match.teamA.map((n) => n === oldName ? newName : n),
+      teamB: match.teamB.map((n) => n === oldName ? newName : n),
+    }));
+    setMatches(updatedMatches);
+    // Persist each changed match
+    await Promise.all(
+      updatedMatches
+        .filter((m, i) => {
+          const orig = matches[i];
+          return (
+            m.teamA.join() !== orig.teamA.join() ||
+            m.teamB.join() !== orig.teamB.join()
+          );
+        })
+        .map((m) => updateMatch(m))
+    );
+
+    // Update attendance records in state (localStorage persistence handled separately)
+    setAttendance((prev) =>
+      prev.map((r) => r.playerId === player.id ? { ...r, playerName: newName } : r)
+    );
+
+    setEditingPlayer(null);
+  };
+
   // ===== COURT ACTIONS =====
 
   const addCourt = (courtType) => {
@@ -550,10 +746,11 @@ export default function App() {
 
   const updatePlayerTier = async (playerId, newTier) => {
     const tierCounts = getTierCounts();
+    const limits = getActiveTierLimits();
     const currentPlayer = players.find((p) => p.id === playerId);
     if (!currentPlayer) return;
-    if (currentPlayer.tier !== newTier && tierCounts[newTier] >= TIER_LIMITS[newTier]) {
-      alert(`${newTier.toUpperCase()} queue is already full (${TIER_LIMITS[newTier]}/${TIER_LIMITS[newTier]}).`);
+    if (currentPlayer.tier !== newTier && tierCounts[newTier] >= (limits[newTier] || Infinity)) {
+      alert(`${newTier.toUpperCase()} queue is already full (${limits[newTier]}/${limits[newTier]}).`);
       return;
     }
     const updatedPlayers = players.map((p) =>
@@ -600,11 +797,25 @@ export default function App() {
     if (!player) return;
     const court = courts.find((c) => c.id === Number(courtId));
     if (!court) return;
-    if (court.type && player.tier !== court.type) {
+
+    // In Ladder Mode enforce tier matching; in Open Mode enforce result matching
+    if (!isOpenMode && court.type && player.tier !== court.type) {
       alert(
         `${player.name} belongs to the ${player.tier.toUpperCase()} queue and cannot be assigned to a ${court.type.toUpperCase()} court.`
       );
       return;
+    }
+
+    if (isOpenMode && court.type !== "any") {
+      const playerResult = player.lastResult; // "win", "loss", or null
+      if (court.type === "winner" && playerResult !== "win") {
+        alert(`${player.name} is not a winner yet. Only winners can be assigned to a Winner Court.`);
+        return;
+      }
+      if (court.type === "loser" && playerResult !== "loss") {
+        alert(`${player.name} has not lost a game yet. Only losers can be assigned to a Loser Court.`);
+        return;
+      }
     }
     if (court.players.length >= 4) { alert("Court is already full."); return; }
     if (!window.confirm(`Add ${player.name} to Court ${court.id}?`)) return;
@@ -699,6 +910,24 @@ export default function App() {
     if (!queuePlayer) return;
     const courtPlayer = courts.flatMap((c) => c.players).find((p) => p.id === courtPlayerId);
     if (!courtPlayer) return;
+
+    // Find which court the court player is on
+    const targetCourt = courts.find((c) =>
+      c.players.some((p) => p.id === courtPlayerId)
+    );
+
+    // Enforce Open Mode court type restriction on the incoming queue player
+    if (isOpenMode && targetCourt && targetCourt.type !== "any") {
+      const playerResult = queuePlayer.lastResult;
+      if (targetCourt.type === "winner" && playerResult !== "win") {
+        alert(`${queuePlayer.name} is not a winner yet. Only winners can be placed on a Winner Court.`);
+        return;
+      }
+      if (targetCourt.type === "loser" && playerResult !== "loss") {
+        alert(`${queuePlayer.name} has not lost a game yet. Only losers can be placed on a Loser Court.`);
+        return;
+      }
+    }
 
     setCourts((prevCourts) =>
       prevCourts.map((court) => ({
@@ -821,7 +1050,12 @@ export default function App() {
 
   const generatePreviewForCourt = (court) => {
     const courtQueue = getQueueByCourtType(court.type);
-    const selectedPlayers = buildRotationGroup(eligiblePlayers(courtQueue));
+
+    // Try eligible players first; fall back to full pool if fewer than 4
+    const eligible = eligiblePlayers(courtQueue);
+    const pool = eligible.length >= 4 ? eligible : courtQueue;
+
+    const selectedPlayers = buildRotationGroup(pool);
     if (selectedPlayers.length < 4) return [];
     return createBalancedTeams(selectedPlayers);
   };
@@ -933,6 +1167,50 @@ export default function App() {
     const emptyCourts = courts.filter((c) => c.players.length === 0);
     if (emptyCourts.length === 0) { alert("No empty court available."); return; }
 
+    if (isOpenMode) {
+      // Open Mode: each court pulls from its matching result pool
+      // "winner" court → winners first, fall back to new players
+      // "loser"  court → losers first, fall back to new players
+      // "any"    court → all waiting players
+      let usedIds = new Set();
+
+      const updatedCourts = courts.map((court) => {
+        if (court.players.length > 0) return court;
+
+        let pool;
+        if (court.type === OPEN_COURT_TYPES.WINNER) {
+          // Only actual winners — no fallback
+          pool = winnerQueue.filter((p) => !usedIds.has(p.id));
+        } else if (court.type === OPEN_COURT_TYPES.LOSER) {
+          // Only actual losers — no fallback
+          pool = loserQueue.filter((p) => !usedIds.has(p.id));
+        } else {
+          // "any" or unset — take anyone
+          pool = waitingPlayers.filter((p) => !usedIds.has(p.id));
+        }
+
+        const selected = buildRotationGroup(eligiblePlayers(pool));
+        if (selected.length < 4) return court;
+
+        const teams = createBalancedTeams(
+          selected.map((p) => ({ ...p, consecutiveGames: (p.consecutiveGames || 0) + 1 }))
+        );
+        teams.forEach((p) => usedIds.add(p.id));
+        return { ...court, players: teams, startedAt: Date.now() };
+      });
+
+      setCourts(updatedCourts);
+      const selectedIds = [...usedIds];
+      setPlayers(
+        resetRestedPlayers(
+          players.filter((p) => !selectedIds.includes(p.id)),
+          selectedIds
+        )
+      );
+      return;
+    }
+
+    // Ladder Mode — original logic unchanged
     const updatedCourts = courts.map((court) => {
       if (court.players.length > 0) return court;
       const courtQueue = getQueueByCourtType(court.type);
@@ -991,9 +1269,29 @@ export default function App() {
       const isTeamA = index < 2;
       const won =
         (winningTeam === "A" && isTeamA) || (winningTeam === "B" && !isTeamA);
+      const currentStreak = won ? (player.currentStreak || 0) + 1 : 0;
+
+      if (isOpenMode) {
+        // Open Mode: no tier changes, just update stats and lastResult
+        return {
+          ...player,
+          consecutiveGames: player.consecutiveGames || 0,
+          priority: false,
+          noPriority: false,
+          gamesPlayed: player.gamesPlayed + 1,
+          wins: (player.wins || 0) + (won ? 1 : 0),
+          losses: (player.losses || 0) + (won ? 0 : 1),
+          currentStreak,
+          bestStreak: Math.max(player.bestStreak || 0, currentStreak),
+          queueGroup: won ? "winner" : "loser",
+          lastResult: won ? "win" : "loss",
+          waitingSince: Date.now(),
+        };
+      }
+
+      // Ladder Mode: tier promotions/demotions unchanged
       const rawNextTier = getNextTier(court.type, won);
       const nextTier = getEffectiveTier(player.tier, rawNextTier);
-      const currentStreak = won ? (player.currentStreak || 0) + 1 : 0;
 
       return {
         ...player,
@@ -1078,6 +1376,9 @@ export default function App() {
     await Promise.all(resetDirectory.map((p) => saveDirectoryPlayer(p)));
     setDirectory(resetDirectory);
     setSessionId((prev) => prev + 1);
+    // Reset mode so the picker shows at the start of the next session
+    setSessionMode(null);
+    localStorage.removeItem(STORAGE_KEYS.SESSION_MODE);
     alert(`Session ${sessionId + 1} started.`);
   };
 
@@ -1183,22 +1484,31 @@ export default function App() {
       "WARNING: This will permanently delete ALL data including saved players. Continue?"
     );
     if (!confirmed) return;
+
     await clearAllMatches();
     await clearAttendance();
     await clearStandingsHistory();
+
     for (const player of directory) {
       await deleteDirectoryPlayer(player.id);
     }
+
     setMatches([]);
     setAttendance([]);
     setDirectory([]);
     setStandingsHistory([]);
     setPlayers([]);
-    setExpandedAttendance && setExpandedAttendance(null);
+    setCourtPreviews({});
+
     localStorage.removeItem(STORAGE_KEYS.COURTS);
+    localStorage.removeItem(STORAGE_KEYS.SESSION_MODE);
+
     setCourts(DEFAULT_COURTS);
     setSessionId(1);
+    setSessionMode(null);
+
     localStorage.setItem(STORAGE_KEYS.SESSION, "1");
+
     alert("Factory Reset completed.");
   };
 
@@ -1260,6 +1570,31 @@ export default function App() {
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl p-6 mb-6 shadow-lg">
           <h1 className="text-4xl font-bold">🏓 PickleStack</h1>
+          {sessionMode && (
+            <div className="mt-2 inline-flex items-center gap-2">
+              <span className={`
+                px-3 py-1 rounded-full text-sm font-semibold
+                ${sessionMode === SESSION_MODES.LADDER
+                  ? "bg-yellow-400 text-yellow-900"
+                  : sessionMode === SESSION_MODES.EXTENDED_LADDER
+                  ? "bg-purple-400 text-purple-900"
+                  : "bg-blue-300 text-blue-900"}
+              `}>
+                {sessionMode === SESSION_MODES.LADDER          && "👑 Ladder Mode"}
+                {sessionMode === SESSION_MODES.EXTENDED_LADDER && "🏅 Extended Ladder"}
+                {sessionMode === SESSION_MODES.OPEN            && "🏓 Open Mode"}
+              </span>
+              <button
+                onClick={() => {
+                  setSessionMode(null);
+                  localStorage.removeItem(STORAGE_KEYS.SESSION_MODE);
+                }}
+                className="text-xs underline text-white/70 hover:text-white"
+              >
+                Switch Mode
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="text-center mb-6">
@@ -1331,20 +1666,40 @@ export default function App() {
             >
               <div className="space-y-6">
                 <div>
-                  <PlayerQueue
-                    kingQueue={kingQueue}
-                    knightQueue={knightQueue}
-                    squireQueue={squireQueue}
-                    courts={courts}
-                    selectedCourt={selectedCourt}
-                    setSelectedCourt={setSelectedCourt}
-                    onAddToCourt={addPlayerToCourt}
-                    onRemovePlayer={removePlayer}
-                    onTogglePriority={handleTogglePriority}
-                    onToggleNoPriority={handleToggleNoPriority}
-                    onEditTier={(playerId) => setSelectedPlayerForEdit(playerId)}
-                    onViewProfile={(player) => setSelectedPlayerProfile(player)}
-                  />
+                  {isOpenMode ? (
+                    <OpenPlayerQueue
+                      winnerQueue={winnerQueue}
+                      loserQueue={loserQueue}
+                      newQueue={newQueue}
+                      courts={courts}
+                      selectedCourt={selectedCourt}
+                      setSelectedCourt={setSelectedCourt}
+                      onAddToCourt={addPlayerToCourt}
+                      onRemovePlayer={removePlayer}
+                      onTogglePriority={handleTogglePriority}
+                      onToggleNoPriority={handleToggleNoPriority}
+                      onViewProfile={(player) => setSelectedPlayerProfile(player)}
+                      onEditName={(player) => setEditingPlayer(player)}
+                    />
+                  ) : (
+                    <PlayerQueue
+                      kingQueue={kingQueue}
+                      knightQueue={knightQueue}
+                      squireQueue={squireQueue}
+                      generalQueue={generalQueue}
+                      isExtendedMode={isExtendedMode}
+                      courts={courts}
+                      selectedCourt={selectedCourt}
+                      setSelectedCourt={setSelectedCourt}
+                      onAddToCourt={addPlayerToCourt}
+                      onRemovePlayer={removePlayer}
+                      onTogglePriority={handleTogglePriority}
+                      onToggleNoPriority={handleToggleNoPriority}
+                      onEditTier={(playerId) => setSelectedPlayerForEdit(playerId)}
+                      onViewProfile={(player) => setSelectedPlayerProfile(player)}
+                      onEditName={(player) => setEditingPlayer(player)}
+                    />
+                  )}
                 </div>
 
                 <div className="my-6">
@@ -1441,9 +1796,41 @@ export default function App() {
 
       {/* Modals */}
 
+      {/* Session Mode Picker — shown when no mode is selected */}
+      {!sessionMode && (
+        <SessionModeModal
+          sessionId={sessionId}
+          onSelect={handleSelectSessionMode}
+        />
+      )}
+
+      {/* Tier Assignment Preview — shown when switching to a ladder mode */}
+      {tierAssignmentPreview && (
+        <TierAssignmentPreviewModal
+          assignments={tierAssignmentPreview.assignments}
+          targetMode={tierAssignmentPreview.targetMode}
+          onConfirm={() =>
+            applyTierAssignment(
+              tierAssignmentPreview.assignments,
+              tierAssignmentPreview.targetMode
+            )
+          }
+          onCancel={() => setTierAssignmentPreview(null)}
+        />
+      )}
+
+      {editingPlayer && (
+        <EditPlayerNameModal
+          player={editingPlayer}
+          onSave={handleEditPlayerName}
+          onCancel={() => setEditingPlayer(null)}
+        />
+      )}
+
       {showTierModal && (
         <TierModal
           pendingPlayerName={pendingPlayerName}
+          isExtendedMode={isExtendedMode}
           onSelect={addPlayer}
           onCancel={() => setShowTierModal(false)}
         />
@@ -1451,6 +1838,7 @@ export default function App() {
 
       {showCourtTypeModal && (
         <CourtTypeModal
+          sessionMode={sessionMode}
           onSelect={addCourt}
           onCancel={() => setShowCourtTypeModal(false)}
         />
@@ -1460,6 +1848,7 @@ export default function App() {
         <CourtSettingsModal
           editingCourt={editingCourt}
           selectedCourtForEdit={selectedCourtForEdit}
+          sessionMode={sessionMode}
           onUpdateType={updateCourtType}
           onDeleteCourt={deleteSpecificCourt}
           onCancel={() => setSelectedCourtForEdit(null)}
@@ -1469,6 +1858,7 @@ export default function App() {
       {selectedPlayerForEdit && (
         <PlayerTierModal
           selectedPlayerForEdit={selectedPlayerForEdit}
+          isExtendedMode={isExtendedMode}
           onUpdateTier={updatePlayerTier}
           onCancel={() => setSelectedPlayerForEdit(null)}
         />

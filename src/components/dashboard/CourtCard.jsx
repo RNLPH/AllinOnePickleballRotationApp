@@ -3,6 +3,17 @@ import DroppableCourtPlayer from "../dnd/DroppableCourtPlayer";
 import DraggableCourtPlayer from "../dnd/DraggableCourtPlayer";
 import { getCourtDuration, getCourtMinutes } from "../../utils/playerUtils";
 
+function getCourtLabel(type) {
+  if (type === "king")    return "👑 King's Court";
+  if (type === "general") return "🎖️ General Court";
+  if (type === "knight")  return "⚔️ Knight Court";
+  if (type === "squire")  return "🛡️ Squire Court";
+  if (type === "winner")  return "🏆 Winner Court";
+  if (type === "loser")   return "🔄 Loser Court";
+  if (type === "any")     return "🏓 Open Court";
+  return "📌 Court";
+}
+
 export default function CourtCard({
   court,
   courtPreviews,
@@ -50,10 +61,7 @@ export default function CourtCard({
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-2xl font-bold text-blue-700">
-                {court.type === "king" && "👑 King's Court"}
-                {court.type === "knight" && "⚔️ Knight Court"}
-                {court.type === "squire" && "🛡️ Squire Court"}
-                {!court.type && "📌 Court"}
+                {getCourtLabel(court.type)}
                 {" "}#{court.id}
               </h2>
 
