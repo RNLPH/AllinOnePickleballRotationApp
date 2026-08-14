@@ -1,12 +1,10 @@
 import { useDraggable } from "@dnd-kit/core";
+import PlayerAvatar from "../ui/PlayerAvatar";
 
 export default function DraggablePlayer({ player }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id: `queue-player-${player.id}`,
-    data: {
-      player,
-      source: "queue",
-    },
+    data: { player, source: "queue" },
   });
 
   const style = {
@@ -23,22 +21,9 @@ export default function DraggablePlayer({ player }) {
       style={style}
       {...listeners}
       {...attributes}
-      className="
-        w-10
-        h-10
-        rounded-full
-        bg-blue-500
-        text-white
-        flex
-        items-center
-        justify-center
-        font-bold
-        cursor-grab
-        hover:scale-105
-        transition-all
-      "
+      className="cursor-grab hover:scale-105 transition-all"
     >
-      {player.name.charAt(0).toUpperCase()}
+      <PlayerAvatar player={player} size="w-10 h-10" />
     </div>
   );
 }

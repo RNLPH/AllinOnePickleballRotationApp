@@ -1,12 +1,10 @@
 import { useDraggable } from "@dnd-kit/core";
+import PlayerAvatar from "../ui/PlayerAvatar";
 
 export default function DraggableCourtPlayer({ player, color = "blue" }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id: `court-player-${player.id}`,
-    data: {
-      player,
-      source: "court",
-    },
+    data: { player, source: "court" },
   });
 
   const style = {
@@ -21,44 +19,13 @@ export default function DraggableCourtPlayer({ player, color = "blue" }) {
       style={style}
       {...listeners}
       {...attributes}
-      className="
-        flex
-        flex-col
-        items-center
-        justify-center
-        text-center
-        cursor-grab
-        w-full
-        py-1
-      "
+      className="flex flex-col items-center justify-center text-center cursor-grab w-full py-1"
     >
-      <div
-        className={`
-          w-7
-          h-7
-          rounded-full
-          flex
-          items-center
-          justify-center
-          text-white
-          text-xs
-          font-bold
-          ${color === "purple" ? "bg-purple-500" : "bg-blue-500"}
-        `}
-      >
-        {player.name.charAt(0).toUpperCase()}
-      </div>
+      <PlayerAvatar player={player} size="w-7 h-7" color={color} textSize="text-xs" />
 
       <div className="mt-1">
         <span
-          className="
-            block
-            text-xs
-            font-semibold
-            text-center
-            capitalize
-            break-words
-          "
+          className="block text-xs font-semibold text-center capitalize break-words"
           title={player.name}
         >
           {player.name}

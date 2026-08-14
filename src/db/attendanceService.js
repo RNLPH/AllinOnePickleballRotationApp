@@ -1,46 +1,38 @@
-
-const STORAGE_KEY = "picklestack_attendance";
+import { supabase } from "./supabase";
 
 export async function getAttendance() {
-  return JSON.parse(
-    localStorage.getItem(STORAGE_KEY) || "[]"
-  );
+  const { data, error } = await supabase
+    .from("attendance")
+    .select("*");
+  if (error) { console.error("getAttendance:", error); return []; }
+  return data.map((row) => ({ id: row.id, playerId: row.player_id, sessionId: row.session_id, ...row.data }));
 }
 
-export async function saveAttendance(
-  attendanceRecord
-) {
-  const attendance =
-    await getAttendance();
-
-  attendance.push(attendanceRecord);
-
-  localStorage.setItem(
-    STORAGE_KEY,
-    JSON.stringify(attendance)
-  );
+export async function saveAttendance(record) {
+  const { id, playerId, sessionId, ...rest } = record;
+  const { error } = await supabase
+    .from("attendance")
+    .upsert({
+      id,
+      player_id:  playerId,
+      session_id: sessionId,
+      data:       record,
+    });
+  if (error) console.error("saveAttendance:", error);
 }
 
 export async function clearAttendance() {
-  localStorage.removeItem(
-    STORAGE_KEY
-  );
+  const { error } = await supabase
+    .from("attendance")
+    .delete()
+    .neq("id", "___never___");
+  if (error) console.error("clearAttendance:", error);
 }
 
-export async function deleteAttendanceBySession(
-  sessionId
-) {
-  const attendance =
-    await getAttendance();
-
-  const filtered =
-    attendance.filter(
-      (record) =>
-        record.sessionId !== sessionId
-    );
-
-  localStorage.setItem(
-    "attendance",
-    JSON.stringify(filtered)
-  );
+export async function deleteAttendanceBySession(sessionId) {
+  const { error } = await supabase
+    .from("attendance")
+    .delete()
+    .eq("session_id", sessionId);
+  if (error) console.error("deleteAttendanceBySession:", error);
 }

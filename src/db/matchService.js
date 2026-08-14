@@ -1,35 +1,53 @@
-import { db } from "./database";
+import { supabase } from "./supabase";
 
 export async function saveMatch(match) {
-  return await db.matches.add(match);
+  const { session_id, date, ...rest } = match;
+  const row = {
+    session_id: match.sessionId,
+    date:       match.date,
+    data:       match,
+  };
+
+  const { data, error } = await supabase
+    .from("matches")
+    .insert(row)
+    .select("id")
+    .single();
+
+  if (error) { console.error("saveMatch:", error); return null; }
+  return data.id;
 }
 
 export async function getMatches() {
-  return await db.matches.toArray();
-}
+  const { data, error } = await supabase
+    .from("matches")
+    .select("*")
+    .order("id", { ascending: false });
 
-export async function deleteMatchesBySession(
-  sessionId
-) {
-  const matches =
-    await db.matches.toArray();
-
-  const sessionMatches =
-    matches.filter(
-      (match) =>
-        (match.sessionId || 1) ===
-        sessionId
-    );
-
-  for (const match of sessionMatches) {
-    await db.matches.delete(match.id);
-  }
-}
-
-export async function clearAllMatches() {
-  await db.matches.clear();
+  if (error) { console.error("getMatches:", error); return []; }
+  return data.map((row) => ({ ...row.data, id: row.id }));
 }
 
 export async function updateMatch(match) {
-  return await db.matches.put(match);
+  const { error } = await supabase
+    .from("matches")
+    .update({ data: match })
+    .eq("id", match.id);
+  if (error) console.error("updateMatch:", error);
+}
+
+export async function deleteMatchesBySession(sessionId) {
+  const { error } = await supabase
+    .from("matches")
+    .delete()
+    .eq("session_id", sessionId);
+  if (error) console.error("deleteMatchesBySession:", error);
+}
+
+export async function clearAllMatches() {
+  const { error } = await supabase
+    .from("matches")
+    .delete()
+    .neq("id", -1);
+  if (error) console.error("clearAllMatches:", error);
 }

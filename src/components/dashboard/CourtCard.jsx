@@ -18,6 +18,7 @@ export default function CourtCard({
   court,
   courtPreviews,
   selectedPreviewPlayer,
+  partnerWarning,
   onEndGame,
   onRemoveCourtPlayer,
   onSetCourtForEdit,
@@ -110,22 +111,34 @@ export default function CourtCard({
 
         {/* Timer */}
         {court.startedAt && (
-          <div
-            className={`
-              mb-3
-              font-bold
-              text-lg
-              ${
-                getCourtMinutes(court.startedAt) >= 20
-                  ? "text-red-600 animate-pulse"
-                  : getCourtMinutes(court.startedAt) >= 15
-                  ? "text-yellow-600"
-                  : "text-green-600"
-              }
-            `}
-          >
-            ⏱ {getCourtDuration(court.startedAt)}
-          </div>
+          <>
+            <div
+              className={`
+                mb-2
+                font-bold
+                text-lg
+                ${
+                  getCourtMinutes(court.startedAt) >= 20
+                    ? "text-red-600 animate-pulse"
+                    : getCourtMinutes(court.startedAt) >= 15
+                    ? "text-yellow-600"
+                    : "text-green-600"
+                }
+              `}
+            >
+              ⏱ {getCourtDuration(court.startedAt)}
+            </div>
+
+            {/* Partner repeat warning */}
+            {partnerWarning && (partnerWarning.teamA > 0 || partnerWarning.teamB > 0) && (
+              <div className="mb-3 px-3 py-2 bg-amber-50 border border-amber-300 rounded-lg text-xs text-amber-700 font-semibold">
+                ⚠️ Repeat partners detected —{" "}
+                {partnerWarning.teamA > 0 && `Team A have played together ${partnerWarning.teamA}× before`}
+                {partnerWarning.teamA > 0 && partnerWarning.teamB > 0 && " · "}
+                {partnerWarning.teamB > 0 && `Team B have played together ${partnerWarning.teamB}× before`}
+              </div>
+            )}
+          </>
         )}
 
         {/* Players */}
@@ -337,6 +350,16 @@ export default function CourtCard({
             {/* Team A Preview */}
             <div className="text-sm">
               🔵 Team A
+              {(() => {
+                const count = preview[0] && preview[1]
+                  ? (preview[0].partnerHistory?.[preview[1].id] || 0)
+                  : 0;
+                return count > 0 ? (
+                  <span className="ml-2 text-xs text-amber-600 font-semibold">
+                    ⚠️ Partnered {count}×
+                  </span>
+                ) : null;
+              })()}
               <br />
               {preview.slice(0, 2).map((player) => (
                 <div
@@ -375,6 +398,16 @@ export default function CourtCard({
             {/* Team B Preview */}
             <div className="text-sm mt-2">
               🟣 Team B
+              {(() => {
+                const count = preview[2] && preview[3]
+                  ? (preview[2].partnerHistory?.[preview[3].id] || 0)
+                  : 0;
+                return count > 0 ? (
+                  <span className="ml-2 text-xs text-amber-600 font-semibold">
+                    ⚠️ Partnered {count}×
+                  </span>
+                ) : null;
+              })()}
               {preview.slice(2, 4).map((player) => (
                 <div
                   key={player.id}

@@ -1,11 +1,3 @@
-import Dexie from "dexie";
-
-export const db = new Dexie(
-  "PickleStackDB"
-);
-
-db.version(3).stores({
-  players: "id,name",
-  directory: "id,name",
-  matches: "++id,date,sessionId",
-});
+// Database layer is now handled by Supabase.
+// This file is kept as a placeholder so any stray imports don't break.
+// See src/db/supabase.js for the client.

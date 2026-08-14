@@ -1,6 +1,36 @@
 import { useState } from "react";
 import { exportStandings } from "../../utils/csvUtils";
 
+function buildShareText(standings, standingsHistory, sessionId, getStandingRank) {
+  const date = new Date().toLocaleDateString("en-US", {
+    month: "short", day: "numeric", year: "numeric",
+  });
+
+  const lines = [
+    `🏓 PickleStack — Session ${sessionId} Standings`,
+    `📅 ${date}`,
+    ``,
+    `🏆 STANDINGS`,
+    `─────────────────────────`,
+  ];
+
+  standings.forEach((player, index) => {
+    const rank = getStandingRank(standings, index);
+    const medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : `#${rank}`;
+    const wr = player.gamesPlayed > 0
+      ? Math.round((player.wins / player.gamesPlayed) * 100)
+      : 0;
+    lines.push(
+      `${medal} ${player.name}  ${player.wins}W-${player.losses}L  ${wr}%`
+    );
+  });
+
+  lines.push(``);
+  lines.push(`Total matches: ${standings.reduce((s, p) => s + p.gamesPlayed, 0) / 2 | 0}`);
+
+  return lines.join("\n");
+}
+
 export default function StandingsTab({
   standings,
   standingsHistory,
@@ -11,6 +41,15 @@ export default function StandingsTab({
   onClearStandings,
 }) {
   const [expandedStandings, setExpandedStandings] = useState(null);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyResults = () => {
+    const text = buildShareText(standings, standingsHistory, sessionId, getStandingRank);
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    });
+  };
 
   return (
     <div className="bg-white rounded-xl shadow p-4 mb-6">
@@ -23,6 +62,15 @@ export default function StandingsTab({
             className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-sm"
           >
             📤 Export CSV
+          </button>
+
+          <button
+            onClick={handleCopyResults}
+            className={`px-3 py-2 rounded text-sm text-white transition-all ${
+              copied ? "bg-emerald-500" : "bg-sky-500 hover:bg-sky-600"
+            }`}
+          >
+            {copied ? "✅ Copied!" : "📋 Copy Results"}
           </button>
 
           <button

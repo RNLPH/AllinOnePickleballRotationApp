@@ -56,7 +56,8 @@ export default function App() {
   const [selectedCourt, setSelectedCourt] = useState({});
   const [editingPlayer, setEditingPlayer] = useState(null);
   const [tierAssignmentPreview, setTierAssignmentPreview] = useState(null);
-  // { assignments: [{player, tier}], targetMode: "ladder" | "extended_ladder" }
+  const [partnerWarnings, setPartnerWarnings] = useState({});
+  // { [courtId]: { teamA: count, teamB: count } }
 
   // ===== SESSION MODE =====
   // null means "not yet chosen for this session" — triggers the mode picker modal
@@ -721,6 +722,34 @@ export default function App() {
     setEditingPlayer(null);
   };
 
+  const handleSaveAvatar = async (player, base64OrNull) => {
+    const updated = { ...player, photoUrl: base64OrNull };
+
+    // Update directory
+    setDirectory((prev) =>
+      prev.map((p) => p.id === player.id ? updated : p)
+    );
+    await saveDirectoryPlayer(updated);
+
+    // Update queue if player is waiting
+    setPlayers((prev) =>
+      prev.map((p) => p.id === player.id ? { ...p, photoUrl: base64OrNull } : p)
+    );
+
+    // Update courts if player is on a court
+    setCourts((prev) =>
+      prev.map((court) => ({
+        ...court,
+        players: court.players.map((p) =>
+          p.id === player.id ? { ...p, photoUrl: base64OrNull } : p
+        ),
+      }))
+    );
+
+    // Keep the profile modal in sync
+    setSelectedPlayerProfile(updated);
+  };
+
   // ===== COURT ACTIONS =====
 
   const addCourt = (courtType) => {
@@ -1207,6 +1236,17 @@ export default function App() {
           selectedIds
         )
       );
+
+      // Check for repeat partners in newly assigned courts
+      const warnings = {};
+      updatedCourts.forEach((court) => {
+        if (court.players.length === 4) {
+          const teamA = court.players[0].partnerHistory?.[court.players[1].id] || 0;
+          const teamB = court.players[2].partnerHistory?.[court.players[3].id] || 0;
+          if (teamA > 0 || teamB > 0) warnings[court.id] = { teamA, teamB };
+        }
+      });
+      setPartnerWarnings(warnings);
       return;
     }
 
@@ -1235,6 +1275,17 @@ export default function App() {
         selectedIds
       )
     );
+
+    // Check for repeat partners in newly assigned courts
+    const warnings = {};
+    updatedCourts.forEach((court) => {
+      if (court.players.length === 4) {
+        const teamA = court.players[0].partnerHistory?.[court.players[1].id] || 0;
+        const teamB = court.players[2].partnerHistory?.[court.players[3].id] || 0;
+        if (teamA > 0 || teamB > 0) warnings[court.id] = { teamA, teamB };
+      }
+    });
+    setPartnerWarnings(warnings);
   };
 
   const startNextGame = () => {
@@ -1325,6 +1376,13 @@ export default function App() {
     setCourts((prev) =>
       prev.map((c) => (c.id === courtId ? { ...c, players: [], startedAt: null } : c))
     );
+
+    // Clear warning for this court once game ends
+    setPartnerWarnings((prev) => {
+      const updated = { ...prev };
+      delete updated[courtId];
+      return updated;
+    });
   };
 
   // ===== SESSION ACTIONS =====
@@ -1718,6 +1776,7 @@ export default function App() {
                         court={court}
                         courtPreviews={courtPreviews}
                         selectedPreviewPlayer={selectedPreviewPlayer}
+                        partnerWarning={partnerWarnings[court.id] || null}
                         onEndGame={endGame}
                         onRemoveCourtPlayer={removeCourtPlayer}
                         onSetCourtForEdit={setSelectedCourtForEdit}
@@ -1869,6 +1928,7 @@ export default function App() {
           player={selectedPlayerProfile}
           getAttendanceCount={getAttendanceCount}
           getPlayerNameById={getPlayerNameById}
+          onSaveAvatar={handleSaveAvatar}
           onClose={() => setSelectedPlayerProfile(null)}
         />
       )}
