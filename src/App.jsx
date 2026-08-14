@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { DndContext, DragOverlay } from "@dnd-kit/core";
 
+import { supabase } from "./db/supabase";
 import { getDirectory, saveDirectoryPlayer, deleteDirectoryPlayer } from "./db/directoryService";
 import { getPlayers, savePlayers } from "./db/playerService";
 import { saveMatch, getMatches, updateMatch, deleteMatchesBySession, clearAllMatches } from "./db/matchService";
 import { getAttendance, saveAttendance, clearAttendance, deleteAttendanceBySession } from "./db/attendanceService";
 import { getStandingsHistory, saveStandingsHistory, clearStandingsHistory } from "./db/standingsHistoryService";
+
+import AuthScreen from "./components/auth/AuthScreen";
+import ClubSetupScreen from "./components/auth/ClubSetupScreen";
 
 import { DEFAULT_COURTS, STORAGE_KEYS, TIER_LIMITS, EXTENDED_TIER_LIMITS, EXTENDED_TIER_TRANSITIONS, SESSION_MODES, OPEN_COURT_TYPES, getDefaultCourts } from "./constants";
 import { sortPlayers, shufflePlayers } from "./utils/playerUtils";
@@ -33,7 +37,72 @@ import SessionModeModal from "./components/modals/SessionModeModal";
 import EditPlayerNameModal from "./components/modals/EditPlayerNameModal";
 import TierAssignmentPreviewModal from "./components/modals/TierAssignmentPreviewModal";
 
+// ===== AUTH WRAPPER =====
+// Handles auth state ONLY. Renders the main App or auth screens.
+// This keeps all hooks in AppMain unconditional.
 export default function App() {
+  const [authUser, setAuthUser]       = useState(null);
+  const [club, setClub]               = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setAuthUser(session?.user ?? null);
+      if (session?.user) loadClub(session.user.id);
+      else setAuthLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAuthUser(session?.user ?? null);
+      if (session?.user) loadClub(session.user.id);
+      else { setClub(null); setAuthLoading(false); }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const loadClub = async (userId) => {
+    const { data } = await supabase
+      .from("clubs")
+      .select("*")
+      .eq("owner_id", userId)
+      .single();
+    setClub(data || null);
+    setAuthLoading(false);
+  };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-100 via-blue-50 to-purple-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-5xl mb-4">🏓</div>
+          <div className="text-gray-500">Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!authUser) return <AuthScreen />;
+
+  if (!club) return (
+    <ClubSetupScreen
+      user={authUser}
+      onClubCreated={(newClub) => setClub(newClub)}
+    />
+  );
+
+  return (
+    <AppMain
+      club={club}
+      authUser={authUser}
+      onLogout={async () => { await supabase.auth.signOut(); }}
+    />
+  );
+}
+
+// ===== MAIN APP =====
+// All hooks live here, unconditionally. club is always set.
+function AppMain({ club, authUser, onLogout }) {
 
   // ===== REFS =====
   const inputRef = useRef(null);
@@ -228,87 +297,68 @@ export default function App() {
   }, []);
 
   // ===== VIEW MODE AUTO-REFRESH =====
-  // When in view mode, reload all data from Supabase every 30 seconds
   useEffect(() => {
-    if (!viewMode) return;
+    if (!viewMode || !club?.id) return;
 
     const refresh = async () => {
-      const [freshPlayers, freshMatches, freshAttendance, freshDirectory] =
-        await Promise.all([
-          getPlayers(),
-          getMatches(),
-          getAttendance(),
-          getDirectory(),
-        ]);
-      setPlayers(freshPlayers);
-      setMatches(freshMatches);
-      setAttendance(freshAttendance);
-      setDirectory(freshDirectory);
-
-      // Also refresh courts from localStorage (operator updates it)
-      const savedCourts = localStorage.getItem(STORAGE_KEYS.COURTS);
-      if (savedCourts) setCourts(JSON.parse(savedCourts));
+      try {
+        const [freshPlayers, freshMatches, freshAttendance, freshDirectory] =
+          await Promise.all([
+            getPlayers(club.id),
+            getMatches(club.id),
+            getAttendance(club.id),
+            getDirectory(club.id),
+          ]);
+        setPlayers(freshPlayers);
+        setMatches(freshMatches);
+        setAttendance(freshAttendance);
+        setDirectory(freshDirectory);
+        const savedCourts = localStorage.getItem(STORAGE_KEYS.COURTS);
+        if (savedCourts) setCourts(JSON.parse(savedCourts));
+      } catch (err) {
+        console.error("View mode refresh failed:", err);
+      }
     };
 
-    // Refresh immediately when view mode turns on
     refresh();
-
     const timer = setInterval(refresh, 30000);
     return () => clearInterval(timer);
-  }, [viewMode]);
+  }, [viewMode, club?.id]);
 
+  // ===== LOAD ALL DATA =====
+  // Runs once after club is confirmed. club is always set here
+  // because the auth guards above prevent rendering without it.
   useEffect(() => {
-    async function loadPlayers() {
-      const storedPlayers = await getPlayers();
-      setPlayers(storedPlayers);
-      setPlayersLoaded(true);
+    async function loadAll() {
+      try {
+        const [storedPlayers, savedMatches, history, records, dir] =
+          await Promise.all([
+            getPlayers(club.id),
+            getMatches(club.id),
+            getStandingsHistory(club.id),
+            getAttendance(club.id),
+            getDirectory(club.id),
+          ]);
+        setPlayers(storedPlayers);
+        setPlayersLoaded(true);
+        setMatches(savedMatches);
+        setStandingsHistory(history);
+        setAttendance(records);
+        setDirectory(dir);
+      } catch (err) {
+        console.error("Failed to load data:", err);
+      }
     }
-    loadPlayers();
-  }, []);
+    loadAll();
+  }, [club.id]);
 
   useEffect(() => {
     if (!playersLoaded) return;
     async function persistPlayers() {
-      await savePlayers(players);
+      await savePlayers(players, club.id);
     }
     persistPlayers();
   }, [players, playersLoaded]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.COURTS, JSON.stringify(courts));
-  }, [courts]);
-
-  useEffect(() => {
-    async function loadMatches() {
-      const savedMatches = await getMatches();
-      setMatches(savedMatches);
-    }
-    loadMatches();
-  }, []);
-
-  useEffect(() => {
-    async function loadHistory() {
-      const history = await getStandingsHistory();
-      setStandingsHistory(history);
-    }
-    loadHistory();
-  }, []);
-
-  useEffect(() => {
-    async function loadAttendance() {
-      const records = await getAttendance();
-      setAttendance(records);
-    }
-    loadAttendance();
-  }, []);
-
-  useEffect(() => {
-    async function loadDirectory() {
-      const players = await getDirectory();
-      setDirectory(players);
-    }
-    loadDirectory();
-  }, []);
 
   // ===== DERIVED DATA =====
 
@@ -695,7 +745,7 @@ export default function App() {
         queueGroup: "unmatched",
         waitingSince: Date.now(),
       };
-      await saveDirectoryPlayer(newPlayer);
+      await saveDirectoryPlayer(newPlayer, club.id);
       setDirectory((prev) => [...prev, newPlayer]);
     }
 
@@ -710,7 +760,7 @@ export default function App() {
         sessionId,
         timestamp: Date.now(),
       };
-      await saveAttendance(attendanceRecord);
+      await saveAttendance(attendanceRecord, club.id);
       setAttendance((prev) => [...prev, attendanceRecord]);
     }
 
@@ -734,7 +784,7 @@ export default function App() {
       p.id === player.id ? { ...p, priority: !p.priority } : p
     );
     setPlayers(updatedPlayers);
-    await saveDirectoryPlayer({ ...player, priority: !player.priority });
+    await saveDirectoryPlayer({ ...player, priority: !player.priority }, club.id);
   };
 
   const handleToggleNoPriority = async (player) => {
@@ -742,7 +792,7 @@ export default function App() {
       p.id === player.id ? { ...p, noPriority: !p.noPriority } : p
     );
     setPlayers(updatedPlayers);
-    await saveDirectoryPlayer({ ...player, noPriority: !player.noPriority });
+    await saveDirectoryPlayer({ ...player, noPriority: !player.noPriority }, club.id);
   };
 
   const handleDeleteDirectoryPlayer = async (e, player) => {
@@ -785,7 +835,7 @@ export default function App() {
     setDirectory((prev) =>
       prev.map((p) => p.id === player.id ? updatedDirectoryPlayer : p)
     );
-    await saveDirectoryPlayer(updatedDirectoryPlayer);
+    await saveDirectoryPlayer(updatedDirectoryPlayer, club.id);
 
     // Update match history — replace old name string in teamA/teamB arrays
     const updatedMatches = matches.map((match) => ({
@@ -795,9 +845,7 @@ export default function App() {
     }));
     setMatches(updatedMatches);
     // Persist each changed match
-    await Promise.all(
-      updatedMatches
-        .filter((m, i) => {
+    await Promise.all(updatedMatches.filter((m, i) => {
           const orig = matches[i];
           return (
             m.teamA.join() !== orig.teamA.join() ||
@@ -822,7 +870,7 @@ export default function App() {
     setDirectory((prev) =>
       prev.map((p) => p.id === player.id ? updated : p)
     );
-    await saveDirectoryPlayer(updated);
+    await saveDirectoryPlayer(updated, club.id);
 
     // Update queue if player is waiting
     setPlayers((prev) =>
@@ -880,7 +928,7 @@ export default function App() {
     );
     setPlayers(updatedPlayers);
     const targetPlayer = updatedPlayers.find((p) => p.id === playerId);
-    if (targetPlayer) await saveDirectoryPlayer(targetPlayer);
+    if (targetPlayer) await saveDirectoryPlayer(targetPlayer, club.id);
     setSelectedPlayerForEdit(null);
   };
 
@@ -1401,7 +1449,7 @@ export default function App() {
       winner: winningTeam,
     };
 
-    const matchId = await saveMatch(matchRecord);
+    const matchId = await saveMatch(matchRecord, club.id);
     const savedMatch = { ...matchRecord, id: matchId };
     setMatches((prev) => [savedMatch, ...prev]);
 
@@ -1463,7 +1511,7 @@ export default function App() {
     });
 
     setDirectory(updatedDirectory);
-    await Promise.all(updatedDirectory.map((p) => saveDirectoryPlayer(p)));
+    await Promise.all(updatedDirectory.map((p) => saveDirectoryPlayer(p, club.id)));
 
     setPlayers((prev) => sortPlayers([...prev, ...returningPlayers]));
     setCourts((prev) =>
@@ -1495,7 +1543,7 @@ export default function App() {
     setName("");
     setError("");
 
-    const latestMatches = await getMatches();
+    const latestMatches = await getMatches(club.id);
     const sessionMatches = latestMatches.filter((m) => m.sessionId === sessionId);
     const historyRecord = {
       id: crypto.randomUUID(),
@@ -1512,7 +1560,7 @@ export default function App() {
         bestStreak: p.bestStreak || 0,
       })),
     };
-    await saveStandingsHistory(historyRecord);
+    await saveStandingsHistory(historyRecord, club.id);
     setStandingsHistory((prev) => [...prev, historyRecord]);
 
     const resetDirectory = directory.map((p) => ({
@@ -1524,7 +1572,7 @@ export default function App() {
       bestStreak: 0,
       queueGroup: "unmatched",
     }));
-    await Promise.all(resetDirectory.map((p) => saveDirectoryPlayer(p)));
+    await Promise.all(resetDirectory.map((p) => saveDirectoryPlayer(p, club.id)));
     setDirectory(resetDirectory);
     setSessionId((prev) => prev + 1);
     // Reset mode so the picker shows at the start of the next session
@@ -1550,8 +1598,8 @@ export default function App() {
   const deleteSession = async (sessionToDelete) => {
     const confirmed = window.confirm(`Delete Session ${sessionToDelete}?`);
     if (!confirmed) return;
-    await deleteMatchesBySession(sessionToDelete);
-    await deleteAttendanceBySession(sessionToDelete);
+    await deleteMatchesBySession(sessionToDelete, club.id);
+    await deleteAttendanceBySession(sessionToDelete, club.id);
     setMatches((prev) => prev.filter((m) => m.sessionId !== sessionToDelete));
     setAttendance((prev) => prev.filter((r) => r.sessionId !== sessionToDelete));
   };
@@ -1573,7 +1621,7 @@ export default function App() {
   const clearHistory = async () => {
     const confirmed = window.confirm("Delete ALL match history?");
     if (!confirmed) return;
-    await clearAllMatches();
+    await clearAllMatches(club.id);
     setMatches([]);
     alert("All match history cleared.");
   };
@@ -1581,7 +1629,7 @@ export default function App() {
   const clearAttendanceRecords = async () => {
     const confirmed = window.confirm("Reset all attendance records?");
     if (!confirmed) return;
-    await clearAttendance();
+    await clearAttendance(club.id);
     setAttendance([]);
     alert("Attendance records cleared.");
   };
@@ -1589,7 +1637,7 @@ export default function App() {
   const clearStandings = async () => {
     const confirmed = window.confirm("Reset ALL player statistics?");
     if (!confirmed) return;
-    await clearStandingsHistory();
+    await clearStandingsHistory(club.id);
     setStandingsHistory([]);
     const resetPlayers = directory.map((p) => ({
       ...p,
@@ -1600,7 +1648,7 @@ export default function App() {
       bestStreak: 0,
       queueGroup: "unmatched",
     }));
-    await Promise.all(resetPlayers.map((p) => saveDirectoryPlayer(p)));
+    await Promise.all(resetPlayers.map((p) => saveDirectoryPlayer(p, club.id)));
     setDirectory(resetPlayers);
     setPlayers((prev) =>
       prev.map((p) => ({
@@ -1636,9 +1684,9 @@ export default function App() {
     );
     if (!confirmed) return;
 
-    await clearAllMatches();
-    await clearAttendance();
-    await clearStandingsHistory();
+    await clearAllMatches(club.id);
+    await clearAttendance(club.id);
+    await clearStandingsHistory(club.id);
 
     for (const player of directory) {
       await deleteDirectoryPlayer(player.id);
@@ -1690,7 +1738,7 @@ export default function App() {
       });
     });
     const updatedDirectory = Object.values(playerStats);
-    await Promise.all(updatedDirectory.map((p) => saveDirectoryPlayer(p)));
+    await Promise.all(updatedDirectory.map((p) => saveDirectoryPlayer(p, club.id)));
     setDirectory(updatedDirectory);
     setPlayers((prev) =>
       prev.map((p) => {
@@ -1721,20 +1769,36 @@ export default function App() {
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl p-6 mb-6 shadow-lg">
           <div className="flex items-start justify-between">
-            <h1 className="text-4xl font-bold">🏓 PickleStack</h1>
+            <div>
+              <h1 className="text-4xl font-bold">🏓 PickleStack</h1>
+              {club && (
+                <p className="text-white/70 text-sm mt-1">🏢 {club.name}</p>
+              )}
+            </div>
 
-            {/* View Mode toggle */}
-            <button
-              onClick={toggleViewMode}
-              className={`
-                mt-1 px-4 py-2 rounded-xl text-sm font-semibold transition-all
-                ${viewMode
-                  ? "bg-white text-blue-600 shadow"
-                  : "bg-white/20 hover:bg-white/30 text-white"}
-              `}
-            >
-              {viewMode ? "👁 View Mode  ·  Tap to Manage" : "👁 View Mode"}
-            </button>
+            <div className="flex items-center gap-2 mt-1">
+              {/* View Mode toggle */}
+              <button
+                onClick={toggleViewMode}
+                className={`
+                  px-4 py-2 rounded-xl text-sm font-semibold transition-all
+                  ${viewMode
+                    ? "bg-white text-blue-600 shadow"
+                    : "bg-white/20 hover:bg-white/30 text-white"}
+                `}
+              >
+                {viewMode ? "👁 View Mode  ·  Tap to Manage" : "👁 View Mode"}
+              </button>
+
+              {/* Logout */}
+              <button
+                onClick={onLogout}
+                className="px-3 py-2 rounded-xl text-sm font-semibold bg-white/20 hover:bg-white/30 text-white transition-all"
+                title="Log out"
+              >
+                🚪
+              </button>
+            </div>
           </div>
 
           {sessionMode && !viewMode && (
@@ -2121,3 +2185,6 @@ export default function App() {
     </div>
   );
 }
+
+
+
