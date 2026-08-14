@@ -1,4 +1,19 @@
+import { useState } from "react";
+
 export default function TierModal({ pendingPlayerName, isExtendedMode, onSelect, onCancel }) {
+  const [saving, setSaving] = useState(false);
+
+  const handleSelect = async (tier) => {
+    if (saving) return;
+    setSaving(true);
+    await onSelect(tier);
+    // setSaving back to false is not needed since the modal closes on success
+    // but if validation fails and the modal stays open, reset it
+    setSaving(false);
+  };
+
+  const btnBase = "w-full py-3 rounded-xl text-white font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed";
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl p-6 shadow-xl w-80">
@@ -10,38 +25,43 @@ export default function TierModal({ pendingPlayerName, isExtendedMode, onSelect,
 
         <div className="space-y-2">
           <button
-            onClick={() => onSelect("king")}
-            className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-3 rounded-xl"
+            onClick={() => handleSelect("king")}
+            disabled={saving}
+            className={`${btnBase} bg-yellow-500 hover:bg-yellow-600`}
           >
-            👑 King
+            {saving ? "Adding..." : "👑 King"}
           </button>
 
           {isExtendedMode && (
             <button
-              onClick={() => onSelect("general")}
-              className="w-full bg-purple-500 hover:bg-purple-600 text-white py-3 rounded-xl"
+              onClick={() => handleSelect("general")}
+              disabled={saving}
+              className={`${btnBase} bg-purple-500 hover:bg-purple-600`}
             >
-              🎖️ General
+              {saving ? "Adding..." : "🎖️ General"}
             </button>
           )}
 
           <button
-            onClick={() => onSelect("knight")}
-            className="w-full bg-indigo-500 hover:bg-indigo-600 text-white py-3 rounded-xl"
+            onClick={() => handleSelect("knight")}
+            disabled={saving}
+            className={`${btnBase} bg-indigo-500 hover:bg-indigo-600`}
           >
-            ⚔️ Knight
+            {saving ? "Adding..." : "⚔️ Knight"}
           </button>
 
           <button
-            onClick={() => onSelect("squire")}
-            className="w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl"
+            onClick={() => handleSelect("squire")}
+            disabled={saving}
+            className={`${btnBase} bg-green-500 hover:bg-green-600`}
           >
-            🛡️ Squire
+            {saving ? "Adding..." : "🛡️ Squire"}
           </button>
 
           <button
             onClick={onCancel}
-            className="w-full bg-gray-200 py-2 rounded-xl"
+            disabled={saving}
+            className="w-full bg-gray-200 py-2 rounded-xl disabled:opacity-50"
           >
             Cancel
           </button>

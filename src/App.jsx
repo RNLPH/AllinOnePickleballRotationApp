@@ -510,7 +510,9 @@ export default function App() {
 
   // ===== PLAYER ACTIONS =====
 
-  function openTierSelection() {
+  const [addingPlayer, setAddingPlayer] = useState(false);
+
+  async function openTierSelection() {
     const trimmedName = name.trim();
     if (!trimmedName) {
       setError("Please enter a player name.");
@@ -519,8 +521,11 @@ export default function App() {
 
     // In Open Mode skip tier selection — add directly with a neutral tier
     if (isOpenMode) {
+      if (addingPlayer) return;
+      setAddingPlayer(true);
       setPendingPlayerName(trimmedName);
-      addPlayer("squire", trimmedName);
+      await addPlayer("squire", trimmedName);
+      setAddingPlayer(false);
       return;
     }
 
@@ -1708,6 +1713,7 @@ export default function App() {
               totalGamesPlayed={totalGamesPlayed}
               inputRef={inputRef}
               onOpenTierSelection={openTierSelection}
+              addingPlayer={addingPlayer}
               onStartNextGame={startNextGame}
               onShowCourtTypeModal={() => setShowCourtTypeModal(true)}
               onRemoveCourt={removeCourt}

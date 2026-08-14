@@ -25,6 +25,7 @@ export default function SessionControls({
   totalPlayers,
   totalGamesPlayed,
   inputRef,
+  addingPlayer,
   onOpenTierSelection,
   onStartNextGame,
   onShowCourtTypeModal,
@@ -136,9 +137,10 @@ export default function SessionControls({
 
         <button
           onClick={onOpenTierSelection}
-          className={`${actionButton} bg-green-500 hover:bg-green-600`}
+          disabled={addingPlayer}
+          className={`${actionButton} bg-green-500 hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed`}
         >
-          Add Player
+          {addingPlayer ? "Adding..." : "Add Player"}
         </button>
 
         <button
