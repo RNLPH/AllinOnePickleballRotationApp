@@ -43,6 +43,21 @@ export default function App() {
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState("dashboard");
   const [, forceUpdate] = useState(0);
+
+  // ===== VIEW MODE =====
+  // Per-device read-only mode. Stored in localStorage so it persists on refresh.
+  const [viewMode, setViewMode] = useState(() => {
+    return localStorage.getItem("picklestack_view_mode") === "true";
+  });
+
+  const toggleViewMode = () => {
+    setViewMode((prev) => {
+      const next = !prev;
+      localStorage.setItem("picklestack_view_mode", String(next));
+      if (next) setActiveTab("standings"); // default to standings in view mode
+      return next;
+    });
+  };
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [showTierModal, setShowTierModal] = useState(false);
   const [pendingPlayerName, setPendingPlayerName] = useState("");
@@ -211,6 +226,36 @@ export default function App() {
     const timer = setInterval(() => forceUpdate((prev) => prev + 1), 60000);
     return () => clearInterval(timer);
   }, []);
+
+  // ===== VIEW MODE AUTO-REFRESH =====
+  // When in view mode, reload all data from Supabase every 30 seconds
+  useEffect(() => {
+    if (!viewMode) return;
+
+    const refresh = async () => {
+      const [freshPlayers, freshMatches, freshAttendance, freshDirectory] =
+        await Promise.all([
+          getPlayers(),
+          getMatches(),
+          getAttendance(),
+          getDirectory(),
+        ]);
+      setPlayers(freshPlayers);
+      setMatches(freshMatches);
+      setAttendance(freshAttendance);
+      setDirectory(freshDirectory);
+
+      // Also refresh courts from localStorage (operator updates it)
+      const savedCourts = localStorage.getItem(STORAGE_KEYS.COURTS);
+      if (savedCourts) setCourts(JSON.parse(savedCourts));
+    };
+
+    // Refresh immediately when view mode turns on
+    refresh();
+
+    const timer = setInterval(refresh, 30000);
+    return () => clearInterval(timer);
+  }, [viewMode]);
 
   useEffect(() => {
     async function loadPlayers() {
@@ -1675,8 +1720,24 @@ export default function App() {
 
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl p-6 mb-6 shadow-lg">
-          <h1 className="text-4xl font-bold">🏓 PickleStack</h1>
-          {sessionMode && (
+          <div className="flex items-start justify-between">
+            <h1 className="text-4xl font-bold">🏓 PickleStack</h1>
+
+            {/* View Mode toggle */}
+            <button
+              onClick={toggleViewMode}
+              className={`
+                mt-1 px-4 py-2 rounded-xl text-sm font-semibold transition-all
+                ${viewMode
+                  ? "bg-white text-blue-600 shadow"
+                  : "bg-white/20 hover:bg-white/30 text-white"}
+              `}
+            >
+              {viewMode ? "👁 View Mode  ·  Tap to Manage" : "👁 View Mode"}
+            </button>
+          </div>
+
+          {sessionMode && !viewMode && (
             <div className="mt-2 inline-flex items-center gap-2">
               <span className={`
                 px-3 py-1 rounded-full text-sm font-semibold
@@ -1710,8 +1771,11 @@ export default function App() {
         </div>
 
         {/* Tab Navigation */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6">
-          {["dashboard", "standings", "attendance", "history"].map((tab) => (
+        <div className={`grid gap-2 mb-6 ${viewMode ? "grid-cols-3" : "grid-cols-2 sm:grid-cols-4"}`}>
+          {(viewMode
+            ? ["standings", "attendance", "history"]
+            : ["dashboard", "standings", "attendance", "history"]
+          ).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -1737,8 +1801,67 @@ export default function App() {
           ))}
         </div>
 
-        {/* Dashboard Tab */}
-        {activeTab === "dashboard" && (
+        {/* View Mode — active courts read-only display */}
+        {viewMode && activeTab === "standings" && (
+          <div className="mb-6">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              {courts.map((court) => (
+                <div
+                  key={court.id}
+                  className="bg-white rounded-2xl shadow p-4 border border-slate-200"
+                >
+                  <div className="flex justify-between items-center mb-3">
+                    <h3 className="text-lg font-bold text-blue-700">
+                      {court.type === "king"    && "👑 King's Court"}
+                      {court.type === "general" && "🎖️ General Court"}
+                      {court.type === "knight"  && "⚔️ Knight Court"}
+                      {court.type === "squire"  && "🛡️ Squire Court"}
+                      {court.type === "winner"  && "🏆 Winner Court"}
+                      {court.type === "loser"   && "🔄 Loser Court"}
+                      {court.type === "any"     && "🏓 Open Court"}
+                      {!court.type              && "📌 Court"}
+                      {" "}#{court.id}
+                    </h3>
+                    <span className="text-sm font-semibold bg-blue-100 text-blue-700 px-3 py-1 rounded-full">
+                      {court.players.length}/4
+                    </span>
+                  </div>
+
+                  {court.players.length === 0 ? (
+                    <p className="text-gray-400 text-sm text-center py-4">No active match</p>
+                  ) : (
+                    <div>
+                      <div className="flex justify-center gap-4 text-sm font-semibold mb-2">
+                        <span className="text-blue-600">🔵 Team A</span>
+                        <span className="text-gray-400">vs</span>
+                        <span className="text-purple-600">🟣 Team B</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div className="bg-blue-50 rounded-lg p-2">
+                          {court.players.slice(0, 2).map((p) => (
+                            <div key={p.id} className="font-medium">{p.name}</div>
+                          ))}
+                        </div>
+                        <div className="bg-purple-50 rounded-lg p-2">
+                          {court.players.slice(2, 4).map((p) => (
+                            <div key={p.id} className="font-medium">{p.name}</div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <p className="text-center text-xs text-gray-400 mt-3">
+              🔄 Auto-refreshes every 30 seconds
+            </p>
+          </div>
+        )}
+
+        {/* Dashboard Tab — operator only */}
+        {!viewMode && activeTab === "dashboard" && (
           <>
             <SessionControls
               name={name}
