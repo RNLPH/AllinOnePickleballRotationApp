@@ -7,7 +7,7 @@ import { saveMatch, getMatches, updateMatch, deleteMatchesBySession, clearAllMat
 import { getAttendance, saveAttendance, clearAttendance, deleteAttendanceBySession } from "./db/attendanceService";
 import { getStandingsHistory, saveStandingsHistory, clearStandingsHistory } from "./db/standingsHistoryService";
 
-import { DEFAULT_COURTS, STORAGE_KEYS, TIER_LIMITS, EXTENDED_TIER_LIMITS, EXTENDED_TIER_TRANSITIONS, SESSION_MODES, OPEN_COURT_TYPES } from "./constants";
+import { DEFAULT_COURTS, STORAGE_KEYS, TIER_LIMITS, EXTENDED_TIER_LIMITS, EXTENDED_TIER_TRANSITIONS, SESSION_MODES, OPEN_COURT_TYPES, getDefaultCourts } from "./constants";
 import { sortPlayers, shufflePlayers } from "./utils/playerUtils";
 import {
   buildRotationGroup,
@@ -77,7 +77,21 @@ export default function App() {
       return;
     }
 
-    // Open Mode or no players in queue — switch directly
+    // Set courts to the correct default type for this mode
+    setCourts((prev) =>
+      prev.map((c) => {
+        if (c.players.length > 0) return c; // don't touch active courts
+        return {
+          ...c,
+          type:
+            mode === "open"            ? "any"  :
+            mode === "ladder"          ? "king" :
+            mode === "extended_ladder" ? "king" :
+            c.type,
+        };
+      })
+    );
+
     setSessionMode(mode);
     localStorage.setItem(STORAGE_KEYS.SESSION_MODE, mode);
   };
@@ -135,6 +149,21 @@ export default function App() {
     });
 
     setPlayers(updatedPlayers);
+
+    // Update courts to the correct default type for the target mode
+    setCourts((prev) =>
+      prev.map((c) => {
+        if (c.players.length > 0) return c;
+        return {
+          ...c,
+          type:
+            targetMode === "ladder"          ? "king" :
+            targetMode === "extended_ladder" ? "king" :
+            "any",
+        };
+      })
+    );
+
     setSessionMode(targetMode);
     localStorage.setItem(STORAGE_KEYS.SESSION_MODE, targetMode);
     setTierAssignmentPreview(null);
@@ -151,7 +180,21 @@ export default function App() {
 
   const [courts, setCourts] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.COURTS);
-    return saved ? JSON.parse(saved) : DEFAULT_COURTS;
+    const savedMode = localStorage.getItem(STORAGE_KEYS.SESSION_MODE);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // If courts have no type set, apply default for the current mode
+      const defaultType =
+        savedMode === "open"            ? "any"  :
+        savedMode === "ladder"          ? "king" :
+        savedMode === "extended_ladder" ? "king" :
+        null;
+      if (defaultType && parsed.some((c) => !c.type)) {
+        return parsed.map((c) => ({ ...c, type: c.type || defaultType }));
+      }
+      return parsed;
+    }
+    return getDefaultCourts(savedMode);
   });
 
   const [sessionId, setSessionId] = useState(() => {
@@ -1403,7 +1446,7 @@ export default function App() {
     if (!confirmed) return;
 
     setPlayers([]);
-    setCourts(DEFAULT_COURTS);
+    setCourts(getDefaultCourts(sessionMode));
     setName("");
     setError("");
 
@@ -1453,7 +1496,7 @@ export default function App() {
     const confirmed = window.confirm(`Reset Session ${sessionId}?`);
     if (!confirmed) return;
     setPlayers([]);
-    setCourts(DEFAULT_COURTS);
+    setCourts(getDefaultCourts(sessionMode));
     setName("");
     setError("");
     alert(`Session ${sessionId} has been reset.`);
@@ -1566,7 +1609,7 @@ export default function App() {
     localStorage.removeItem(STORAGE_KEYS.COURTS);
     localStorage.removeItem(STORAGE_KEYS.SESSION_MODE);
 
-    setCourts(DEFAULT_COURTS);
+    setCourts(getDefaultCourts(null));
     setSessionId(1);
     setSessionMode(null);
 

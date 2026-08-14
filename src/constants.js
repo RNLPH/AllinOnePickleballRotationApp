@@ -5,6 +5,17 @@ export const DEFAULT_COURTS = [
   },
 ];
 
+// Returns the correct default court for the given session mode
+export function getDefaultCourts(sessionMode) {
+  const type =
+    sessionMode === "open"            ? "any"  :
+    sessionMode === "ladder"          ? "king" :
+    sessionMode === "extended_ladder" ? "king" :
+    null;
+
+  return [{ id: 1, type, players: [] }];
+}
+
 export const STORAGE_KEYS = {
   COURTS: "picklestack_courts",
   SESSION: "picklestack_session",
