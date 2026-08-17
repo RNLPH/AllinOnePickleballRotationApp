@@ -75,9 +75,9 @@ export default function LiveBoard({ club, onClose }) {
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-white shadow-sm">
         <div className="flex items-center gap-4">
-          <img src="/logo.svg" alt="RallyStack" className="w-9 h-9" />
+          <img src="/logo.svg" alt="KNGS Stack" className="w-9 h-9" />
           <div>
-            <h1 className="text-2xl font-bold text-slate-800">RallyStack Live</h1>
+            <h1 className="text-2xl font-bold text-slate-800">KNGS Stack Live</h1>
             <p className="text-slate-500 text-sm">{club.name}</p>
           </div>
         </div>
@@ -248,3 +248,4 @@ export default function LiveBoard({ club, onClose }) {
     </div>
   );
 }
+

@@ -17,9 +17,9 @@ export function getDefaultCourts(sessionMode) {
 }
 
 export const STORAGE_KEYS = {
-  COURTS: "rallystack_courts",
-  SESSION: "rallystack_session",
-  SESSION_MODE: "rallystack_session_mode",
+  COURTS: "KNGS Stack_courts",
+  SESSION: "KNGS Stack_session",
+  SESSION_MODE: "KNGS Stack_session_mode",
 };
 
 // ===== SESSION MODES =====
@@ -78,3 +78,5 @@ export const COURT_FORMATS = {
   DOUBLES: "doubles",
   SINGLES: "singles",
 };
+
+

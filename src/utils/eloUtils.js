@@ -1,5 +1,5 @@
 /**
- * ELO Rating System for RallyStack
+ * ELO Rating System for KNGS Stack
  * Similar to DUPR but simplified for club play.
  *
  * Starting rating: 3.0 (scale 1.0 - 5.0)
@@ -64,3 +64,4 @@ export function getRatingTier(rating) {
 }
 
 export const DEFAULT_ELO = DEFAULT_RATING;
+

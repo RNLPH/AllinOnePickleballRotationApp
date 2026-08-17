@@ -12,13 +12,13 @@ export default defineConfig({
       registerType: "autoUpdate",
 
       manifest: {
-        name: "RallyStack",
-        short_name: "RallyStack",
+        name: "KNGS Stack",
+        short_name: "KNGS Stack",
 
         description:
-          "Court session manager for racket sports — queue rotation, standings, and match history",
+          "Kuehne+Nagel racket sports court session manager",
 
-        theme_color: "#2563eb",
+        theme_color: "#003369",
         background_color: "#f8fafc",
 
         display: "standalone",

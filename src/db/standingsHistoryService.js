@@ -30,3 +30,4 @@ export async function clearStandingsHistory(clubId) {
     .eq("club_id", clubId);
   if (error) console.error("clearStandingsHistory:", error);
 }
+

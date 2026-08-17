@@ -14,3 +14,4 @@ export default function DroppableCourtPlayer({ player, children }) {
     </div>
   );
 }
+

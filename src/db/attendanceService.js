@@ -39,3 +39,4 @@ export async function deleteAttendanceBySession(sessionId, clubId) {
     .eq("club_id", clubId);
   if (error) console.error("deleteAttendanceBySession:", error);
 }
+

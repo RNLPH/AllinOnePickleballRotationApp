@@ -24,3 +24,4 @@ export async function deleteDirectoryPlayer(id) {
     .eq("id", id);
   if (error) console.error("deleteDirectoryPlayer:", error);
 }
+

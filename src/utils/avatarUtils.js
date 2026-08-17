@@ -34,3 +34,4 @@ export function resizeImageToBase64(file, size = 64) {
     reader.readAsDataURL(file);
   });
 }
+

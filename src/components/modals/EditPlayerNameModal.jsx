@@ -73,3 +73,4 @@ export default function EditPlayerNameModal({ player, onSave, onCancel }) {
     </div>
   );
 }
+

@@ -117,7 +117,7 @@ export default function PublicCheckin() {
       .limit(1);
 
     // Use a simple session tracking via localStorage for the public page
-    const sessionId = Number(localStorage.getItem(`rallystack_session_${clubId}`) || 1);
+    const sessionId = Number(localStorage.getItem(`KNGS Stack_session_${clubId}`) || 1);
 
     await supabase.from("attendance").upsert({
       id: crypto.randomUUID(),
@@ -143,7 +143,7 @@ export default function PublicCheckin() {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
         <div className="text-center">
-          <img src="/logo.svg" alt="RallyStack" className="w-16 h-16 mx-auto mb-4" />
+          <img src="/logo.svg" alt="KNGS Stack" className="w-16 h-16 mx-auto mb-4" />
           <h1 className="text-xl font-bold text-slate-800">Club not found</h1>
           <p className="text-slate-500 mt-2">Check the link and try again.</p>
         </div>
@@ -156,7 +156,7 @@ export default function PublicCheckin() {
       <div className="w-full max-w-sm">
         {/* Header */}
         <div className="text-center mb-8">
-          <img src="/logo.svg" alt="RallyStack" className="w-14 h-14 mx-auto mb-3" />
+          <img src="/logo.svg" alt="KNGS Stack" className="w-14 h-14 mx-auto mb-3" />
           <h1 className="text-2xl font-bold text-slate-800">Check In</h1>
           <p className="text-slate-500 text-sm mt-1">{clubName}</p>
         </div>
@@ -212,3 +212,5 @@ export default function PublicCheckin() {
     </div>
   );
 }
+
+

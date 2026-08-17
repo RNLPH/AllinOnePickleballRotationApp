@@ -27,3 +27,4 @@ export default function DraggablePlayer({ player }) {
     </div>
   );
 }
+

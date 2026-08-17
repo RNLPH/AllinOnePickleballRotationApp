@@ -3,7 +3,7 @@ import { exportStandings, downloadCSV } from "../../utils/csvUtils";
 
 function buildShareText(standings, standingsHistory, sessionId, getStandingRank) {
   const date = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-  const lines = [`🏸 RallyStack — Session ${sessionId} Standings`, `📅 ${date}`, ``, `🏆 STANDINGS`, `─────────────────────────`];
+  const lines = [`🏸 KNGS Stack — Session ${sessionId} Standings`, `📅 ${date}`, ``, `🏆 STANDINGS`, `─────────────────────────`];
   standings.forEach((player, index) => {
     const rank = getStandingRank(standings, index);
     const medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : `#${rank}`;
@@ -188,3 +188,4 @@ export default function StandingsTab({
     </div>
   );
 }
+

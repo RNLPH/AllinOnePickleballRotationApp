@@ -55,3 +55,4 @@ export default function CourtTypeModal({ sessionMode, onSelect, onCancel }) {
     </div>
   );
 }
+

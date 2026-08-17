@@ -50,3 +50,4 @@ export async function clearAllMatches(clubId) {
     .eq("club_id", clubId);
   if (error) console.error("clearAllMatches:", error);
 }
+

@@ -76,3 +76,4 @@ export const getCourtMinutes = (startedAt) => {
   if (!startedAt) return 0;
   return Math.floor((Date.now() - startedAt) / 60000);
 };
+

@@ -77,7 +77,7 @@ export default function App() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-100 via-blue-50 to-purple-50 flex items-center justify-center">
         <div className="text-center">
-          <img src="/logo.svg" alt="RallyStack" className="w-12 h-12 mx-auto mb-4" />
+          <img src="/logo.svg" alt="KNGS Stack" className="w-12 h-12 mx-auto mb-4" />
           <div className="text-gray-500">Loading...</div>
         </div>
       </div>
@@ -122,13 +122,13 @@ function AppMain({ club, authUser, onLogout }) {
   // ===== VIEW MODE =====
   // Per-device read-only mode. Stored in localStorage so it persists on refresh.
   const [viewMode, setViewMode] = useState(() => {
-    return localStorage.getItem("rallystack_view_mode") === "true";
+    return localStorage.getItem("KNGS Stack_view_mode") === "true";
   });
 
   const toggleViewMode = () => {
     setViewMode((prev) => {
       const next = !prev;
-      localStorage.setItem("rallystack_view_mode", String(next));
+      localStorage.setItem("KNGS Stack_view_mode", String(next));
       if (next) setActiveTab("standings"); // default to standings in view mode
       return next;
     });
@@ -2034,13 +2034,13 @@ function AppMain({ club, authUser, onLogout }) {
     <div className="min-h-screen w-full bg-slate-50 pb-20 sm:pb-6">
 
       {/* Slim sticky header */}
-      <header className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm">
+      <header className="sticky top-0 z-40 bg-[#003369] shadow-sm">
         <div className="max-w-7xl mx-auto px-3 py-2.5 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
-            <img src="/logo.svg" alt="RallyStack" className="w-7 h-7 shrink-0" />
+            <img src="/logo.svg" alt="KNGS Stack" className="w-7 h-7 shrink-0" />
             <div className="min-w-0">
-              <h1 className="text-base font-bold text-slate-800 leading-tight truncate">RallyStack</h1>
-              {club && <p className="text-[10px] text-slate-400 leading-tight truncate">{club.name}</p>}
+              <h1 className="text-base font-bold text-white leading-tight truncate">KNGS Stack</h1>
+              {club && <p className="text-[10px] text-[#7ABFED] leading-tight truncate">{club.name}</p>}
             </div>
           </div>
 
@@ -2053,33 +2053,33 @@ function AppMain({ club, authUser, onLogout }) {
                   setSessionMode(null);
                   localStorage.removeItem(STORAGE_KEYS.SESSION_MODE);
                 }}
-                className="h-7 px-1.5 rounded text-[10px] text-slate-500 hover:bg-slate-100"
+                className="h-7 px-1.5 rounded text-[10px] text-[#7ABFED] hover:bg-white/10"
               >
                 Switch
               </button>
             )}
 
             <button onClick={() => setShowLiveBoard(true)}
-              className="h-7 w-7 rounded bg-green-50 text-green-600 flex items-center justify-center hover:bg-green-100 text-xs">
+              className="h-7 w-7 rounded bg-white/10 text-white flex items-center justify-center hover:bg-white/20 text-xs">
               📺
             </button>
             <button
               onClick={() => { const url = `${window.location.origin}/live/${club.id}`; navigator.clipboard.writeText(url); alert("Live board link copied!\n" + url); }}
-              className="h-7 w-7 rounded bg-slate-50 text-slate-500 flex items-center justify-center hover:bg-slate-100 text-xs">
+              className="h-7 w-7 rounded bg-white/10 text-white flex items-center justify-center hover:bg-white/20 text-xs">
               🔗
             </button>
             <button
               onClick={() => { const url = `${window.location.origin}/checkin/${club.id}`; navigator.clipboard.writeText(url); alert("Check-in link copied!\n" + url); }}
-              className="h-7 w-7 rounded bg-slate-50 text-slate-500 flex items-center justify-center hover:bg-slate-100 text-xs"
+              className="h-7 w-7 rounded bg-white/10 text-white flex items-center justify-center hover:bg-white/20 text-xs"
               title="Copy check-in link">
               📋
             </button>
             <button onClick={toggleViewMode}
-              className={`h-7 px-1.5 rounded text-[10px] font-medium ${viewMode ? "bg-blue-600 text-white" : "bg-slate-50 text-slate-500 hover:bg-slate-100"}`}>
+              className={`h-7 px-1.5 rounded text-[10px] font-medium ${viewMode ? "bg-[#7ABFED] text-[#003369]" : "bg-white/10 text-white hover:bg-white/20"}`}>
               {viewMode ? "✓" : "👁"}
             </button>
             <button onClick={onLogout}
-              className="h-7 w-7 rounded bg-slate-50 text-slate-500 flex items-center justify-center hover:bg-slate-100 text-xs"
+              className="h-7 w-7 rounded bg-white/10 text-white flex items-center justify-center hover:bg-white/20 text-xs"
               title="Log out">
               🚪
             </button>
@@ -2507,6 +2507,8 @@ function AppMain({ club, authUser, onLogout }) {
     </div>
   );
 }
+
+
 
 
 

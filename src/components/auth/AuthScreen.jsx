@@ -120,8 +120,8 @@ export default function AuthScreen() {
 
         {/* Logo */}
         <div className="text-center mb-8">
-          <img src="/logo.svg" alt="RallyStack" className="w-16 h-16 mx-auto mb-3" />
-          <h1 className="text-3xl font-bold text-slate-800">RallyStack</h1>
+          <img src="/logo.svg" alt="KNGS Stack" className="w-16 h-16 mx-auto mb-3" />
+          <h1 className="text-3xl font-bold text-slate-800">KNGS Stack</h1>
           <p className="text-gray-500 mt-1 text-sm">Court Session Manager</p>
         </div>
 
@@ -331,8 +331,8 @@ export default function AuthScreen() {
           <div className="mt-4 bg-slate-50 border border-slate-200 rounded-xl p-4 max-h-64 overflow-y-auto">
             {infoTab === "about" && (
               <div className="text-center space-y-2">
-                <img src="/logo.svg" alt="RallyStack" className="w-12 h-12 mx-auto" />
-                <h3 className="font-bold text-slate-800">RallyStack</h3>
+                <img src="/logo.svg" alt="KNGS Stack" className="w-12 h-12 mx-auto" />
+                <h3 className="font-bold text-slate-800">KNGS Stack</h3>
                 <p className="text-xs text-slate-500">Version {APP_VERSION}</p>
                 <p className="text-xs text-slate-500 leading-relaxed">
                   Court session manager for racket sports. Manage player queues, court rotation, standings, and match history for pickleball, badminton, tennis, padel, and more.
@@ -377,3 +377,4 @@ export default function AuthScreen() {
     </div>
   );
 }
+

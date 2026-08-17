@@ -34,3 +34,4 @@ export default function DraggableCourtPlayer({ player, color = "blue" }) {
     </div>
   );
 }
+

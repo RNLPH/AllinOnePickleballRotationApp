@@ -103,3 +103,4 @@ export default function SessionModeModal({ sessionId, onSelect, onCancel }) {
     </div>
   );
 }
+

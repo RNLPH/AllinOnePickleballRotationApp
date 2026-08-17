@@ -97,3 +97,4 @@ export const buildPools = (playerList) => {
     unmatched: playerList.filter((p) => !p.lastResult),
   };
 };
+
