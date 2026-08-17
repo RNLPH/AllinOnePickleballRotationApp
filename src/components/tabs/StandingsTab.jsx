@@ -2,32 +2,16 @@ import { useState } from "react";
 import { exportStandings } from "../../utils/csvUtils";
 
 function buildShareText(standings, standingsHistory, sessionId, getStandingRank) {
-  const date = new Date().toLocaleDateString("en-US", {
-    month: "short", day: "numeric", year: "numeric",
-  });
-
-  const lines = [
-    `🏸 RallyStack — Session ${sessionId} Standings`,
-    `📅 ${date}`,
-    ``,
-    `🏆 STANDINGS`,
-    `─────────────────────────`,
-  ];
-
+  const date = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const lines = [`🏸 RallyStack — Session ${sessionId} Standings`, `📅 ${date}`, ``, `🏆 STANDINGS`, `─────────────────────────`];
   standings.forEach((player, index) => {
     const rank = getStandingRank(standings, index);
     const medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : `#${rank}`;
-    const wr = player.gamesPlayed > 0
-      ? Math.round((player.wins / player.gamesPlayed) * 100)
-      : 0;
-    lines.push(
-      `${medal} ${player.name}  ${player.wins}W-${player.losses}L  ${wr}%`
-    );
+    const wr = player.gamesPlayed > 0 ? Math.round((player.wins / player.gamesPlayed) * 100) : 0;
+    lines.push(`${medal} ${player.name}  ${player.wins}W-${player.losses}L  ${wr}%`);
   });
-
   lines.push(``);
   lines.push(`Total matches: ${standings.reduce((s, p) => s + p.gamesPlayed, 0) / 2 | 0}`);
-
   return lines.join("\n");
 }
 
@@ -45,249 +29,138 @@ export default function StandingsTab({
 
   const handleCopyResults = () => {
     const text = buildShareText(standings, standingsHistory, sessionId, getStandingRank);
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
-    });
+    navigator.clipboard.writeText(text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2500); });
   };
 
+  const top3 = standings.slice(0, 3);
+
   return (
-    <div className="bg-white rounded-xl shadow p-4 mb-6">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold">🏆 Standings</h2>
-
-        <div className="flex gap-2">
-          <button
-            onClick={() => exportStandings(standings, sessionId, getStandingRank)}
-            className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-sm"
-          >
-            📤 Export CSV
+    <div className="space-y-4">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-bold text-slate-800">Standings</h2>
+        <div className="flex gap-1.5">
+          <button onClick={handleCopyResults}
+            className={`h-8 px-3 rounded-lg text-xs font-medium transition-all ${copied ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
+            {copied ? "✅ Copied" : "📋 Copy"}
           </button>
-
-          <button
-            onClick={handleCopyResults}
-            className={`px-3 py-2 rounded text-sm text-white transition-all ${
-              copied ? "bg-emerald-500" : "bg-sky-500 hover:bg-sky-600"
-            }`}
-          >
-            {copied ? "✅ Copied!" : "📋 Copy Results"}
+          <button onClick={() => exportStandings(standings, sessionId, getStandingRank)}
+            className="h-8 px-3 rounded-lg text-xs font-medium bg-slate-100 text-slate-600 hover:bg-slate-200">
+            📤 CSV
           </button>
-
-          <button
-            onClick={onClearStandings}
-            className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded text-sm"
-          >
-            🧹 Clear Standings
+          <button onClick={onClearStandings}
+            className="h-8 px-3 rounded-lg text-xs font-medium bg-red-50 text-red-600 hover:bg-red-100">
+            🗑️
           </button>
         </div>
       </div>
 
       {standings.length === 0 ? (
-        <p>No players available</p>
+        <div className="bg-white rounded-xl border border-slate-100 p-8 text-center text-slate-400">
+          No standings yet — play some games first
+        </div>
       ) : (
-        standings.map((player, index) => {
-          const sessionStats = getSessionStats(player.name);
-          const rank = getStandingRank(standings, index);
+        <>
+          {/* Podium — top 3 */}
+          {top3.length >= 3 && (
+            <div className="grid grid-cols-3 gap-2">
+              {[1, 0, 2].map((podiumIdx) => {
+                const player = top3[podiumIdx];
+                if (!player) return null;
+                const rank = podiumIdx + 1;
+                const wr = player.gamesPlayed > 0 ? Math.round((player.wins / player.gamesPlayed) * 100) : 0;
+                const medals = ["🥇", "🥈", "🥉"];
+                const bgColors = ["bg-yellow-50 border-yellow-200", "bg-slate-50 border-slate-200", "bg-orange-50 border-orange-200"];
+                const isCenter = podiumIdx === 0;
 
-          return (
-            <div
-              key={player.id}
-              className="flex justify-between border-b py-2"
-            >
-              <div>
-                <strong>
-                  {rank === 1 && "🥇 "}
-                  {rank === 2 && "🥈 "}
-                  {rank === 3 && "🥉 "}
-                  #{rank} {player.name}
-                </strong>
-
-                <div className="text-xs mt-1">
-                  <span
-                    className={`
-                      font-semibold
-                      ${
-                        player.tier === "king"
-                          ? "text-yellow-600"
-                          : player.tier === "knight"
-                          ? "text-indigo-600"
-                          : "text-green-600"
-                      }
-                    `}
-                  >
-                    {player.tier === "king" && "👑 King's Court"}
-                    {player.tier === "knight" && "⚔️ Knight Court"}
-                    {player.tier === "squire" && "🛡️ Squire Court"}
-                  </span>
-                </div>
-              </div>
-
-              <div className="text-sm text-right">
-                <div className="font-semibold text-blue-600">Today</div>
-
-                <div>
-                  GP: {sessionStats.gamesPlayed}
-                  {" | "}
-                  W: {sessionStats.wins}
-                  {" | "}
-                  L: {sessionStats.losses}
-                  {" | "}
-                  WR: {sessionStats.winRate}%
-                </div>
-
-                <div className="text-xs text-gray-500 mt-1">All-Time</div>
-
-                <div className="text-xs text-gray-500">
-                  GP: {player.gamesPlayed || 0}
-                  {" | "}
-                  W: {player.wins || 0}
-                  {" | "}
-                  L: {player.losses || 0}
-                </div>
-
-                <div className="text-xs text-indigo-500">
-                  👥 Sessions: {getAttendanceCount(player.id)}
-                </div>
-
-                <div className="text-xs text-yellow-600 font-semibold">
-                  👑 King Entries: {player.kingCourtEntries || 0}
-                </div>
-
-                {(player.currentStreak || 0) > 0 && (
-                  <div className="text-xs text-orange-500 font-semibold">
-                    🔥 Streak: {player.currentStreak}
+                return (
+                  <div key={player.id} className={`rounded-xl border p-3 text-center ${bgColors[podiumIdx]} ${isCenter ? "transform -translate-y-2" : ""}`}>
+                    <div className="text-2xl mb-1">{medals[podiumIdx]}</div>
+                    <div className="font-bold text-sm text-slate-800 truncate">{player.name}</div>
+                    <div className="text-xs text-slate-500 mt-1">{player.wins}W-{player.losses}L</div>
+                    <div className="text-xs font-semibold text-blue-600">{wr}%</div>
                   </div>
-                )}
+                );
+              })}
+            </div>
+          )}
+
+          {/* Full standings table */}
+          <div className="bg-white rounded-xl border border-slate-100 overflow-hidden">
+            <div className="grid grid-cols-[auto_1fr_auto_auto_auto] gap-x-3 px-3 py-2 text-xs text-slate-400 font-medium border-b border-slate-100">
+              <span>#</span>
+              <span>Player</span>
+              <span>W</span>
+              <span>L</span>
+              <span>WR</span>
+            </div>
+
+            {standings.map((player, index) => {
+              const rank = getStandingRank(standings, index);
+              const wr = player.gamesPlayed > 0 ? Math.round((player.wins / player.gamesPlayed) * 100) : 0;
+              return (
+                <div key={player.id} className="grid grid-cols-[auto_1fr_auto_auto_auto] gap-x-3 items-center px-3 py-2.5 border-b border-slate-50 last:border-0 hover:bg-slate-50">
+                  <span className="text-xs font-bold text-slate-400 w-6">{rank}</span>
+                  <div className="min-w-0">
+                    <span className="text-sm font-medium text-slate-800 truncate block">{player.name}</span>
+                    <span className="text-[10px] text-slate-400">
+                      {player.currentStreak > 0 && `🔥${player.currentStreak} `}
+                      GP:{player.gamesPlayed}
+                    </span>
+                  </div>
+                  <span className="text-sm font-semibold text-green-600">{player.wins}</span>
+                  <span className="text-sm font-semibold text-red-500">{player.losses}</span>
+                  <span className="text-sm font-bold text-blue-600">{wr}%</span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Standings History */}
+          {standingsHistory.length > 0 && (
+            <div>
+              <h3 className="text-sm font-bold text-slate-600 mb-2">History</h3>
+              <div className="space-y-2">
+                {[...standingsHistory].sort((a, b) => b.sessionId - a.sessionId).map((history) => (
+                  <div key={history.id} className="bg-white rounded-xl border border-slate-100 overflow-hidden">
+                    <button
+                      onClick={() => setExpandedStandings(expandedStandings === history.id ? null : history.id)}
+                      className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 text-left"
+                    >
+                      <div>
+                        <span className="text-sm font-semibold text-slate-700">Session {history.sessionId}</span>
+                        <span className="text-xs text-slate-400 ml-2">{history.standings.length} players · {history.matchCount || 0} matches</span>
+                      </div>
+                      <svg className={`w-4 h-4 text-slate-400 transition-transform ${expandedStandings === history.id ? "rotate-180" : ""}`}
+                        fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+
+                    {expandedStandings === history.id && (
+                      <div className="border-t border-slate-100 px-4 py-2">
+                        {[...history.standings]
+                          .sort((a, b) => {
+                            const wrA = a.gamesPlayed > 0 ? a.wins / a.gamesPlayed : 0;
+                            const wrB = b.gamesPlayed > 0 ? b.wins / b.gamesPlayed : 0;
+                            return wrB !== wrA ? wrB - wrA : b.wins - a.wins;
+                          })
+                          .map((p, i) => (
+                            <div key={p.playerId} className="flex items-center justify-between py-1.5 text-sm border-b border-slate-50 last:border-0">
+                              <span className="text-slate-600">
+                                {i === 0 && "🥇"}{i === 1 && "🥈"}{i === 2 && "🥉"} {p.playerName}
+                              </span>
+                              <span className="text-xs text-slate-400">{p.wins}W-{p.losses}L</span>
+                            </div>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
-          );
-        })
-      )}
-
-      <h3 className="font-semibold text-gray-700 mt-8 mb-3">
-        📚 Standings History
-      </h3>
-
-      {standingsHistory.length === 0 ? (
-        <p>No standings history.</p>
-      ) : (
-        [...standingsHistory]
-          .sort((a, b) => b.sessionId - a.sessionId)
-          .map((history) => (
-            <div
-              key={history.id}
-              className="border rounded-xl p-5 mb-4 bg-white shadow-sm"
-            >
-              <div className="flex justify-between items-center">
-                <div>
-                  <h4 className="font-bold text-blue-600">
-                    Session {history.sessionId}
-                  </h4>
-
-                  <div className="text-xs text-gray-500">
-                    <div className="text-xs text-gray-400">
-                      {history.standings.length} Players •{" "}
-                      {history.matchCount || 0} Matches
-                    </div>
-                    {new Date(history.timestamp).toLocaleDateString()}
-                  </div>
-                </div>
-
-                <button
-                  onClick={() =>
-                    setExpandedStandings(
-                      expandedStandings === history.id ? null : history.id
-                    )
-                  }
-                  className="
-                    bg-blue-500
-                    hover:bg-blue-600
-                    text-white
-                    px-3
-                    py-1
-                    rounded
-                    text-sm
-                  "
-                >
-                  {expandedStandings === history.id
-                    ? "Hide Standings"
-                    : "View Standings"}
-                </button>
-              </div>
-
-              {expandedStandings === history.id && (
-                <div className="mt-4 border-t pt-4">
-                  <div className="grid grid-cols-4 gap-2 mb-4">
-                    <div className="bg-blue-50 rounded-lg p-2 text-center">
-                      <div className="text-xs text-gray-500">Players</div>
-                      <div className="font-bold text-blue-600">
-                        {history.standings.length}
-                      </div>
-                    </div>
-
-                    <div className="bg-green-50 rounded-lg p-2 text-center">
-                      <div className="text-xs text-gray-500">Leader</div>
-                      <div className="font-bold text-green-600">
-                        {history.standings[0]?.playerName}
-                      </div>
-                    </div>
-
-                    <div className="bg-purple-50 rounded-lg p-2 text-center">
-                      <div className="text-xs text-gray-500">Matches</div>
-                      <div className="font-bold text-purple-600">
-                        {history.matchCount || 0}
-                      </div>
-                    </div>
-
-                    <div className="bg-orange-50 rounded-lg p-2 text-center">
-                      <div className="text-xs text-gray-500">Total Games</div>
-                      <div className="font-bold text-orange-600">
-                        {history.standings.reduce(
-                          (sum, player) => sum + player.gamesPlayed,
-                          0
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {[...history.standings]
-                    .sort((a, b) => {
-                      const winRateA =
-                        a.gamesPlayed > 0 ? a.wins / a.gamesPlayed : 0;
-                      const winRateB =
-                        b.gamesPlayed > 0 ? b.wins / b.gamesPlayed : 0;
-
-                      if (winRateB !== winRateA) return winRateB - winRateA;
-                      return b.wins - a.wins;
-                    })
-                    .map((player, index) => (
-                      <div
-                        key={player.playerId}
-                        className="flex justify-between border-b py-2"
-                      >
-                        <div>
-                          {index === 0 && "🥇 "}
-                          {index === 1 && "🥈 "}
-                          {index === 2 && "🥉 "}
-                          #{index + 1} {player.playerName}
-                        </div>
-
-                        <div className="text-sm">
-                          GP: {player.gamesPlayed} | W: {player.wins} | L:{" "}
-                          {player.losses} | WR:{" "}
-                          {player.gamesPlayed > 0
-                            ? Math.round(
-                                (player.wins / player.gamesPlayed) * 100
-                              )
-                            : 0}
-                          %
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              )}
-            </div>
-          ))
+          )}
+        </>
       )}
     </div>
   );

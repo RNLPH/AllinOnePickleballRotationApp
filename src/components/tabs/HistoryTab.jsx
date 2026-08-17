@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { exportMatches } from "../../utils/csvUtils";
-import { formatSessionDate, formatMatchDuration, getRelativeTime } from "../../utils/playerUtils";
+import { formatMatchDuration, getRelativeTime } from "../../utils/playerUtils";
 
 export default function HistoryTab({
   matches,
@@ -10,178 +10,122 @@ export default function HistoryTab({
   onDeleteSession,
   onClearHistory,
 }) {
-  const [expandedMatchSession, setExpandedMatchSession] = useState(null);
+  const [expandedSession, setExpandedSession] = useState(null);
 
   return (
-    <div className="bg-white rounded-xl shadow p-4 mb-6">
-      <div className="flex flex-col md:flex-row justify-between items-center gap-2 mb-6">
-        <h2 className="text-2xl font-bold">
-          📜 Match History ({matches.length} Total)
+    <div className="space-y-4">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-bold text-slate-800">
+          Match History
+          <span className="text-sm font-normal text-slate-400 ml-2">({matches.length})</span>
         </h2>
-
-        <div className="flex gap-2">
-          <button
-            onClick={() => exportMatches(matches)}
-            className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-sm"
-          >
-            📤 Export CSV
+        <div className="flex gap-1.5">
+          <button onClick={() => exportMatches(matches)}
+            className="h-8 px-3 rounded-lg text-xs font-medium bg-slate-100 text-slate-600 hover:bg-slate-200">
+            📤 CSV
           </button>
-
-          <button
-            onClick={onClearHistory}
-            className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-sm"
-          >
-            🗑️ Clear All History
+          <button onClick={onClearHistory}
+            className="h-8 px-3 rounded-lg text-xs font-medium bg-red-50 text-red-600 hover:bg-red-100">
+            🗑️
           </button>
         </div>
       </div>
 
       {matches.length === 0 ? (
-        <p>No matches recorded yet.</p>
+        <div className="bg-white rounded-xl border border-slate-100 p-8 text-center text-slate-400">
+          No matches recorded yet
+        </div>
       ) : (
-        Object.entries(groupedMatches)
-          .sort(([a], [b]) => Number(b) - Number(a))
-          .map(([session, sessionMatches]) => {
-            const summary = getSessionSummary(sessionMatches);
+        <div className="space-y-2">
+          {Object.entries(groupedMatches)
+            .sort(([a], [b]) => Number(b) - Number(a))
+            .map(([session, sessionMatches]) => {
+              const summary = getSessionSummary(sessionMatches);
 
-            return (
-              <div
-                key={session}
-                className="mb-8 border rounded-lg p-4 bg-white shadow-sm"
-              >
-                <div className="flex justify-between items-center mb-3">
-                  <div>
-                    <h3 className="text-xl font-bold text-blue-600">
-                      📂 Session {session}
-                    </h3>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() =>
-                        setExpandedMatchSession(
-                          expandedMatchSession === session ? null : session
-                        )
-                      }
-                      className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs"
-                    >
-                      {expandedMatchSession === session
-                        ? "Hide Matches"
-                        : "View Matches"}
-                    </button>
-
-                    <button
-                      onClick={() => onDeleteSession(Number(session))}
-                      className="bg-red-100 text-red-600 hover:bg-red-200 px-2 py-1 rounded text-xs"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-
-                <p className="text-sm text-gray-500 mb-4">
-                  🗓️{" "}
-                  {formatSessionDate(
-                    sessionMatches[0]?.sessionTimestamp ||
-                      sessionMatches[0]?.date
-                  )}
-                </p>
-
-                <div className="bg-slate-100 rounded-lg p-3 mb-4">
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div>👥 Players: {summary.players}</div>
-                    <div>🏓 Matches: {summary.matches}</div>
-                    <div>⏱ Avg Match: {summary.avgDuration} min</div>
-                    <div>🔥 Longest: {summary.longestMatch} min</div>
-                  </div>
-
-                  {summary.bestRecord && (
-                    <div className="mt-4 text-center">
-                      <div className="text-lg font-bold text-yellow-600">
-                        🏆 Best Session Record
-                      </div>
-
-                      <div className="mt-2 text-sm">
-                        Record:{" "}
-                        <span className="font-semibold">
-                          {summary.bestRecord.wins}W-
-                          {summary.bestRecord.losses}L
+              return (
+                <div key={session} className="bg-white rounded-xl border border-slate-100 overflow-hidden">
+                  {/* Session header */}
+                  <button
+                    onClick={() => setExpandedSession(expandedSession === session ? null : session)}
+                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 text-left"
+                  >
+                    <div>
+                      <span className="text-sm font-semibold text-slate-700">Session {session}</span>
+                      <span className="text-xs text-slate-400 ml-2">
+                        {sessionMatches.length} matches · {summary.players} players
+                      </span>
+                      {summary.bestRecord && (
+                        <span className="text-xs text-yellow-600 ml-2">
+                          🏆 {summary.bestRecord.name}
                         </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onDeleteSession(Number(session)); }}
+                        className="h-7 px-2 rounded text-xs text-red-400 hover:bg-red-50 hover:text-red-600"
+                      >
+                        🗑️
+                      </button>
+                      <svg className={`w-4 h-4 text-slate-400 transition-transform ${expandedSession === session ? "rotate-180" : ""}`}
+                        fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </button>
+
+                  {/* Expanded matches */}
+                  {expandedSession === session && (
+                    <div className="border-t border-slate-100">
+                      {/* Session summary */}
+                      <div className="flex gap-3 px-4 py-2 bg-slate-50 text-xs text-slate-500">
+                        <span>⏱ Avg: {summary.avgDuration}m</span>
+                        <span>🔥 Longest: {summary.longestMatch}m</span>
                       </div>
 
-                      <div className="text-sm">
-                        Win Rate:{" "}
-                        <span className="font-semibold">
-                          {Math.round(summary.bestRecord.winRate * 100)}%
-                        </span>
-                      </div>
+                      {/* Match list */}
+                      {sessionMatches.map((match, index) => (
+                        <div key={match.id || index} className="px-4 py-3 border-b border-slate-50 last:border-0">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 text-sm">
+                                <span className="text-blue-600 font-medium truncate">{match.teamA?.join(" & ")}</span>
+                                <span className="text-slate-300 text-xs">vs</span>
+                                <span className="text-purple-600 font-medium truncate">{match.teamB?.join(" & ")}</span>
+                              </div>
+                              <div className="text-[10px] text-slate-400 mt-0.5">
+                                {match.startedAt && match.endedAt && formatMatchDuration(match.startedAt, match.endedAt)}
+                                {match.endedAt && ` · ${getRelativeTime(match.endedAt)}`}
+                              </div>
+                            </div>
 
-                      <div className="mt-3 text-sm font-semibold text-gray-700">
-                        Players
-                      </div>
-
-                      <div className="space-y-1 mt-1">
-                        {summary.topRecordPlayers.map((player) => (
-                          <div key={player.name} className="text-sm">
-                            • {player.name}
+                            <div className="flex items-center gap-2 ml-2">
+                              <span className={`text-xs font-bold px-2 py-0.5 rounded ${
+                                match.winner === "A" ? "bg-blue-100 text-blue-700" : "bg-purple-100 text-purple-700"
+                              }`}>
+                                {match.winner}
+                              </span>
+                              <select
+                                value={match.winner}
+                                onChange={(e) => onEditMatchWinner(match.id, e.target.value)}
+                                onClick={(e) => e.stopPropagation()}
+                                className="h-7 text-xs border border-slate-200 rounded px-1 bg-white"
+                              >
+                                <option value="A">A</option>
+                                <option value="B">B</option>
+                              </select>
+                            </div>
                           </div>
-                        ))}
-                      </div>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
-
-                {expandedMatchSession === session && (
-                  <>
-                    {sessionMatches.map((match, index) => (
-                      <div key={index} className="border-b py-4">
-                        <div className="text-sm text-gray-400 mb-2">
-                          Match #{index + 1}
-                        </div>
-
-                        <div className="mb-2">
-                          <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm font-semibold">
-                            Court {match.courtId}
-                          </span>
-                        </div>
-
-                        <div className="space-y-2">
-                          <div>🔵 {match.teamA.join(" & ")}</div>
-                          <div>🟣 {match.teamB.join(" & ")}</div>
-
-                          <div className="flex items-center gap-2">
-                            <div className="text-green-600 font-semibold">
-                              🏆 Winner: Team {match.winner}
-                            </div>
-
-                            <select
-                              value={match.winner}
-                              onChange={(e) =>
-                                onEditMatchWinner(match.id, e.target.value)
-                              }
-                              className="border rounded px-2 py-1 text-xs"
-                            >
-                              <option value="A">Team A</option>
-                              <option value="B">Team B</option>
-                            </select>
-                          </div>
-                        </div>
-
-                        <div className="text-xs text-gray-400 mt-2">
-                          🕒{" "}
-                          {formatMatchDuration(match.startedAt, match.endedAt)}
-                        </div>
-
-                        <div className="text-xs text-gray-400">
-                          ⌛ {getRelativeTime(match.endedAt)}
-                        </div>
-                      </div>
-                    ))}
-                  </>
-                )}
-              </div>
-            );
-          })
+              );
+            })}
+        </div>
       )}
     </div>
   );
