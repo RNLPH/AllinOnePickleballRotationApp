@@ -63,7 +63,7 @@ export default function StandingsTab({
         <>
           {/* Podium — top 3 */}
           {top3.length >= 3 && (
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-1.5 px-1">
               {[1, 0, 2].map((podiumIdx) => {
                 const player = top3[podiumIdx];
                 if (!player) return null;
@@ -74,11 +74,11 @@ export default function StandingsTab({
                 const isCenter = podiumIdx === 0;
 
                 return (
-                  <div key={player.id} className={`rounded-xl border p-3 text-center ${bgColors[podiumIdx]} ${isCenter ? "transform -translate-y-2" : ""}`}>
-                    <div className="text-2xl mb-1">{medals[podiumIdx]}</div>
-                    <div className="font-bold text-sm text-slate-800 truncate">{player.name}</div>
-                    <div className="text-xs text-slate-500 mt-1">{player.wins}W-{player.losses}L</div>
-                    <div className="text-xs font-semibold text-blue-600">{wr}%</div>
+                  <div key={player.id} className={`rounded-xl border p-2 sm:p-3 text-center ${bgColors[podiumIdx]} ${isCenter ? "transform -translate-y-2" : ""}`}>
+                    <div className="text-xl sm:text-2xl mb-0.5">{medals[podiumIdx]}</div>
+                    <div className="font-bold text-xs sm:text-sm text-slate-800 truncate">{player.name}</div>
+                    <div className="text-[10px] sm:text-xs text-slate-500 mt-0.5">{player.wins}W-{player.losses}L</div>
+                    <div className="text-[10px] sm:text-xs font-semibold text-blue-600">{wr}%</div>
                   </div>
                 );
               })}
@@ -87,7 +87,7 @@ export default function StandingsTab({
 
           {/* Full standings table */}
           <div className="bg-white rounded-xl border border-slate-100 overflow-hidden">
-            <div className="grid grid-cols-[auto_1fr_auto_auto_auto] gap-x-3 px-3 py-2 text-xs text-slate-400 font-medium border-b border-slate-100">
+            <div className="grid grid-cols-[24px_1fr_auto_auto_auto] gap-x-2 sm:gap-x-3 px-3 py-2 text-xs text-slate-400 font-medium border-b border-slate-100">
               <span>#</span>
               <span>Player</span>
               <span>W</span>
@@ -99,8 +99,8 @@ export default function StandingsTab({
               const rank = getStandingRank(standings, index);
               const wr = player.gamesPlayed > 0 ? Math.round((player.wins / player.gamesPlayed) * 100) : 0;
               return (
-                <div key={player.id} className="grid grid-cols-[auto_1fr_auto_auto_auto] gap-x-3 items-center px-3 py-2.5 border-b border-slate-50 last:border-0 hover:bg-slate-50">
-                  <span className="text-xs font-bold text-slate-400 w-6">{rank}</span>
+                <div key={player.id} className="grid grid-cols-[24px_1fr_auto_auto_auto] gap-x-2 sm:gap-x-3 items-center px-3 py-2.5 border-b border-slate-50 last:border-0 hover:bg-slate-50">
+                  <span className="text-xs font-bold text-slate-400">{rank}</span>
                   <div className="min-w-0">
                     <span className="text-sm font-medium text-slate-800 truncate block">{player.name}</span>
                     <span className="text-[10px] text-slate-400">

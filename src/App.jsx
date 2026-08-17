@@ -2174,8 +2174,8 @@ function AppMain({ club, authUser, onLogout }) {
       </main>
 
       {/* Bottom Tab Navigation — mobile native feel */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-40 sm:hidden">
-        <div className="flex justify-around py-2">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-40 sm:hidden safe-area-pb">
+        <div className="flex justify-around py-2 pb-[env(safe-area-inset-bottom)]">
           {(viewMode
             ? ["standings", "attendance", "history"]
             : ["dashboard", "standings", "attendance", "history"]
@@ -2183,7 +2183,7 @@ function AppMain({ club, authUser, onLogout }) {
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg transition-colors ${
+              className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition-colors ${
                 activeTab === tab ? "text-blue-600" : "text-slate-400"
               }`}
             >
@@ -2193,10 +2193,10 @@ function AppMain({ club, authUser, onLogout }) {
                 {tab === "attendance" && "👥"}
                 {tab === "history" && "📜"}
               </span>
-              <span className="text-[10px] font-medium">
+              <span className="text-[10px] font-medium leading-tight">
                 {tab === "dashboard" && "Home"}
-                {tab === "standings" && "Standings"}
-                {tab === "attendance" && "Attend."}
+                {tab === "standings" && "Stats"}
+                {tab === "attendance" && "Attend"}
                 {tab === "history" && "History"}
               </span>
             </button>
