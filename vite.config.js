@@ -19,11 +19,27 @@ export default defineConfig({
           "Court session manager for racket sports — queue rotation, standings, and match history",
 
         theme_color: "#2563eb",
-        background_color: "#f1f5f9",
+        background_color: "#f8fafc",
 
         display: "standalone",
 
         icons: [
+          {
+            src: "logo.svg",
+            sizes: "any",
+            type: "image/svg+xml",
+            purpose: "any",
+          },
+          {
+            src: "pwa-192.svg",
+            sizes: "192x192",
+            type: "image/svg+xml",
+          },
+          {
+            src: "pwa-512.svg",
+            sizes: "512x512",
+            type: "image/svg+xml",
+          },
           {
             src: "pwa-192.png",
             sizes: "192x192",
