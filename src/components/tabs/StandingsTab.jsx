@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { exportStandings } from "../../utils/csvUtils";
+import { exportStandings, downloadCSV } from "../../utils/csvUtils";
 
 function buildShareText(standings, standingsHistory, sessionId, getStandingRank) {
   const date = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -139,6 +139,27 @@ export default function StandingsTab({
 
                     {expandedStandings === history.id && (
                       <div className="border-t border-slate-100 px-4 py-2">
+                        <div className="flex justify-end mb-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const sorted = [...history.standings].sort((a, b) => {
+                                const wrA = a.gamesPlayed > 0 ? a.wins / a.gamesPlayed : 0;
+                                const wrB = b.gamesPlayed > 0 ? b.wins / b.gamesPlayed : 0;
+                                return wrB !== wrA ? wrB - wrA : b.wins - a.wins;
+                              });
+                              const rows = [["Rank", "Player", "Wins", "Losses", "Win Rate"]];
+                              sorted.forEach((p, i) => {
+                                const wr = p.gamesPlayed > 0 ? Math.round((p.wins / p.gamesPlayed) * 100) : 0;
+                                rows.push([i + 1, p.playerName, p.wins, p.losses, `${wr}%`]);
+                              });
+                              downloadCSV(`session-${history.sessionId}-standings.csv`, rows);
+                            }}
+                            className="h-7 px-2.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-600 hover:bg-slate-200"
+                          >
+                            📤 Export
+                          </button>
+                        </div>
                         {[...history.standings]
                           .sort((a, b) => {
                             const wrA = a.gamesPlayed > 0 ? a.wins / a.gamesPlayed : 0;
