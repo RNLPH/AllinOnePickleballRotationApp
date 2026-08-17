@@ -31,6 +31,9 @@ export default function CourtCard({
   onSetSelectedPreviewPlayer,
 }) {
   const preview = courtPreviews[court.id] || [];
+  const isSingles = court.format === "singles";
+  const maxPlayers = isSingles ? 2 : 4;
+  const isFull = court.players.length >= maxPlayers;
 
   return (
     <DroppableCourt courtId={court.id}>
@@ -75,7 +78,7 @@ export default function CourtCard({
               </button>
             </div>
 
-            {court.players.length === 4 && (
+            {isFull && (
               <span
                 className="
                   inline-block
@@ -89,7 +92,7 @@ export default function CourtCard({
                   font-semibold
                 "
               >
-                🟢 Active Match
+                🟢 Active {isSingles ? "Singles" : "Match"}
               </span>
             )}
           </div>
@@ -105,7 +108,7 @@ export default function CourtCard({
               font-semibold
             "
           >
-            {court.players.length}/4
+            {court.players.length}/{maxPlayers}
           </span>
         </div>
 
@@ -155,6 +158,39 @@ export default function CourtCard({
             "
           >
             Drag players here
+          </div>
+        ) : isSingles ? (
+          /* Singles layout — Player A vs Player B */
+          <div className="space-y-4">
+            <div className="text-center mb-2">
+              <span className="font-bold text-blue-600">🔵 Player A</span>
+              <span className="mx-3 text-gray-400">VS</span>
+              <span className="font-bold text-purple-600">🟣 Player B</span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              {court.players.filter(Boolean).map((player, idx) => (
+                <div
+                  key={player.id}
+                  className={`
+                    bg-white border-l-4 p-3 rounded-lg flex items-center shadow-sm min-h-[72px]
+                    ${idx === 0 ? "border-blue-500" : "border-purple-500"}
+                  `}
+                >
+                  <div className="flex-1 min-w-0">
+                    <DroppableCourtPlayer player={player}>
+                      <DraggableCourtPlayer player={player} color={idx === 0 ? "blue" : "purple"} />
+                    </DroppableCourtPlayer>
+                  </div>
+                  <button
+                    onClick={() => onRemoveCourtPlayer(court.id, player.id)}
+                    className="ml-2 flex-shrink-0 text-red-600 font-bold"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         ) : (
           <div className="space-y-4">
@@ -505,7 +541,7 @@ export default function CourtCard({
         <div className="grid grid-cols-2 gap-2 mt-4">
           <button
             onClick={() => onEndGame(court.id, "A")}
-            disabled={court.players.length !== 4}
+            disabled={!isFull}
             className="
               bg-gradient-to-r
               from-blue-500
@@ -519,12 +555,12 @@ export default function CourtCard({
               disabled:bg-gray-400
             "
           >
-            Team A Wins
+            {isSingles ? "Player A Wins" : "Team A Wins"}
           </button>
 
           <button
             onClick={() => onEndGame(court.id, "B")}
-            disabled={court.players.length !== 4}
+            disabled={!isFull}
             className="
               bg-gradient-to-r
               from-purple-500
@@ -538,7 +574,7 @@ export default function CourtCard({
               disabled:bg-gray-400
             "
           >
-            Team B Wins
+            {isSingles ? "Player B Wins" : "Team B Wins"}
           </button>
         </div>
       </div>

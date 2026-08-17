@@ -72,3 +72,9 @@ export const RESULT_POOLS = {
   LOSS:      "loss",
   UNMATCHED: null,
 };
+
+// Court format
+export const COURT_FORMATS = {
+  DOUBLES: "doubles",
+  SINGLES: "singles",
+};

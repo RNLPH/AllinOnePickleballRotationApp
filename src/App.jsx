@@ -943,6 +943,18 @@ function AppMain({ club, authUser, onLogout }) {
     setSelectedCourtForEdit(null);
   };
 
+  const updateCourtFormat = (courtId, format) => {
+    const targetCourt = courts.find((c) => c.id === courtId);
+    if (!targetCourt) return;
+    if (targetCourt.players.length > 0) {
+      alert("Cannot change court format while players are on the court.");
+      return;
+    }
+    setCourts((prev) =>
+      prev.map((c) => (c.id === courtId ? { ...c, format } : c))
+    );
+  };
+
   const updatePlayerTier = async (playerId, newTier) => {
     const tierCounts = getTierCounts();
     const limits = getActiveTierLimits();
@@ -985,7 +997,7 @@ function AppMain({ club, authUser, onLogout }) {
         return {
           ...c,
           players: updatedPlayers,
-          startedAt: updatedPlayers.length < 4 ? null : c.startedAt,
+          startedAt: updatedPlayers.length < (c.format === "singles" ? 2 : 4) ? null : c.startedAt,
         };
       })
     );
@@ -1016,7 +1028,7 @@ function AppMain({ club, authUser, onLogout }) {
         return;
       }
     }
-    if (court.players.length >= 4) { alert("Court is already full."); return; }
+    if (court.players.length >= (court.format === "singles" ? 2 : 4)) { alert("Court is already full."); return; }
     if (!window.confirm(`Add ${player.name} to Court ${court.id}?`)) return;
 
     setCourts((prev) =>
@@ -1026,7 +1038,7 @@ function AppMain({ club, authUser, onLogout }) {
         return {
           ...c,
           players: updatedPlayers,
-          startedAt: updatedPlayers.length === 4 && !c.startedAt ? Date.now() : c.startedAt,
+          startedAt: updatedPlayers.length === (c.format === "singles" ? 2 : 4) && !c.startedAt ? Date.now() : c.startedAt,
         };
       })
     );
@@ -1156,7 +1168,7 @@ function AppMain({ club, authUser, onLogout }) {
         return {
           ...court,
           players: updatedPlayers,
-          startedAt: updatedPlayers.length < 4 ? null : court.startedAt,
+          startedAt: updatedPlayers.length < (court.format === "singles" ? 2 : 4) ? null : court.startedAt,
         };
       })
     );
@@ -1249,10 +1261,17 @@ function AppMain({ club, authUser, onLogout }) {
 
   const generatePreviewForCourt = (court) => {
     const courtQueue = getQueueByCourtType(court.type);
+    const isSingles = court.format === "singles";
+    const needed = isSingles ? 2 : 4;
 
-    // Try eligible players first; fall back to full pool if fewer than 4
+    // Try eligible players first; fall back to full pool if fewer than needed
     const eligible = eligiblePlayers(courtQueue);
-    const pool = eligible.length >= 4 ? eligible : courtQueue;
+    const pool = eligible.length >= needed ? eligible : courtQueue;
+
+    if (isSingles) {
+      if (pool.length < 2) return [];
+      return pool.slice(0, 2);
+    }
 
     const selectedPlayers = buildRotationGroup(pool);
     if (selectedPlayers.length < 4) return [];
@@ -1266,9 +1285,11 @@ function AppMain({ club, authUser, onLogout }) {
 
   const regeneratePreview = (court) => {
     const currentPreview = courtPreviews[court.id];
-    if (!currentPreview || currentPreview.length !== 4) return;
+    const isSingles = court.format === "singles";
+    const needed = isSingles ? 2 : 4;
+    if (!currentPreview || currentPreview.length !== needed) return;
     const shuffled = shufflePlayers(currentPreview);
-    const preview = createBalancedTeams(shuffled);
+    const preview = isSingles ? shuffled : createBalancedTeams(shuffled);
     setCourtPreviews((prev) => ({ ...prev, [court.id]: preview }));
     setSelectedPreviewPlayer(null);
   };
@@ -1328,11 +1349,14 @@ function AppMain({ club, authUser, onLogout }) {
 
   const confirmPreview = (courtId) => {
     const preview = courtPreviews[courtId];
-    if (!preview || preview.length !== 4) {
-      alert("Preview requires exactly 4 players.");
+    const court = courts.find((c) => c.id === courtId);
+    const isSingles = court?.format === "singles";
+    const needed = isSingles ? 2 : 4;
+
+    if (!preview || preview.length !== needed) {
+      alert(`Preview requires exactly ${needed} players.`);
       return;
     }
-    const court = courts.find((c) => c.id === courtId);
     if (court && court.players.length > 0) {
       alert("Court already has an active match.");
       return;
@@ -1388,6 +1412,18 @@ function AppMain({ club, authUser, onLogout }) {
           pool = waitingPlayers.filter((p) => !usedIds.has(p.id));
         }
 
+        const isSingles = court.format === "singles";
+
+        if (isSingles) {
+          const eligible = eligiblePlayers(pool);
+          if (eligible.length < 2) return court;
+          const selected = eligible
+            .slice(0, 2)
+            .map((p) => ({ ...p, consecutiveGames: (p.consecutiveGames || 0) + 1 }));
+          selected.forEach((p) => usedIds.add(p.id));
+          return { ...court, players: selected, startedAt: Date.now() };
+        }
+
         const selected = buildRotationGroup(eligiblePlayers(pool));
         if (selected.length < 4) return court;
 
@@ -1424,6 +1460,19 @@ function AppMain({ club, authUser, onLogout }) {
     const updatedCourts = courts.map((court) => {
       if (court.players.length > 0) return court;
       const courtQueue = getQueueByCourtType(court.type);
+      const isSingles = court.format === "singles";
+      const minNeeded = isSingles ? 2 : 4;
+
+      if (isSingles) {
+        // Singles: just take top 2 by queue score, no team balancing
+        const eligible = eligiblePlayers(courtQueue);
+        if (eligible.length < 2) return court;
+        const selected = eligible
+          .slice(0, 2)
+          .map((p) => ({ ...p, consecutiveGames: (p.consecutiveGames || 0) + 1 }));
+        return { ...court, players: selected, startedAt: Date.now() };
+      }
+
       const selectedPlayers = buildRotationGroup(eligiblePlayers(courtQueue));
       if (selectedPlayers.length < 4) return court;
 
@@ -1466,6 +1515,8 @@ function AppMain({ club, authUser, onLogout }) {
     const court = courts.find((c) => c.id === courtId);
     if (!court) return;
 
+    const isSingles = court.format === "singles";
+
     const matchRecord = {
       sessionId,
       startedAt: court.startedAt,
@@ -1473,8 +1524,9 @@ function AppMain({ club, authUser, onLogout }) {
       sessionTimestamp: new Date().toISOString(),
       date: Date.now(),
       courtId,
-      teamA: court.players.slice(0, 2).map((p) => p.name),
-      teamB: court.players.slice(2, 4).map((p) => p.name),
+      format: isSingles ? "singles" : "doubles",
+      teamA: isSingles ? [court.players[0]?.name] : court.players.slice(0, 2).map((p) => p.name),
+      teamB: isSingles ? [court.players[1]?.name] : court.players.slice(2, 4).map((p) => p.name),
       winner: winningTeam,
     };
 
@@ -1482,12 +1534,15 @@ function AppMain({ club, authUser, onLogout }) {
     const savedMatch = { ...matchRecord, id: matchId };
     setMatches((prev) => [savedMatch, ...prev]);
 
-    recordPartners(court.players[0], court.players[1]);
-    recordPartners(court.players[2], court.players[3]);
-    recordOpponents(court.players.slice(0, 2), court.players.slice(2, 4));
+    // Partner/opponent tracking — doubles only
+    if (!isSingles) {
+      recordPartners(court.players[0], court.players[1]);
+      recordPartners(court.players[2], court.players[3]);
+      recordOpponents(court.players.slice(0, 2), court.players.slice(2, 4));
+    }
 
     const returningPlayers = court.players.map((player, index) => {
-      const isTeamA = index < 2;
+      const isTeamA = isSingles ? index === 0 : index < 2;
       const won =
         (winningTeam === "A" && isTeamA) || (winningTeam === "B" && !isTeamA);
       const currentStreak = won ? (player.currentStreak || 0) + 1 : 0;
@@ -2221,6 +2276,7 @@ function AppMain({ club, authUser, onLogout }) {
           selectedCourtForEdit={selectedCourtForEdit}
           sessionMode={sessionMode}
           onUpdateType={updateCourtType}
+          onUpdateFormat={updateCourtFormat}
           onDeleteCourt={deleteSpecificCourt}
           onCancel={() => setSelectedCourtForEdit(null)}
         />

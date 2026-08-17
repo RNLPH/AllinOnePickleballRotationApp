@@ -45,15 +45,45 @@ export default function CourtSettingsModal({
   selectedCourtForEdit,
   sessionMode,
   onUpdateType,
+  onUpdateFormat,
   onDeleteCourt,
   onCancel,
 }) {
+  const isDoubles = editingCourt?.format !== "singles";
+
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl p-6 shadow-xl w-80">
         <h2 className="text-xl font-bold mb-4">⚙️ Court Settings</h2>
 
         <div className="space-y-2">
+          {/* Court Format Toggle */}
+          <div className="mb-3">
+            <div className="text-sm font-semibold text-slate-600 mb-2">Format</div>
+            <div className="flex bg-slate-100 rounded-xl p-1">
+              <button
+                onClick={() => onUpdateFormat(selectedCourtForEdit, "doubles")}
+                className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
+                  isDoubles ? "bg-white shadow text-blue-600" : "text-gray-500"
+                }`}
+              >
+                👥 Doubles (2v2)
+              </button>
+              <button
+                onClick={() => onUpdateFormat(selectedCourtForEdit, "singles")}
+                className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
+                  !isDoubles ? "bg-white shadow text-blue-600" : "text-gray-500"
+                }`}
+              >
+                🧑 Singles (1v1)
+              </button>
+            </div>
+          </div>
+
+          <hr className="my-3" />
+
+          {/* Court Type */}
+          <div className="text-sm font-semibold text-slate-600 mb-2">Court Type</div>
           <CourtTypeButtons
             sessionMode={sessionMode}
             editingCourt={editingCourt}
