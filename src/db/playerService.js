@@ -54,3 +54,4 @@ export async function clearSessionPlayers(clubId) {
   await clearPlayers(clubId);
 }
 
+

@@ -51,3 +51,4 @@ export async function clearAllMatches(clubId) {
   if (error) console.error("clearAllMatches:", error);
 }
 
+

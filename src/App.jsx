@@ -77,7 +77,7 @@ export default function App() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-100 via-blue-50 to-purple-50 flex items-center justify-center">
         <div className="text-center">
-          <img src="/logo.svg" alt="KNGS Stack" className="w-12 h-12 mx-auto mb-4" />
+          <img src="/logo.png" alt="KNGS Stack" className="w-12 h-12 mx-auto mb-4" />
           <div className="text-gray-500">Loading...</div>
         </div>
       </div>
@@ -2037,7 +2037,7 @@ function AppMain({ club, authUser, onLogout }) {
       <header className="sticky top-0 z-40 bg-[#003369] shadow-sm">
         <div className="max-w-7xl mx-auto px-3 py-2.5 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
-            <img src="/logo.svg" alt="KNGS Stack" className="w-7 h-7 shrink-0" />
+            <img src="/logo.png" alt="KNGS Stack" className="w-7 h-7 shrink-0" />
             <div className="min-w-0">
               <h1 className="text-base font-bold text-white leading-tight truncate">KNGS Stack</h1>
               {club && <p className="text-[10px] text-[#7ABFED] leading-tight truncate">{club.name}</p>}
@@ -2507,6 +2507,7 @@ function AppMain({ club, authUser, onLogout }) {
     </div>
   );
 }
+
 
 
 

@@ -35,3 +35,4 @@ export function resizeImageToBase64(file, size = 64) {
   });
 }
 
+

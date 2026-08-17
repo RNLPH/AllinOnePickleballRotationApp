@@ -31,3 +31,4 @@ export async function clearStandingsHistory(clubId) {
   if (error) console.error("clearStandingsHistory:", error);
 }
 
+

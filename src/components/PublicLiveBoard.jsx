@@ -68,7 +68,7 @@ export default function PublicLiveBoard() {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
         <div className="text-center">
-          <img src="/logo.svg" alt="KNGS Stack" className="w-14 h-14 mx-auto mb-4" />
+          <img src="/logo.png" alt="KNGS Stack" className="w-14 h-14 mx-auto mb-4" />
           <h1 className="text-xl font-bold text-slate-800">Club not found</h1>
           <p className="text-slate-500 mt-2 text-sm">Check the link and try again.</p>
         </div>
@@ -85,7 +85,7 @@ export default function PublicLiveBoard() {
       <header className="sticky top-0 z-10 bg-white border-b border-slate-200 shadow-sm">
         <div className="px-4 py-3 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
-            <img src="/logo.svg" alt="KNGS Stack" className="w-7 h-7 shrink-0" />
+            <img src="/logo.png" alt="KNGS Stack" className="w-7 h-7 shrink-0" />
             <div className="min-w-0">
               <h1 className="text-base font-bold text-slate-800 truncate">KNGS Stack Live</h1>
               <p className="text-[10px] text-slate-400 truncate">{clubName}</p>
@@ -247,4 +247,5 @@ export default function PublicLiveBoard() {
     </div>
   );
 }
+
 

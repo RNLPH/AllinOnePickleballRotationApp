@@ -40,3 +40,4 @@ export async function deleteAttendanceBySession(sessionId, clubId) {
   if (error) console.error("deleteAttendanceBySession:", error);
 }
 
+
