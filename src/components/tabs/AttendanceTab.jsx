@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { exportAttendance } from "../../utils/csvUtils";
+import { exportAttendance, downloadCSV } from "../../utils/csvUtils";
 
 export default function AttendanceTab({
   attendance,
@@ -116,6 +116,23 @@ export default function AttendanceTab({
 
                     {expandedSession === session && (
                       <div className="border-t border-slate-100 px-4 py-2">
+                        <div className="flex justify-end mb-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const uniquePlayers = [...new Map(records.map((r) => [r.playerId, r])).values()]
+                                .sort((a, b) => a.playerName.localeCompare(b.playerName));
+                              const rows = [["#", "Player", "Session", "Date"]];
+                              uniquePlayers.forEach((r, i) => {
+                                rows.push([i + 1, r.playerName, session, new Date(r.timestamp).toLocaleDateString()]);
+                              });
+                              downloadCSV(`session-${session}-attendance.csv`, rows);
+                            }}
+                            className="h-7 px-2.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-600 hover:bg-slate-200"
+                          >
+                            📤 Export
+                          </button>
+                        </div>
                         <div className="flex flex-wrap gap-1.5">
                           {[...new Map(records.map((r) => [r.playerId, r])).values()]
                             .sort((a, b) => a.playerName.localeCompare(b.playerName))

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { exportMatches } from "../../utils/csvUtils";
+import { exportMatches, downloadCSV } from "../../utils/csvUtils";
 import { formatMatchDuration, getRelativeTime } from "../../utils/playerUtils";
 
 export default function HistoryTab({
@@ -79,10 +79,25 @@ export default function HistoryTab({
                   {/* Expanded matches */}
                   {expandedSession === session && (
                     <div className="border-t border-slate-100">
-                      {/* Session summary */}
-                      <div className="flex gap-3 px-4 py-2 bg-slate-50 text-xs text-slate-500">
-                        <span>⏱ Avg: {summary.avgDuration}m</span>
-                        <span>🔥 Longest: {summary.longestMatch}m</span>
+                      {/* Session summary + export */}
+                      <div className="flex items-center justify-between px-4 py-2 bg-slate-50 text-xs text-slate-500">
+                        <div className="flex gap-3">
+                          <span>⏱ Avg: {summary.avgDuration}m</span>
+                          <span>🔥 Longest: {summary.longestMatch}m</span>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const rows = [["#", "Team A", "Team B", "Winner", "Court"]];
+                            sessionMatches.forEach((m, i) => {
+                              rows.push([i + 1, m.teamA?.join(" & "), m.teamB?.join(" & "), `Team ${m.winner}`, m.courtId]);
+                            });
+                            downloadCSV(`session-${session}-matches.csv`, rows);
+                          }}
+                          className="h-7 px-2.5 rounded-lg text-xs font-medium bg-white border border-slate-200 text-slate-600 hover:bg-slate-100"
+                        >
+                          📤 Export
+                        </button>
                       </div>
 
                       {/* Match list */}
