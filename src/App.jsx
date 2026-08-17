@@ -1925,6 +1925,10 @@ function AppMain({ club, authUser, onLogout }) {
               </span>
               <button
                 onClick={() => {
+                  if (hasActiveGames()) {
+                    alert("Finish all active games before switching modes.");
+                    return;
+                  }
                   setIsSwitchingMode(true);
                   setSessionMode(null);
                   localStorage.removeItem(STORAGE_KEYS.SESSION_MODE);
