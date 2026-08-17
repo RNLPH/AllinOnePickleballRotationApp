@@ -63,7 +63,7 @@ export default function TierModal({ pendingPlayerName, isExtendedMode, onSelect,
             disabled={saving}
             className="w-full bg-gray-200 py-2 rounded-xl disabled:opacity-50"
           >
-            Cancel
+            Close
           </button>
         </div>
       </div>

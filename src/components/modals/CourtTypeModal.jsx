@@ -48,7 +48,7 @@ export default function CourtTypeModal({ sessionMode, onSelect, onCancel }) {
           )}
 
           <button onClick={onCancel} className="w-full bg-gray-200 py-2 rounded-xl">
-            Cancel
+            Close
           </button>
         </div>
       </div>

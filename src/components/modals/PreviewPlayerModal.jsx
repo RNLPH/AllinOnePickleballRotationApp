@@ -77,7 +77,7 @@ export default function PreviewPlayerModal({
             rounded-xl
           "
         >
-          Cancel
+          Close
         </button>
       </div>
     </div>

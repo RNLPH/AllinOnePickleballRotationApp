@@ -66,7 +66,7 @@ export default function EditPlayerNameModal({ player, onSave, onCancel }) {
             onClick={onCancel}
             className="w-full bg-gray-200 hover:bg-gray-300 py-2 rounded-xl"
           >
-            Cancel
+            Close
           </button>
         </div>
       </div>

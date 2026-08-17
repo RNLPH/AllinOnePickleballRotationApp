@@ -141,7 +141,7 @@ export default function TierAssignmentPreviewModal({
             onClick={onCancel}
             className="flex-1 bg-gray-200 hover:bg-gray-300 py-3 rounded-xl font-semibold text-sm sm:text-base"
           >
-            Cancel
+            Close
           </button>
         </div>
 

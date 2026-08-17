@@ -104,7 +104,7 @@ export default function CourtSettingsModal({
             onClick={onCancel}
             className="w-full bg-gray-200 py-2 rounded-xl"
           >
-            Cancel
+            Close
           </button>
         </div>
       </div>
