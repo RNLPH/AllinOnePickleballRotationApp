@@ -1,436 +1,241 @@
-# 🏓 PickleStack
+# RallyStack
 
-PickleStack is a pickleball session management and court rotation system designed for recreational and club play.
+Court session manager for racket sports. Manage player queues, court rotation, standings, and match history for pickleball, badminton, tennis, padel, and more.
 
-It was built to solve common open-play problems:
+## Features
 
-- Players waiting too long
-- Unfair court assignments
-- Repeated teammates
-- Difficulty tracking attendance and match history
-- Manual session management
+- **3 Game Modes** — Open (winners vs winners), Ladder (King/Knight/Squire), Extended Ladder (4-tier)
+- **Singles & Doubles** — each court can independently be 1v1 or 2v2
+- **ELO Rating** — DUPR-style skill rating that updates after every match
+- **Auto-Rotation** — balanced team pairing with partner/opponent history
+- **Multi-Club** — each club gets isolated data with Supabase auth
+- **Live Board** — public URL for TV/tablet display at the venue
+- **Self Check-in** — players add themselves via a public link
+- **PWA** — installable on phone, works offline, auto-updates
 
----
+## Tech Stack
 
-# ✨ Features
+- **Frontend** — React 19, Vite 8, Tailwind CSS 4
+- **Database** — Supabase (PostgreSQL)
+- **Auth** — Supabase Auth (email/password)
+- **Drag & Drop** — @dnd-kit
+- **Hosting** — Vercel
+- **PWA** — vite-plugin-pwa
 
-## Open Court Rotation
+## Getting Started
 
-Any available court can be used by any group of players.
+### Prerequisites
 
-There are no "winner courts" or "loser courts".
+- Node.js 18+
+- npm
+- A Supabase account (free tier works)
+- A Vercel account (for deployment)
 
-Players are assigned fairly based on queue priority rather than court designation.
+### 1. Clone the repository
 
----
-
-## Fair Queue System
-
-Player selection follows this order:
-
-1. Priority Players
-2. Unmatched Players First
-3. Lowest Games Played
-4. Longest Waiting Time
-
-This helps ensure everyone gets equal opportunities to play.
-
----
-
-## Smart Team Generation
-
-When four players are selected:
-
-- Partner history is checked
-- New partnerships are preferred
-- Repeated teammates are minimized
-
----
-
-## Attendance Tracking
-
-Automatically records attendance for each session.
-
-Track:
-
-- Session participation
-- Attendance champions
-- Historical attendance
-
----
-
-## Match History
-
-Stores:
-
-- Teams
-- Winners
-- Court number
-- Match duration
-- Session
-
-Provides a complete historical match record.
-
----
-
-## Standings
-
-Tracks:
-
-- Games Played
-- Wins
-- Losses
-- Current Win Streak
-- Best Win Streak
-
----
-
-## CSV Export
-
-Export:
-
-- Standings
-- Attendance
-- Match History
-
-for external reporting and analysis.
-
----
-
-# 🧠 Rotation Logic
-
-## Open Court Rotation
-
-The system assigns players to the first available empty court.
-
-No court is designated as a "winner" or "loser" court.
-
----
-
-## Queue Selection Algorithm
-
-Implemented in:
-
-```javascript
-buildRotationGroup()
+```bash
+git clone https://github.com/RNLPH/AllinOnePickleballRotationApp.git
+cd AllinOnePickleballRotationApp
+npm install
 ```
 
-Priority order:
+### 2. Create a Supabase project
 
-```text
-Priority Flag
-↓
-Unmatched Players
-↓
-Lowest Games Played
-↓
-Longest Waiting Time
+1. Go to [supabase.com](https://supabase.com) and create a new project
+2. Go to the **SQL Editor** and run the following:
+
+```sql
+-- Tables
+create table clubs (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  owner_id uuid references auth.users(id) on delete cascade,
+  created_at timestamptz default now()
+);
+
+create table directory (
+  id text primary key,
+  name text not null,
+  club_id uuid references clubs(id) on delete cascade,
+  data jsonb not null default '{}'
+);
+
+create table players (
+  id text primary key,
+  name text not null,
+  club_id uuid references clubs(id) on delete cascade,
+  data jsonb not null default '{}'
+);
+
+create table matches (
+  id bigserial primary key,
+  session_id integer not null,
+  date bigint not null,
+  club_id uuid references clubs(id) on delete cascade,
+  data jsonb not null default '{}'
+);
+
+create table attendance (
+  id text primary key,
+  player_id text not null,
+  session_id integer not null,
+  club_id uuid references clubs(id) on delete cascade,
+  data jsonb not null default '{}'
+);
+
+create table standings_history (
+  id text primary key,
+  session_id integer not null,
+  club_id uuid references clubs(id) on delete cascade,
+  data jsonb not null default '{}'
+);
+
+create table courts (
+  club_id uuid primary key references clubs(id) on delete cascade,
+  data jsonb not null default '[]'
+);
+
+-- Enable RLS on all tables
+alter table clubs enable row level security;
+alter table directory enable row level security;
+alter table players enable row level security;
+alter table matches enable row level security;
+alter table attendance enable row level security;
+alter table standings_history enable row level security;
+alter table courts enable row level security;
+
+-- RLS Policies: club owner access
+create policy "Owner manages club" on clubs for all
+  using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
+
+create policy "Club data access" on directory for all
+  using (club_id in (select id from clubs where owner_id = auth.uid()))
+  with check (club_id in (select id from clubs where owner_id = auth.uid()));
+
+create policy "Club data access" on players for all
+  using (club_id in (select id from clubs where owner_id = auth.uid()))
+  with check (club_id in (select id from clubs where owner_id = auth.uid()));
+
+create policy "Club data access" on matches for all
+  using (club_id in (select id from clubs where owner_id = auth.uid()))
+  with check (club_id in (select id from clubs where owner_id = auth.uid()));
+
+create policy "Club data access" on attendance for all
+  using (club_id in (select id from clubs where owner_id = auth.uid()))
+  with check (club_id in (select id from clubs where owner_id = auth.uid()));
+
+create policy "Club data access" on standings_history for all
+  using (club_id in (select id from clubs where owner_id = auth.uid()))
+  with check (club_id in (select id from clubs where owner_id = auth.uid()));
+
+create policy "Club courts access" on courts for all
+  using (club_id in (select id from clubs where owner_id = auth.uid()))
+  with check (club_id in (select id from clubs where owner_id = auth.uid()));
+
+-- Public read policies (for live board and self check-in)
+create policy "Public read clubs" on clubs for select using (true);
+create policy "Public read players" on players for select using (true);
+create policy "Public read matches" on matches for select using (true);
+create policy "Public read courts" on courts for select using (true);
 ```
 
-Example:
+### 3. Configure environment variables
 
-Player A
+Create a `.env` file in the project root:
 
-- 0 Games
-- Waiting 15 Minutes
-
-Player B
-
-- 2 Games
-- Waiting 20 Minutes
-
-Player A will be selected first because games played have higher priority than waiting time.
-
----
-
-## Unmatched Players First
-
-Newly arrived players are assigned:
-
-```javascript
-queueGroup: "unmatched"
+```
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key-here
 ```
 
-These players are always prioritized before players returning from completed matches.
+Get these from Supabase → Settings → API.
 
-Example:
+### 4. Run locally
 
-Queue:
-
-P1-P8 (already played)
-
-P9-P12 (never played)
-
-System selects:
-
-```text
-P9
-P10
-P11
-P12
+```bash
+npm run dev
 ```
 
-before reusing players who have already played.
+Open http://localhost:5173
 
----
+### 5. Deploy to Vercel
 
-## Partner Rotation System
+1. Push your code to GitHub
+2. Go to [vercel.com](https://vercel.com) → Import your repo
+3. Add environment variables (`VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`)
+4. Deploy — Vercel auto-detects Vite and builds
 
-Implemented in:
+### 6. Configure Supabase Auth
 
-```javascript
-createBalancedTeams()
+1. Go to Supabase → Authentication → URL Configuration
+2. Set **Site URL** to your Vercel URL (e.g. `https://your-app.vercel.app`)
+3. Add `http://localhost:5173` to **Redirect URLs** for local development
+
+## Usage
+
+### For Club Leaders (Operators)
+
+1. Sign up → create your club
+2. Choose a game mode (Open, Ladder, or Extended Ladder)
+3. Add players to the queue
+4. Create courts (set type and format: doubles/singles)
+5. Click "Start Game" to auto-fill courts
+6. Record results with "Team A Wins" / "Team B Wins"
+7. Share the Live Board link (🔗) for players to watch
+8. Share the Check-in link (📋) for self check-in
+
+### For Players
+
+- Open the **Live Board** link to see active courts and queue position
+- Open the **Check-in** link to add yourself to the queue
+- No login required for players
+
+### Public URLs
+
+- Live Board: `https://your-app.vercel.app/live/CLUB_ID`
+- Self Check-in: `https://your-app.vercel.app/checkin/CLUB_ID`
+
+## Project Structure
+
+```
+src/
+├── App.jsx                    — Main app (auth wrapper + AppMain)
+├── constants.js               — Mode configs, tier limits, storage keys
+├── main.jsx                   — Entry point with routing
+├── components/
+│   ├── auth/                  — Login, signup, club setup screens
+│   ├── dashboard/             — SessionControls, PlayerQueue, PlayerRow, CourtCard
+│   ├── dnd/                   — Drag-and-drop components
+│   ├── modals/                — All modal dialogs
+│   ├── tabs/                  — Standings, Attendance, History tabs
+│   ├── ui/                    — Reusable UI (PlayerAvatar)
+│   ├── LiveBoard.jsx          — Operator fullscreen live display
+│   ├── PublicLiveBoard.jsx    — Public live board (no auth)
+│   └── PublicCheckin.jsx      — Public self check-in page
+├── db/
+│   ├── supabase.js            — Supabase client
+│   ├── playerService.js       — Queue player CRUD
+│   ├── directoryService.js    — Permanent player registry
+│   ├── matchService.js        — Match history
+│   ├── attendanceService.js   — Attendance records
+│   └── standingsHistoryService.js — Historical standings
+└── utils/
+    ├── playerUtils.js         — Sort, shuffle, time formatting
+    ├── teamUtils.js           — Balanced teams, rotation scoring
+    ├── csvUtils.js            — CSV export
+    ├── avatarUtils.js         — Image resize for avatars
+    └── eloUtils.js            — ELO rating calculations
 ```
 
-Partner history is stored in:
+## Scripts
 
-```javascript
-partnerHistory
+```bash
+npm run dev      # Start development server
+npm run build    # Production build
+npm run preview  # Preview production build
+npm run lint     # Run linter (oxlint)
 ```
 
-The system evaluates all valid team combinations.
+## License
 
-Example:
-
-```text
-P1
-P2
-P3
-P4
-```
-
-Possible Teams:
-
-A)
-
-P1 + P2
-
-P3 + P4
-
-B)
-
-P1 + P3
-
-P2 + P4
-
-C)
-
-P1 + P4
-
-P2 + P3
-
-The combination with the fewest previous partnerships is selected.
-
----
-
-# ⚙️ Core Functions
-
-## Player Management
-
-### addPlayer()
-
-Adds a player to the current session.
-
-Responsibilities:
-
-- Validation
-- Duplicate prevention
-- Attendance registration
-- Queue insertion
-
----
-
-### removePlayer()
-
-Removes a player from the waiting queue.
-
----
-
-## Court Management
-
-### addCourt()
-
-Adds an additional court.
-
----
-
-### removeCourt()
-
-Removes the newest court.
-
-Players are automatically returned to the queue.
-
----
-
-### addPlayerToCourt()
-
-Manually places a player on a court.
-
----
-
-### removeCourtPlayer()
-
-Removes a player from a court and returns them to the queue.
-
----
-
-### moveCourtPlayer()
-
-Moves a player between courts.
-
----
-
-## Match Management
-
-### assignPlayers()
-
-Selects four players using the rotation algorithm and assigns them to an available court.
-
----
-
-### startNextGame()
-
-Starts the next available match.
-
-Uses:
-
-```javascript
-assignPlayers()
-```
-
----
-
-### endGame()
-
-Completes a match.
-
-Updates:
-
-- Games played
-- Wins
-- Losses
-- Streaks
-- Match history
-- Partner history
-
-Returns players to the queue.
-
----
-
-## Rotation Functions
-
-### buildRotationGroup()
-
-Creates the next group of four players.
-
-Selection order:
-
-```text
-Priority
-↓
-Unmatched
-↓
-Lowest Games
-↓
-Longest Waiting
-```
-
----
-
-### createBalancedTeams()
-
-Determines the best team arrangement while avoiding repeated partners.
-
----
-
-### recordPartners()
-
-Records teammate history after every completed match.
-
----
-
-### sortPlayers()
-
-Sorts waiting players by:
-
-```text
-Priority
-↓
-Games Played
-↓
-Waiting Time
-```
-
----
-
-# 📊 Data Tracked Per Player
-
-```javascript
-{
-  id,
-  name,
-  gamesPlayed,
-  wins,
-  losses,
-  currentStreak,
-  bestStreak,
-  partnerHistory,
-  priority,
-  noPriority,
-  queueGroup,
-  waitingSince
-}
-```
-
----
-
-# 🚀 Deployment
-
-Hosted on:
-
-```text
-Vercel
-```
-
-Frontend:
-
-```text
-React
-```
-
-Build Tool:
-
-```text
-Vite
-```
-
-Storage:
-
-```text
-IndexedDB
-```
-
----
-
-# 🔮 Future Improvements
-
-- Player wait-time display
-- Rotation explanation panel
-- Partner history viewer
-- Player profile page
-- Session analytics dashboard
-- Data backup/import/export
-- Tournament mode
-- Mobile-first drag-and-drop improvements
-
----
-
-# 📜 License
-
-MIT License
-
-Feel free to use, modify, and distribute.
-
----
-
-Built with ❤️ for the pickleball community.
+Private project.
