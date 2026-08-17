@@ -1874,7 +1874,7 @@ function AppMain({ club, authUser, onLogout }) {
   // ===== RENDER =====
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20 sm:pb-6">
+    <div className="min-h-screen w-full bg-slate-50 pb-20 sm:pb-6">
 
       {/* Slim sticky header */}
       <header className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm">
