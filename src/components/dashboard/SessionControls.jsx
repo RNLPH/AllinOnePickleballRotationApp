@@ -24,6 +24,8 @@ export default function SessionControls({
   onResetSession,
   onFactoryReset,
   onDeleteDirectoryPlayer,
+  onReCheckin,
+  onUndoLastMatch,
 }) {
   const [showMore, setShowMore] = useState(false);
 
@@ -123,6 +125,14 @@ export default function SessionControls({
         {/* Advanced options — hidden by default */}
         {showMore && (
           <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-slate-100">
+            <button onClick={onReCheckin}
+              className="col-span-2 h-9 rounded-lg bg-blue-50 text-blue-700 text-xs font-medium hover:bg-blue-100">
+              🔁 Re-check-in Last Session
+            </button>
+            <button onClick={onUndoLastMatch}
+              className="col-span-2 h-9 rounded-lg bg-amber-50 text-amber-700 text-xs font-medium hover:bg-amber-100">
+              ⏪ Undo Last Match
+            </button>
             <button onClick={onStartNewSession}
               className="h-9 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-medium hover:bg-indigo-100">
               ➡️ New Session

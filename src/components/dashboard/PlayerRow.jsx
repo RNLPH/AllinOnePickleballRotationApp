@@ -53,11 +53,16 @@ export default function PlayerRow({
     return `Court #${court.id}`;
   }
 
+  const waitingMinutes = player.waitingSince
+    ? Math.floor((Date.now() - player.waitingSince) / 60000)
+    : 0;
+  const isWaitingLong = waitingMinutes >= 15;
+
   return (
-    <div className="bg-white border border-slate-100 rounded-xl shadow-sm overflow-hidden">
+    <div className={`rounded-xl shadow-sm overflow-hidden border ${isWaitingLong ? "border-red-300 bg-red-50" : "border-slate-100 bg-white"}`}>
       {/* Compact row — always visible */}
       <div
-        className="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-slate-50 transition-colors"
+        className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors ${isWaitingLong ? "hover:bg-red-100" : "hover:bg-slate-50"}`}
         onClick={() => setExpanded(!expanded)}
       >
         <DraggablePlayer player={player} />
@@ -78,8 +83,9 @@ export default function PlayerRow({
           </div>
         </div>
 
-        <div className="text-xs text-slate-300">
-          #{index + 1}
+        <div className="flex items-center gap-1">
+          {isWaitingLong && <span className="text-[10px] text-red-500 font-bold">{waitingMinutes}m</span>}
+          <span className="text-xs text-slate-300">#{index + 1}</span>
         </div>
 
         <svg

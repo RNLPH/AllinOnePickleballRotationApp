@@ -87,19 +87,20 @@ export default function StandingsTab({
 
           {/* Full standings table */}
           <div className="bg-white rounded-xl border border-slate-100 overflow-hidden">
-            <div className="grid grid-cols-[24px_1fr_auto_auto_auto] gap-x-2 sm:gap-x-3 px-3 py-2 text-xs text-slate-400 font-medium border-b border-slate-100">
+            <div className="grid grid-cols-[24px_1fr_auto_auto_auto_auto] gap-x-2 sm:gap-x-3 px-3 py-2 text-xs text-slate-400 font-medium border-b border-slate-100">
               <span>#</span>
               <span>Player</span>
               <span>W</span>
               <span>L</span>
               <span>WR</span>
+              <span>ELO</span>
             </div>
 
             {standings.map((player, index) => {
               const rank = getStandingRank(standings, index);
               const wr = player.gamesPlayed > 0 ? Math.round((player.wins / player.gamesPlayed) * 100) : 0;
               return (
-                <div key={player.id} className="grid grid-cols-[24px_1fr_auto_auto_auto] gap-x-2 sm:gap-x-3 items-center px-3 py-2.5 border-b border-slate-50 last:border-0 hover:bg-slate-50">
+                <div key={player.id} className="grid grid-cols-[24px_1fr_auto_auto_auto_auto] gap-x-2 sm:gap-x-3 items-center px-3 py-2.5 border-b border-slate-50 last:border-0 hover:bg-slate-50">
                   <span className="text-xs font-bold text-slate-400">{rank}</span>
                   <div className="min-w-0">
                     <span className="text-sm font-medium text-slate-800 truncate block">{player.name}</span>
@@ -111,6 +112,7 @@ export default function StandingsTab({
                   <span className="text-sm font-semibold text-green-600">{player.wins}</span>
                   <span className="text-sm font-semibold text-red-500">{player.losses}</span>
                   <span className="text-sm font-bold text-blue-600">{wr}%</span>
+                  <span className="text-xs font-semibold text-purple-600">{(player.eloRating || 3.0).toFixed(1)}</span>
                 </div>
               );
             })}

@@ -13,6 +13,7 @@ import ClubSetupScreen from "./components/auth/ClubSetupScreen";
 
 import { DEFAULT_COURTS, STORAGE_KEYS, TIER_LIMITS, EXTENDED_TIER_LIMITS, EXTENDED_TIER_TRANSITIONS, SESSION_MODES, OPEN_COURT_TYPES, getDefaultCourts } from "./constants";
 import { sortPlayers, shufflePlayers } from "./utils/playerUtils";
+import { calculateNewRating, getTeamRating } from "./utils/eloUtils";
 import {
   buildRotationGroup,
   eligiblePlayers,
@@ -1548,6 +1549,141 @@ function AppMain({ club, authUser, onLogout }) {
     assignPlayersToAllCourts();
   };
 
+  // ===== QUICK RE-CHECK-IN =====
+  const handleReCheckin = async () => {
+    // Find the last session's attendance (sessionId - 1)
+    const prevSessionId = sessionId - 1;
+    if (prevSessionId < 1) { alert("No previous session to re-check-in from."); return; }
+
+    const prevAttendance = attendance.filter((r) => r.sessionId === prevSessionId);
+    if (prevAttendance.length === 0) { alert("No players found in the previous session."); return; }
+
+    // Get unique player IDs from last session
+    const prevPlayerIds = [...new Set(prevAttendance.map((r) => r.playerId))];
+
+    // Filter out players already in the current queue or on courts
+    const currentPlayerIds = new Set([
+      ...players.map((p) => p.id),
+      ...courts.flatMap((c) => c.players.map((p) => p.id)),
+    ]);
+
+    const toAdd = prevPlayerIds
+      .filter((id) => !currentPlayerIds.has(id))
+      .map((id) => directory.find((d) => d.id === id))
+      .filter(Boolean);
+
+    if (toAdd.length === 0) { alert("All players from last session are already checked in."); return; }
+
+    const confirmed = window.confirm(
+      `Re-check-in ${toAdd.length} players from Session ${prevSessionId}?`
+    );
+    if (!confirmed) return;
+
+    // Add each player to the queue and record attendance
+    const newPlayers = [];
+    const newAttendance = [];
+
+    for (const dirPlayer of toAdd) {
+      const newPlayer = {
+        ...dirPlayer,
+        consecutiveGames: 0,
+        restedOnce: false,
+        lastPartnerId: null,
+        lastOpponents: [],
+        priority: false,
+        noPriority: false,
+        waitingSince: Date.now(),
+      };
+      newPlayers.push(newPlayer);
+
+      const alreadyAttended = attendance.some(
+        (r) => r.sessionId === sessionId && r.playerId === newPlayer.id
+      );
+      if (!alreadyAttended) {
+        const record = {
+          id: crypto.randomUUID(),
+          playerId: newPlayer.id,
+          playerName: newPlayer.name,
+          sessionId,
+          timestamp: Date.now(),
+        };
+        await saveAttendance(record, club.id);
+        newAttendance.push(record);
+      }
+    }
+
+    setPlayers((prev) => [...prev, ...newPlayers]);
+    setAttendance((prev) => [...prev, ...newAttendance]);
+    alert(`${toAdd.length} players re-checked in from Session ${prevSessionId}.`);
+  };
+
+  // ===== MATCH UNDO =====
+  const undoLastMatch = async () => {
+    if (matches.length === 0) { alert("No matches to undo."); return; }
+
+    const lastMatch = matches[0]; // matches are sorted newest first
+    const confirmed = window.confirm(
+      `Undo last match?\n\n${lastMatch.teamA?.join(" & ")} vs ${lastMatch.teamB?.join(" & ")}\nWinner: Team ${lastMatch.winner}`
+    );
+    if (!confirmed) return;
+
+    // Delete from Supabase
+    const { error } = await supabase
+      .from("matches")
+      .delete()
+      .eq("id", lastMatch.id);
+    if (error) { console.error("undoLastMatch:", error); alert("Failed to undo."); return; }
+
+    // Remove from state
+    setMatches((prev) => prev.filter((m) => m.id !== lastMatch.id));
+
+    // Find the players involved and revert their stats
+    const allMatchPlayers = [...(lastMatch.teamA || []), ...(lastMatch.teamB || [])];
+    const winningNames = lastMatch.winner === "A" ? lastMatch.teamA : lastMatch.teamB;
+    const losingNames = lastMatch.winner === "A" ? lastMatch.teamB : lastMatch.teamA;
+
+    // Revert directory stats
+    const revertedDirectory = directory.map((p) => {
+      if (winningNames?.includes(p.name)) {
+        return {
+          ...p,
+          gamesPlayed: Math.max(0, (p.gamesPlayed || 0) - 1),
+          wins: Math.max(0, (p.wins || 0) - 1),
+        };
+      }
+      if (losingNames?.includes(p.name)) {
+        return {
+          ...p,
+          gamesPlayed: Math.max(0, (p.gamesPlayed || 0) - 1),
+          losses: Math.max(0, (p.losses || 0) - 1),
+        };
+      }
+      return p;
+    });
+
+    setDirectory(revertedDirectory);
+    await Promise.all(
+      revertedDirectory
+        .filter((p) => allMatchPlayers.includes(p.name))
+        .map((p) => saveDirectoryPlayer(p, club.id))
+    );
+
+    // Also revert queue player stats if they're in the queue
+    setPlayers((prev) =>
+      prev.map((p) => {
+        if (winningNames?.includes(p.name)) {
+          return { ...p, gamesPlayed: Math.max(0, (p.gamesPlayed || 0) - 1), wins: Math.max(0, (p.wins || 0) - 1) };
+        }
+        if (losingNames?.includes(p.name)) {
+          return { ...p, gamesPlayed: Math.max(0, (p.gamesPlayed || 0) - 1), losses: Math.max(0, (p.losses || 0) - 1) };
+        }
+        return p;
+      })
+    );
+
+    alert("Last match undone. Stats reverted.");
+  };
+
   const endGame = async (courtId, winningTeam) => {
     const court = courts.find((c) => c.id === courtId);
     if (!court) return;
@@ -1625,6 +1761,27 @@ function AppMain({ club, authUser, onLogout }) {
         waitingSince: Date.now(),
       };
     });
+
+    // ===== ELO RATING UPDATE =====
+    // Calculate team ratings and update each player's ELO
+    if (!isSingles) {
+      const teamARating = getTeamRating(court.players.slice(0, 2));
+      const teamBRating = getTeamRating(court.players.slice(2, 4));
+      returningPlayers.forEach((p, idx) => {
+        const isTeamA = idx < 2;
+        const won = (winningTeam === "A" && isTeamA) || (winningTeam === "B" && !isTeamA);
+        const oppRating = isTeamA ? teamBRating : teamARating;
+        p.eloRating = calculateNewRating(p.eloRating, oppRating, won);
+      });
+    } else {
+      const p1Rating = court.players[0]?.eloRating || 3.0;
+      const p2Rating = court.players[1]?.eloRating || 3.0;
+      returningPlayers.forEach((p, idx) => {
+        const won = (winningTeam === "A" && idx === 0) || (winningTeam === "B" && idx === 1);
+        const oppRating = idx === 0 ? p2Rating : p1Rating;
+        p.eloRating = calculateNewRating(p.eloRating, oppRating, won);
+      });
+    }
 
     const updatedDirectory = directory.map((dp) => {
       const updated = returningPlayers.find((p) => p.id === dp.id);
@@ -1907,9 +2064,15 @@ function AppMain({ club, authUser, onLogout }) {
               📺
             </button>
             <button
-              onClick={() => { const url = `${window.location.origin}/live/${club.id}`; navigator.clipboard.writeText(url); alert("Link copied!\n" + url); }}
+              onClick={() => { const url = `${window.location.origin}/live/${club.id}`; navigator.clipboard.writeText(url); alert("Live board link copied!\n" + url); }}
               className="h-7 w-7 rounded bg-slate-50 text-slate-500 flex items-center justify-center hover:bg-slate-100 text-xs">
               🔗
+            </button>
+            <button
+              onClick={() => { const url = `${window.location.origin}/checkin/${club.id}`; navigator.clipboard.writeText(url); alert("Check-in link copied!\n" + url); }}
+              className="h-7 w-7 rounded bg-slate-50 text-slate-500 flex items-center justify-center hover:bg-slate-100 text-xs"
+              title="Copy check-in link">
+              📋
             </button>
             <button onClick={toggleViewMode}
               className={`h-7 px-1.5 rounded text-[10px] font-medium ${viewMode ? "bg-blue-600 text-white" : "bg-slate-50 text-slate-500 hover:bg-slate-100"}`}>
@@ -2029,6 +2192,8 @@ function AppMain({ club, authUser, onLogout }) {
               onResetSession={resetSession}
               onFactoryReset={factoryReset}
               onDeleteDirectoryPlayer={handleDeleteDirectoryPlayer}
+              onReCheckin={handleReCheckin}
+              onUndoLastMatch={undoLastMatch}
             />
 
             <DndContext
