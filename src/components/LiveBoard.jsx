@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { getPlayers } from "../db/playerService";
 import { getMatches } from "../db/matchService";
-import { getDirectory } from "../db/directoryService";
+import { supabase } from "../db/supabase";
 import { sortPlayers } from "../utils/playerUtils";
 import { STORAGE_KEYS } from "../constants";
 import PlayerAvatar from "./ui/PlayerAvatar";
@@ -46,8 +46,13 @@ export default function LiveBoard({ club, onClose }) {
         setPlayers(freshPlayers);
         setMatches(freshMatches);
 
-        const savedCourts = localStorage.getItem(STORAGE_KEYS.COURTS);
-        if (savedCourts) setCourts(JSON.parse(savedCourts));
+        // Read courts from Supabase (for cross-device support)
+        const { data: courtsData } = await supabase
+          .from("courts")
+          .select("data")
+          .eq("club_id", club.id)
+          .single();
+        if (courtsData?.data) setCourts(courtsData.data);
       } catch (err) {
         console.error("LiveBoard refresh failed:", err);
       }
@@ -135,6 +140,20 @@ export default function LiveBoard({ club, onClose }) {
                   {court.players.length === 0 ? (
                     <div className="text-center py-8 text-slate-400 text-sm border-2 border-dashed border-slate-200 rounded-xl">
                       Waiting for players
+                    </div>
+                  ) : court.format === "singles" ? (
+                    <div className="grid grid-cols-2 gap-3">
+                      {court.players.map((p, idx) => (
+                        <div key={p.id} className={`${idx === 0 ? "bg-blue-50 border-blue-100" : "bg-purple-50 border-purple-100"} border rounded-xl p-3`}>
+                          <div className={`text-xs font-bold mb-2 text-center ${idx === 0 ? "text-blue-600" : "text-purple-600"}`}>
+                            {idx === 0 ? "🔵 Player A" : "🟣 Player B"}
+                          </div>
+                          <div className="flex items-center gap-2 py-1">
+                            <PlayerAvatar player={p} size="w-8 h-8" color={idx === 0 ? "blue" : "purple"} textSize="text-xs" />
+                            <span className="font-semibold text-sm text-slate-800 truncate">{p.name}</span>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   ) : (
                     <div className="grid grid-cols-2 gap-3">

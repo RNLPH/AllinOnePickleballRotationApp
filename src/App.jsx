@@ -321,8 +321,13 @@ function AppMain({ club, authUser, onLogout }) {
         setMatches(freshMatches);
         setAttendance(freshAttendance);
         setDirectory(freshDirectory);
-        const savedCourts = localStorage.getItem(STORAGE_KEYS.COURTS);
-        if (savedCourts) setCourts(JSON.parse(savedCourts));
+        // Read courts from Supabase for cross-device support
+        const { data: courtsData } = await supabase
+          .from("courts")
+          .select("data")
+          .eq("club_id", club.id)
+          .single();
+        if (courtsData?.data) setCourts(courtsData.data);
       } catch (err) {
         console.error("View mode refresh failed:", err);
       }
@@ -564,6 +569,9 @@ function AppMain({ club, authUser, onLogout }) {
   };
 
   const recordPartners = (playerA, playerB) => {
+    // NOTE: these mutations happen on court.players objects BEFORE returningPlayers is built
+    // This is technically safe because returningPlayers spreads them, but ideally
+    // this should be refactored to pure functions. For now, ensure the mutations persist.
     playerA.partnerHistory = {
       ...(playerA.partnerHistory || {}),
       [playerB.id]: (playerA.partnerHistory?.[playerB.id] || 0) + 1,
@@ -1196,7 +1204,7 @@ function AppMain({ club, authUser, onLogout }) {
       alert(`Cannot move ${playerToCheck.name} from ${playerToCheck.tier.toUpperCase()} to ${targetCourt.type.toUpperCase()} court.`);
       return;
     }
-    if (sourceCourt && sourceCourt.players.length === 4) {
+    if (sourceCourt && sourceCourt.players.length === (sourceCourt.format === "singles" ? 2 : 4)) {
       alert("Cannot move players while a match is active.");
       return;
     }
@@ -1211,7 +1219,7 @@ function AppMain({ club, authUser, onLogout }) {
       });
       return updated.map((court) => {
         if (court.id !== targetCourtId) return court;
-        if (court.players.length >= 4) { alert("Court is full."); return court; }
+        if (court.players.length >= (court.format === "singles" ? 2 : 4)) { alert("Court is full."); return court; }
         const updatedPlayers = [...court.players, playerToMove];
         return {
           ...court,
@@ -1602,7 +1610,7 @@ function AppMain({ club, authUser, onLogout }) {
         ...player,
         tier: nextTier,
         kingCourtEntries:
-          player.kingCourtEntries || 0 +
+          (player.kingCourtEntries || 0) +
           (nextTier === "king" && player.tier !== "king" ? 1 : 0),
         consecutiveGames: player.consecutiveGames || 0,
         priority: false,
@@ -1970,7 +1978,7 @@ function AppMain({ club, authUser, onLogout }) {
                       {" "}#{court.id}
                     </h3>
                     <span className="text-sm font-semibold bg-blue-100 text-blue-700 px-3 py-1 rounded-full">
-                      {court.players.length}/4
+                      {court.players.length}/{court.format === "singles" ? 2 : 4}
                     </span>
                   </div>
 
