@@ -300,7 +300,7 @@ function AppMain({ club, authUser, onLogout }) {
   }, [sessionId]);
 
   useEffect(() => {
-    const timer = setInterval(() => forceUpdate((prev) => prev + 1), 60000);
+    const timer = setInterval(() => forceUpdate((prev) => prev + 1), 1000);
     return () => clearInterval(timer);
   }, []);
 
@@ -1398,7 +1398,10 @@ function AppMain({ club, authUser, onLogout }) {
       let usedIds = new Set();
 
       const updatedCourts = courts.map((court) => {
-        if (court.players.length > 0) return court;
+        const isSingles = court.format === "singles";
+        const maxPlayers = isSingles ? 2 : 4;
+        // Skip courts that are already full
+        if (court.players.length >= maxPlayers) return court;
 
         let pool;
         if (court.type === OPEN_COURT_TYPES.WINNER) {
@@ -1412,16 +1415,30 @@ function AppMain({ club, authUser, onLogout }) {
           pool = waitingPlayers.filter((p) => !usedIds.has(p.id));
         }
 
-        const isSingles = court.format === "singles";
+        const isSinglesC = court.format === "singles";
+        const needed = (isSinglesC ? 2 : 4) - court.players.length;
 
-        if (isSingles) {
+        if (isSinglesC) {
           const eligible = eligiblePlayers(pool);
-          if (eligible.length < 2) return court;
+          if (eligible.length < needed) return court;
           const selected = eligible
-            .slice(0, 2)
+            .slice(0, needed)
             .map((p) => ({ ...p, consecutiveGames: (p.consecutiveGames || 0) + 1 }));
           selected.forEach((p) => usedIds.add(p.id));
-          return { ...court, players: selected, startedAt: Date.now() };
+          const allPlayers = [...court.players, ...selected];
+          return { ...court, players: allPlayers, startedAt: allPlayers.length >= 2 ? (court.startedAt || Date.now()) : court.startedAt };
+        }
+
+        if (needed < 4 && court.players.length > 0) {
+          // Partially filled doubles court — pull remaining needed players
+          const eligible = eligiblePlayers(pool);
+          if (eligible.length < needed) return court;
+          const selected = eligible
+            .slice(0, needed)
+            .map((p) => ({ ...p, consecutiveGames: (p.consecutiveGames || 0) + 1 }));
+          selected.forEach((p) => usedIds.add(p.id));
+          const allPlayers = [...court.players, ...selected];
+          return { ...court, players: allPlayers, startedAt: allPlayers.length >= 4 ? (court.startedAt || Date.now()) : court.startedAt };
         }
 
         const selected = buildRotationGroup(eligiblePlayers(pool));
@@ -1458,19 +1475,31 @@ function AppMain({ club, authUser, onLogout }) {
 
     // Ladder Mode — original logic unchanged
     const updatedCourts = courts.map((court) => {
-      if (court.players.length > 0) return court;
-      const courtQueue = getQueueByCourtType(court.type);
       const isSingles = court.format === "singles";
-      const minNeeded = isSingles ? 2 : 4;
+      const maxPlayers = isSingles ? 2 : 4;
+      if (court.players.length >= maxPlayers) return court;
+      const courtQueue = getQueueByCourtType(court.type);
+      const needed = maxPlayers - court.players.length;
 
       if (isSingles) {
-        // Singles: just take top 2 by queue score, no team balancing
         const eligible = eligiblePlayers(courtQueue);
-        if (eligible.length < 2) return court;
+        if (eligible.length < needed) return court;
         const selected = eligible
-          .slice(0, 2)
+          .slice(0, needed)
           .map((p) => ({ ...p, consecutiveGames: (p.consecutiveGames || 0) + 1 }));
-        return { ...court, players: selected, startedAt: Date.now() };
+        const allPlayers = [...court.players, ...selected];
+        return { ...court, players: allPlayers, startedAt: allPlayers.length >= 2 ? (court.startedAt || Date.now()) : court.startedAt };
+      }
+
+      if (court.players.length > 0 && needed < 4) {
+        // Partially filled doubles — pull remaining
+        const eligible = eligiblePlayers(courtQueue);
+        if (eligible.length < needed) return court;
+        const selected = eligible
+          .slice(0, needed)
+          .map((p) => ({ ...p, consecutiveGames: (p.consecutiveGames || 0) + 1 }));
+        const allPlayers = [...court.players, ...selected];
+        return { ...court, players: allPlayers, startedAt: allPlayers.length >= 4 ? (court.startedAt || Date.now()) : court.startedAt };
       }
 
       const selectedPlayers = buildRotationGroup(eligiblePlayers(courtQueue));
