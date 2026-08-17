@@ -76,7 +76,7 @@ export default function App() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-100 via-blue-50 to-purple-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="text-5xl mb-4">�</div>
+          <img src="/logo.svg" alt="RallyStack" className="w-12 h-12 mx-auto mb-4" />
           <div className="text-gray-500">Loading...</div>
         </div>
       </div>
@@ -1795,7 +1795,10 @@ function AppMain({ club, authUser, onLogout }) {
         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl p-6 mb-6 shadow-lg">
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
             <div>
-              <h1 className="text-2xl sm:text-4xl font-bold">� RallyStack</h1>
+              <h1 className="text-2xl sm:text-4xl font-bold flex items-center gap-3">
+                <img src="/logo.svg" alt="RallyStack" className="w-8 h-8 sm:w-10 sm:h-10" />
+                RallyStack
+              </h1>
               {club && (
                 <p className="text-white/70 text-sm mt-1">🏢 {club.name}</p>
               )}
