@@ -228,8 +228,14 @@ export default function PublicLiveBoard() {
       </div>
       </div>
 
-      <div className="text-center text-slate-400 text-xs py-4">
-        Auto-refreshes every 15 seconds · {new Date().toLocaleTimeString()}
+      <div className="text-center text-slate-400 text-xs py-4 space-y-2">
+        <div>Auto-refreshes every 15 seconds · {new Date().toLocaleTimeString()}</div>
+        <a
+          href={`/checkin/${clubId}`}
+          className="inline-block px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700"
+        >
+          ✅ Check In Here
+        </a>
       </div>
     </div>
   );

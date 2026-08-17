@@ -9,7 +9,7 @@
  * Winner gains points, loser loses points based on expected outcome
  */
 
-const DEFAULT_RATING = 3.0;
+const DEFAULT_RATING = 2.0;
 const K_FACTOR = 0.1;
 const MIN_RATING = 1.0;
 const MAX_RATING = 5.0;
@@ -56,9 +56,10 @@ export function getRatingTier(rating) {
   const r = rating || DEFAULT_RATING;
   if (r >= 4.5) return { label: "Pro", color: "text-red-600", bg: "bg-red-50" };
   if (r >= 4.0) return { label: "Advanced", color: "text-purple-600", bg: "bg-purple-50" };
-  if (r >= 3.5) return { label: "Intermediate", color: "text-blue-600", bg: "bg-blue-50" };
-  if (r >= 3.0) return { label: "Developing", color: "text-green-600", bg: "bg-green-50" };
-  if (r >= 2.5) return { label: "Beginner+", color: "text-yellow-600", bg: "bg-yellow-50" };
+  if (r >= 3.5) return { label: "Intermediate+", color: "text-blue-600", bg: "bg-blue-50" };
+  if (r >= 3.0) return { label: "Intermediate", color: "text-green-600", bg: "bg-green-50" };
+  if (r >= 2.5) return { label: "Developing", color: "text-yellow-600", bg: "bg-yellow-50" };
+  if (r >= 2.0) return { label: "Beginner+", color: "text-orange-600", bg: "bg-orange-50" };
   return { label: "Beginner", color: "text-slate-600", bg: "bg-slate-50" };
 }
 

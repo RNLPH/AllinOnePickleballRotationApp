@@ -112,7 +112,7 @@ export default function StandingsTab({
                   <span className="text-sm font-semibold text-green-600">{player.wins}</span>
                   <span className="text-sm font-semibold text-red-500">{player.losses}</span>
                   <span className="text-sm font-bold text-blue-600">{wr}%</span>
-                  <span className="text-xs font-semibold text-purple-600">{(player.eloRating || 3.0).toFixed(1)}</span>
+                  <span className="text-xs font-semibold text-purple-600">{(player.eloRating || 2.0).toFixed(1)}</span>
                 </div>
               );
             })}

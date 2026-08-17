@@ -1672,10 +1672,10 @@ function AppMain({ club, authUser, onLogout }) {
     setPlayers((prev) =>
       prev.map((p) => {
         if (winningNames?.includes(p.name)) {
-          return { ...p, gamesPlayed: Math.max(0, (p.gamesPlayed || 0) - 1), wins: Math.max(0, (p.wins || 0) - 1) };
+          return { ...p, gamesPlayed: Math.max(0, (p.gamesPlayed || 0) - 1), wins: Math.max(0, (p.wins || 0) - 1), lastResult: null };
         }
         if (losingNames?.includes(p.name)) {
-          return { ...p, gamesPlayed: Math.max(0, (p.gamesPlayed || 0) - 1), losses: Math.max(0, (p.losses || 0) - 1) };
+          return { ...p, gamesPlayed: Math.max(0, (p.gamesPlayed || 0) - 1), losses: Math.max(0, (p.losses || 0) - 1), lastResult: null };
         }
         return p;
       })
@@ -1774,8 +1774,8 @@ function AppMain({ club, authUser, onLogout }) {
         p.eloRating = calculateNewRating(p.eloRating, oppRating, won);
       });
     } else {
-      const p1Rating = court.players[0]?.eloRating || 3.0;
-      const p2Rating = court.players[1]?.eloRating || 3.0;
+      const p1Rating = court.players[0]?.eloRating || 2.0;
+      const p2Rating = court.players[1]?.eloRating || 2.0;
       returningPlayers.forEach((p, idx) => {
         const won = (winningTeam === "A" && idx === 0) || (winningTeam === "B" && idx === 1);
         const oppRating = idx === 0 ? p2Rating : p1Rating;
