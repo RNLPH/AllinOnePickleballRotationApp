@@ -16,7 +16,7 @@ export default function SessionModeModal({ sessionId, onSelect, onCancel }) {
         )}
 
         <h2 className="text-2xl font-bold text-center text-slate-800 mb-2">
-          🏓 Session {sessionId}
+          🏸 Session {sessionId}
         </h2>
 
         <p className="text-center text-gray-500 text-sm mb-6">

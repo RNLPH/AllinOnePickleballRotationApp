@@ -76,7 +76,7 @@ export default function App() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-100 via-blue-50 to-purple-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="text-5xl mb-4">🏓</div>
+          <div className="text-5xl mb-4">�</div>
           <div className="text-gray-500">Loading...</div>
         </div>
       </div>
@@ -117,13 +117,13 @@ function AppMain({ club, authUser, onLogout }) {
   // ===== VIEW MODE =====
   // Per-device read-only mode. Stored in localStorage so it persists on refresh.
   const [viewMode, setViewMode] = useState(() => {
-    return localStorage.getItem("picklestack_view_mode") === "true";
+    return localStorage.getItem("rallystack_view_mode") === "true";
   });
 
   const toggleViewMode = () => {
     setViewMode((prev) => {
       const next = !prev;
-      localStorage.setItem("picklestack_view_mode", String(next));
+      localStorage.setItem("rallystack_view_mode", String(next));
       if (next) setActiveTab("standings"); // default to standings in view mode
       return next;
     });
@@ -1795,7 +1795,7 @@ function AppMain({ club, authUser, onLogout }) {
         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl p-6 mb-6 shadow-lg">
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
             <div>
-              <h1 className="text-2xl sm:text-4xl font-bold">🏓 PickleStack</h1>
+              <h1 className="text-2xl sm:text-4xl font-bold">� RallyStack</h1>
               {club && (
                 <p className="text-white/70 text-sm mt-1">🏢 {club.name}</p>
               )}
@@ -2046,7 +2046,7 @@ function AppMain({ club, authUser, onLogout }) {
                 <div className="my-6">
                   <hr className="border-slate-300" />
                   <div className="text-center font-bold text-xl text-slate-700 my-4">
-                    🏓 Active Courts
+                    � Active Courts
                   </div>
                   <hr className="border-slate-300" />
                 </div>

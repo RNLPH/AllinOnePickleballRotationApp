@@ -67,7 +67,7 @@ export default function OpenPlayerQueue({
     <DroppableQueue>
       <div className="bg-white rounded-xl shadow p-4">
         <h2 className="text-2xl font-bold mb-1">Player Queues</h2>
-        <p className="text-xs text-gray-400 mb-4">🏓 Open Mode — Winners vs Winners · Losers vs Losers</p>
+        <p className="text-xs text-gray-400 mb-4">🏸 Open Mode — Winners vs Winners · Losers vs Losers</p>
 
         {totalWaiting === 0 ? (
           <p>No players waiting</p>

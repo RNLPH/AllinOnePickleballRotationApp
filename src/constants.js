@@ -17,9 +17,9 @@ export function getDefaultCourts(sessionMode) {
 }
 
 export const STORAGE_KEYS = {
-  COURTS: "picklestack_courts",
-  SESSION: "picklestack_session",
-  SESSION_MODE: "picklestack_session_mode",
+  COURTS: "rallystack_courts",
+  SESSION: "rallystack_session",
+  SESSION_MODE: "rallystack_session_mode",
 };
 
 // ===== SESSION MODES =====

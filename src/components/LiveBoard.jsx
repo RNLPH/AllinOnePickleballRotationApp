@@ -70,9 +70,9 @@ export default function LiveBoard({ club, onClose }) {
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-white shadow-sm">
         <div className="flex items-center gap-4">
-          <span className="text-3xl">🏓</span>
+          <span className="text-3xl">🏸</span>
           <div>
-            <h1 className="text-2xl font-bold text-slate-800">PickleStack Live</h1>
+            <h1 className="text-2xl font-bold text-slate-800">RallyStack Live</h1>
             <p className="text-slate-500 text-sm">{club.name}</p>
           </div>
         </div>
@@ -109,7 +109,7 @@ export default function LiveBoard({ club, onClose }) {
       <div className="p-6 grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Active Courts */}
         <div className="xl:col-span-2">
-          <h2 className="text-lg font-bold text-slate-700 mb-4">🏓 Active Courts</h2>
+          <h2 className="text-lg font-bold text-slate-700 mb-4">🏸 Active Courts</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {courts.map((court) => {

@@ -7,7 +7,7 @@ function buildShareText(standings, standingsHistory, sessionId, getStandingRank)
   });
 
   const lines = [
-    `🏓 PickleStack — Session ${sessionId} Standings`,
+    `🏸 RallyStack — Session ${sessionId} Standings`,
     `📅 ${date}`,
     ``,
     `🏆 STANDINGS`,

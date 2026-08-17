@@ -36,7 +36,7 @@ export default function ClubSetupScreen({ user, onClubCreated }) {
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
 
         <div className="text-center mb-8">
-          <div className="text-5xl mb-3">🏓</div>
+          <div className="text-5xl mb-3">🏸</div>
           <h1 className="text-2xl font-bold text-slate-800">Set Up Your Club</h1>
           <p className="text-gray-500 mt-2 text-sm">
             Give your club a name to get started. You can change this later.

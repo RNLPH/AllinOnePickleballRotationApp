@@ -12,11 +12,11 @@ export default defineConfig({
       registerType: "autoUpdate",
 
       manifest: {
-        name: "PickleStack",
-        short_name: "PickleStack",
+        name: "RallyStack",
+        short_name: "RallyStack",
 
         description:
-          "Pickleball queue, standings and match history tracker",
+          "Court session manager for racket sports — queue rotation, standings, and match history",
 
         theme_color: "#2563eb",
         background_color: "#f1f5f9",

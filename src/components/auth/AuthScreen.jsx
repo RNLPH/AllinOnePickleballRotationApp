@@ -57,9 +57,9 @@ export default function AuthScreen() {
 
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="text-5xl mb-3">🏓</div>
-          <h1 className="text-3xl font-bold text-slate-800">PickleStack</h1>
-          <p className="text-gray-500 mt-1 text-sm">Club Session Manager</p>
+          <div className="text-5xl mb-3">🏸</div>
+          <h1 className="text-3xl font-bold text-slate-800">RallyStack</h1>
+          <p className="text-gray-500 mt-1 text-sm">Court Session Manager</p>
         </div>
 
         {/* Tab switcher */}
