@@ -97,9 +97,9 @@ export default function App() {
       club={club}
       authUser={authUser}
       onLogout={async () => { 
-        await supabase.auth.signOut(); 
-        localStorage.removeItem("rallystack_view_mode");
-        window.location.reload();
+        await supabase.auth.signOut({ scope: 'local' }); 
+        localStorage.clear();
+        window.location.href = "/";
       }}
     />
   );
