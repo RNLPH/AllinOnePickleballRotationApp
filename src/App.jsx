@@ -1837,145 +1837,86 @@ function AppMain({ club, authUser, onLogout }) {
   // ===== RENDER =====
 
   return (
-    <div
-      className="
-        min-h-screen
-        bg-gradient-to-br
-        from-slate-100
-        via-blue-50
-        to-purple-50
-        p-3
-        md:p-6
-      "
-    >
-      <div className="max-w-7xl mx-auto w-full">
+    <div className="min-h-screen bg-slate-50 pb-20 sm:pb-6">
 
-        {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl p-6 mb-6 shadow-lg">
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+      {/* Slim sticky header */}
+      <header className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <img src="/logo.svg" alt="RallyStack" className="w-8 h-8" />
             <div>
-              <h1 className="text-2xl sm:text-4xl font-bold flex items-center gap-3">
-                <img src="/logo.svg" alt="RallyStack" className="w-8 h-8 sm:w-10 sm:h-10" />
-                RallyStack
-              </h1>
-              {club && (
-                <p className="text-white/70 text-sm mt-1">🏢 {club.name}</p>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2 flex-wrap">
-              {/* Live Board */}
-              <button
-                onClick={() => setShowLiveBoard(true)}
-                className="px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-green-500/80 hover:bg-green-500 text-white transition-all"
-              >
-                📺 Live
-              </button>
-
-              {/* Copy public link */}
-              <button
-                onClick={() => {
-                  const url = `${window.location.origin}/live/${club.id}`;
-                  navigator.clipboard.writeText(url);
-                  alert("Live board link copied!\n\n" + url);
-                }}
-                className="px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-white/20 hover:bg-white/30 text-white transition-all"
-                title="Copy public live board link"
-              >
-                🔗
-              </button>
-
-              {/* View Mode toggle */}
-              <button
-                onClick={toggleViewMode}
-                className={`
-                  px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all
-                  ${viewMode
-                    ? "bg-white text-blue-600 shadow"
-                    : "bg-white/20 hover:bg-white/30 text-white"}
-                `}
-              >
-                {viewMode ? "👁 Manage" : "👁 View"}
-              </button>
-
-              {/* Logout */}
-              <button
-                onClick={onLogout}
-                className="px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-white/20 hover:bg-white/30 text-white transition-all"
-                title="Log out"
-              >
-                🚪
-              </button>
+              <h1 className="text-lg font-bold text-slate-800 leading-tight">RallyStack</h1>
+              {club && <p className="text-xs text-slate-400 leading-tight">{club.name}</p>}
             </div>
           </div>
 
-          {sessionMode && !viewMode && (
-            <div className="mt-2 inline-flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            {sessionMode && !viewMode && (
               <span className={`
-                px-3 py-1 rounded-full text-sm font-semibold
-                ${sessionMode === SESSION_MODES.LADDER
-                  ? "bg-yellow-400 text-yellow-900"
-                  : sessionMode === SESSION_MODES.EXTENDED_LADDER
-                  ? "bg-purple-400 text-purple-900"
-                  : "bg-blue-300 text-blue-900"}
+                hidden sm:inline-flex px-2.5 py-1 rounded-full text-xs font-semibold mr-1
+                ${sessionMode === SESSION_MODES.LADDER ? "bg-yellow-100 text-yellow-800"
+                  : sessionMode === SESSION_MODES.EXTENDED_LADDER ? "bg-purple-100 text-purple-800"
+                  : "bg-blue-100 text-blue-800"}
               `}>
-                {sessionMode === SESSION_MODES.LADDER          && "👑 Ladder Mode"}
-                {sessionMode === SESSION_MODES.EXTENDED_LADDER && "🏅 Extended Ladder"}
-                {sessionMode === SESSION_MODES.OPEN            && "🏓 Open Mode"}
+                {sessionMode === SESSION_MODES.LADDER && "Ladder"}
+                {sessionMode === SESSION_MODES.EXTENDED_LADDER && "Extended"}
+                {sessionMode === SESSION_MODES.OPEN && "Open"}
               </span>
+            )}
+
+            {sessionMode && !viewMode && (
               <button
                 onClick={() => {
-                  if (hasActiveGames()) {
-                    alert("Finish all active games before switching modes.");
-                    return;
-                  }
+                  if (hasActiveGames()) { alert("Finish all active games before switching modes."); return; }
                   setIsSwitchingMode(true);
                   setSessionMode(null);
                   localStorage.removeItem(STORAGE_KEYS.SESSION_MODE);
                 }}
-                className="text-xs underline text-white/70 hover:text-white"
+                className="h-8 px-2 rounded-lg text-xs text-slate-500 hover:bg-slate-100"
               >
-                Switch Mode
+                Switch
               </button>
-            </div>
-          )}
-        </div>
+            )}
 
-        <div className="text-center mb-6">
-          <div className="text-lg font-semibold text-blue-600">
-            🏷️ Session {sessionId}
+            <button onClick={() => setShowLiveBoard(true)}
+              className="h-8 w-8 rounded-lg bg-green-50 text-green-600 flex items-center justify-center hover:bg-green-100 text-sm">
+              📺
+            </button>
+            <button
+              onClick={() => { const url = `${window.location.origin}/live/${club.id}`; navigator.clipboard.writeText(url); alert("Link copied!\n" + url); }}
+              className="h-8 w-8 rounded-lg bg-slate-50 text-slate-500 flex items-center justify-center hover:bg-slate-100 text-sm">
+              🔗
+            </button>
+            <button onClick={toggleViewMode}
+              className={`h-8 px-2.5 rounded-lg text-xs font-medium ${viewMode ? "bg-blue-600 text-white" : "bg-slate-50 text-slate-500 hover:bg-slate-100"}`}>
+              {viewMode ? "Managing" : "View"}
+            </button>
+            <button onClick={onLogout}
+              className="h-8 w-8 rounded-lg bg-slate-50 text-slate-500 flex items-center justify-center hover:bg-slate-100 text-sm"
+              title="Log out">
+              🚪
+            </button>
           </div>
         </div>
+      </header>
 
-        {/* Tab Navigation */}
-        <div className={`grid gap-2 mb-6 ${viewMode ? "grid-cols-3" : "grid-cols-2 sm:grid-cols-4"}`}>
-          {(viewMode
-            ? ["standings", "attendance", "history"]
-            : ["dashboard", "standings", "attendance", "history"]
-          ).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`
-                h-11
-                rounded-lg
-                font-medium
-                transition-all
-                shadow-sm
-                hover:shadow-md
-                ${
-                  activeTab === tab
-                    ? "bg-blue-600 text-white"
-                    : "bg-white border border-slate-200 hover:bg-slate-50"
-                }
-              `}
-            >
-              {tab === "dashboard" && "🏠 Dashboard"}
-              {tab === "standings" && "🏆 Standings"}
-              {tab === "attendance" && "👥 Attendance"}
-              {tab === "history" && "📜Match History"}
-            </button>
-          ))}
+      {/* Main content */}
+      <main className="max-w-7xl mx-auto px-4 py-4">
+
+        {/* Session badge (mobile) */}
+        <div className="sm:hidden text-center mb-3">
+          <span className={`
+            inline-flex px-3 py-1 rounded-full text-xs font-semibold
+            ${sessionMode === SESSION_MODES.LADDER ? "bg-yellow-100 text-yellow-800"
+              : sessionMode === SESSION_MODES.EXTENDED_LADDER ? "bg-purple-100 text-purple-800"
+              : sessionMode === SESSION_MODES.OPEN ? "bg-blue-100 text-blue-800"
+              : "bg-slate-100 text-slate-600"}
+          `}>
+            Session {sessionId}
+            {sessionMode === SESSION_MODES.LADDER && " · Ladder"}
+            {sessionMode === SESSION_MODES.EXTENDED_LADDER && " · Extended"}
+            {sessionMode === SESSION_MODES.OPEN && " · Open"}
+          </span>
         </div>
 
         {/* View Mode — active courts read-only display */}
@@ -2109,16 +2050,9 @@ function AppMain({ club, authUser, onLogout }) {
                   )}
                 </div>
 
-                <div className="my-6">
-                  <hr className="border-slate-300" />
-                  <div className="text-center font-bold text-xl text-slate-700 my-4">
-                    � Active Courts
-                  </div>
-                  <hr className="border-slate-300" />
-                </div>
-
-                <div>
-                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                <div className="mt-4">
+                  <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-3">Active Courts</h2>
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
                     {courts.map((court) => (
                       <CourtCard
                         key={court.id}
@@ -2200,6 +2134,64 @@ function AppMain({ club, authUser, onLogout }) {
           />
         )}
 
+      </main>
+
+      {/* Bottom Tab Navigation — mobile native feel */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-40 sm:hidden">
+        <div className="flex justify-around py-2">
+          {(viewMode
+            ? ["standings", "attendance", "history"]
+            : ["dashboard", "standings", "attendance", "history"]
+          ).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg transition-colors ${
+                activeTab === tab ? "text-blue-600" : "text-slate-400"
+              }`}
+            >
+              <span className="text-lg">
+                {tab === "dashboard" && "🏠"}
+                {tab === "standings" && "🏆"}
+                {tab === "attendance" && "👥"}
+                {tab === "history" && "📜"}
+              </span>
+              <span className="text-[10px] font-medium">
+                {tab === "dashboard" && "Home"}
+                {tab === "standings" && "Standings"}
+                {tab === "attendance" && "Attend."}
+                {tab === "history" && "History"}
+              </span>
+            </button>
+          ))}
+        </div>
+      </nav>
+
+      {/* Desktop tab navigation — hidden on mobile */}
+      <div className="hidden sm:block fixed bottom-0 left-0 right-0 sm:relative sm:bottom-auto">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className={`grid gap-2 mb-4 ${viewMode ? "grid-cols-3" : "grid-cols-4"}`}>
+            {(viewMode
+              ? ["standings", "attendance", "history"]
+              : ["dashboard", "standings", "attendance", "history"]
+            ).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`h-10 rounded-lg text-sm font-medium transition-all ${
+                  activeTab === tab
+                    ? "bg-blue-600 text-white shadow"
+                    : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                {tab === "dashboard" && "🏠 Dashboard"}
+                {tab === "standings" && "🏆 Standings"}
+                {tab === "attendance" && "👥 Attendance"}
+                {tab === "history" && "📜 History"}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Modals */}

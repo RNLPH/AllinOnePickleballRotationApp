@@ -1,17 +1,18 @@
+import { useState } from "react";
 import DraggablePlayer from "../dnd/DraggablePlayer";
 import { getRelativeTime } from "../../utils/playerUtils";
 
 function getOpenModeQueueLabel(player) {
-  if (player.lastResult === "win")  return { label: "🏆 Winner Court", color: "text-blue-600" };
-  if (player.lastResult === "loss") return { label: "🔄 Loser Court",  color: "text-orange-600" };
-  return { label: "🆕 New Player", color: "text-gray-500" };
+  if (player.lastResult === "win")  return { label: "Winner", color: "text-blue-600" };
+  if (player.lastResult === "loss") return { label: "Loser",  color: "text-orange-600" };
+  return { label: "New", color: "text-gray-500" };
 }
 
 function getLadderCourtLabel(player) {
-  if (player.tier === "king")    return { label: "👑 King's Court",   color: "text-yellow-600" };
-  if (player.tier === "general") return { label: "🎖️ General Court", color: "text-purple-600" };
-  if (player.tier === "knight")  return { label: "⚔️ Knight Court",  color: "text-indigo-600" };
-  return { label: "🛡️ Squire Court", color: "text-green-600" };
+  if (player.tier === "king")    return { label: "King",    color: "text-yellow-600" };
+  if (player.tier === "general") return { label: "General", color: "text-purple-600" };
+  if (player.tier === "knight")  return { label: "Knight",  color: "text-indigo-600" };
+  return { label: "Squire", color: "text-green-600" };
 }
 
 export default function PlayerRow({
@@ -29,11 +30,9 @@ export default function PlayerRow({
   onEditName,
   openMode = false,
 }) {
-  const courtLabel = openMode
-    ? getOpenModeQueueLabel(player)
-    : getLadderCourtLabel(player);
+  const [expanded, setExpanded] = useState(false);
+  const courtLabel = openMode ? getOpenModeQueueLabel(player) : getLadderCourtLabel(player);
 
-  // In Open Mode filter courts by result match; in Ladder Mode filter by tier
   const availableCourts = openMode
     ? courts.filter((court) => {
         if (court.type === "any") return true;
@@ -44,213 +43,137 @@ export default function PlayerRow({
     : courts.filter((court) => court.type === player.tier);
 
   function getCourtOptionLabel(court) {
-    if (court.type === "king")    return `👑 King's #${court.id} (${court.players.length}/4)`;
-    if (court.type === "general") return `🎖️ General #${court.id} (${court.players.length}/4)`;
-    if (court.type === "knight")  return `⚔️ Knight #${court.id} (${court.players.length}/4)`;
-    if (court.type === "squire")  return `🛡️ Squire #${court.id} (${court.players.length}/4)`;
-    if (court.type === "winner")  return `🏆 Winner #${court.id} (${court.players.length}/4)`;
-    if (court.type === "loser")   return `🔄 Loser #${court.id} (${court.players.length}/4)`;
-    if (court.type === "any")     return `🏓 Open #${court.id} (${court.players.length}/4)`;
-    return `Court #${court.id} (${court.players.length}/4)`;
+    if (court.type === "king")    return `King #${court.id}`;
+    if (court.type === "general") return `General #${court.id}`;
+    if (court.type === "knight")  return `Knight #${court.id}`;
+    if (court.type === "squire")  return `Squire #${court.id}`;
+    if (court.type === "winner")  return `Winner #${court.id}`;
+    if (court.type === "loser")   return `Loser #${court.id}`;
+    if (court.type === "any")     return `Open #${court.id}`;
+    return `Court #${court.id}`;
   }
 
   return (
-    <div
-      className="
-        bg-white
-        border
-        border-slate-200
-        rounded-xl
-        p-4
-        mb-3
-        shadow-sm
-        hover:shadow-md
-        transition-all
-        hover:-translate-y-1
-      "
-    >
-      <div>
-        <div className="flex items-center gap-3">
-          <DraggablePlayer player={player} />
+    <div className="bg-white border border-slate-100 rounded-xl shadow-sm overflow-hidden">
+      {/* Compact row — always visible */}
+      <div
+        className="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-slate-50 transition-colors"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <DraggablePlayer player={player} />
 
-          <div>
-            <div className="font-semibold text-slate-800">{player.name}</div>
-
-            <div className="text-xs mt-1">
-              <div className="text-gray-400">
-                {openMode ? "Queue" : "Current Court"}
-              </div>
-              <div className={`font-semibold ${courtLabel.color}`}>
-                {courtLabel.label}
-              </div>
-            </div>
-
-            <div className="text-xs text-gray-500">#{index + 1} in queue</div>
-
-            <div className="text-xs text-blue-500 mt-1">
-              ⏳ {getRelativeTime(player.waitingSince)}
-            </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-sm text-slate-800 truncate">{player.name}</span>
+            <span className={`text-xs font-medium ${courtLabel.color}`}>{courtLabel.label}</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
+            <span>{player.gamesPlayed}GP</span>
+            <span className="text-green-600">{player.wins || 0}W</span>
+            <span className="text-red-500">{player.losses || 0}L</span>
+            {player.lastResult === "win" && <span className="text-green-600">✓</span>}
+            {player.lastResult === "loss" && <span className="text-red-500">✗</span>}
+            {player.priority && <span className="text-yellow-500">⭐</span>}
+            {player.noPriority && <span className="text-orange-500">🕒</span>}
           </div>
         </div>
 
-        {/* Stats badges */}
-        <div className="flex gap-2 mt-3 flex-wrap">
-          <span className="bg-blue-50 text-blue-600 px-2 py-1 rounded-full text-xs font-semibold">
-            GP {player.gamesPlayed}
-          </span>
-          <span className="bg-green-50 text-green-600 px-2 py-1 rounded-full text-xs font-semibold">
-            W {player.wins || 0}
-          </span>
-          <span className="bg-red-50 text-red-600 px-2 py-1 rounded-full text-xs font-semibold">
-            L {player.losses || 0}
-          </span>
-          <span className="bg-indigo-50 text-indigo-700 px-2 py-1 rounded-full text-xs font-semibold">
-            👥 {Object.keys(player.partnerHistory || {}).length}
-          </span>
+        <div className="text-xs text-slate-300">
+          #{index + 1}
         </div>
 
-        {/* Secondary info row */}
-        <div className="flex items-center gap-3 mt-2 text-xs flex-wrap">
-          <span className="text-orange-500">
-            🔥 {player.consecutiveGames || 0}
-          </span>
-
-          {player.lastResult === "win" && (
-            <span className="text-green-600">✅ Won</span>
-          )}
-          {player.lastResult === "loss" && (
-            <span className="text-red-600">❌ Lost</span>
-          )}
-          {!player.lastResult && (
-            <span className="text-gray-500">🆕 New</span>
-          )}
-
-          {/* King Court Entries — Ladder Mode only */}
-          {!openMode && (
-            <span className="bg-yellow-50 text-yellow-700 px-2 py-1 rounded-full text-xs font-semibold">
-              👑 Reached: {player.kingCourtEntries || 0}
-            </span>
-          )}
-
-          <span className="bg-indigo-50 text-indigo-700 px-2 py-1 rounded-full text-xs font-semibold">
-            👥 Partners: {Object.keys(player.partnerHistory || {}).length}
-          </span>
-        </div>
-
-        {player.priority && (
-          <div className="flex gap-2 mt-3 pt-3 border-t border-slate-200">
-            ⭐ PRIORITY
-          </div>
-        )}
-        {player.noPriority && (
-          <div className="text-orange-600 font-bold text-xs">🕒 LATE ARRIVAL</div>
-        )}
-      </div>
-
-      {/* Actions */}
-      <div className="flex flex-col gap-1 w-full md:w-auto">
-        <select
-          value={selectedCourt[player.id] || ""}
-          onChange={(e) =>
-            setSelectedCourt((prev) => ({ ...prev, [player.id]: e.target.value }))
-          }
-          className="
-            w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white
-            focus:outline-none focus:ring-2 focus:ring-blue-400
-          "
+        <svg
+          className={`w-4 h-4 text-slate-400 transition-transform ${expanded ? "rotate-180" : ""}`}
+          fill="none" viewBox="0 0 24 24" stroke="currentColor"
         >
-          <option value="">Select Court</option>
-          {availableCourts.map((court) => (
-            <option key={court.id} value={court.id}>
-              {getCourtOptionLabel(court)}
-            </option>
-          ))}
-        </select>
-
-        <div className="flex gap-2 mt-3 pt-3 border-t border-slate-100 flex-wrap sm:flex-nowrap">
-          <button
-            onClick={() => onTogglePriority(player)}
-            className={`px-2 py-1 rounded text-sm ${
-              player.priority ? "bg-yellow-500 text-white" : "bg-gray-200"
-            }`}
-          >
-            ⭐
-          </button>
-
-          <button
-            onClick={() => onToggleNoPriority(player)}
-            className={`
-              w-9 h-9 rounded-lg flex items-center justify-center transition-all
-              ${player.noPriority ? "bg-orange-500 text-white" : "bg-slate-100 hover:bg-slate-200"}
-            `}
-          >
-            🚫
-          </button>
-
-          {/* Change Tier button — Ladder Mode only */}
-          {!openMode && (
-            <button
-              onClick={() => onEditTier(player.id)}
-              className="
-                w-9 h-9 rounded-lg flex items-center justify-center
-                bg-yellow-500 text-white hover:bg-yellow-600
-              "
-              title="Change Tier"
-            >
-              🔄
-            </button>
-          )}
-
-          <button
-            onClick={() => onEditName(player)}
-            className="
-              w-9 h-9 rounded-lg flex items-center justify-center
-              bg-slate-500 text-white hover:bg-slate-600
-            "
-            title="Edit Name"
-          >
-            ✏️
-          </button>
-
-          <button
-            onClick={() => onViewProfile(player)}
-            className="
-              w-9 h-9 rounded-lg flex items-center justify-center
-              bg-blue-500 text-white hover:bg-blue-600
-            "
-            title="View Profile"
-          >
-            👤
-          </button>
-
-          <button
-            onClick={() => {
-              const courtId = selectedCourt[player.id];
-              if (!courtId) {
-                alert("Please select a court first.");
-                return;
-              }
-              onAddToCourt(player.id, courtId);
-            }}
-            className="
-              w-9 h-9 rounded-lg flex items-center justify-center
-              bg-green-500 text-white hover:bg-green-600
-            "
-          >
-            ➕
-          </button>
-
-          <button
-            onClick={() => onRemovePlayer(player.id)}
-            className="
-              w-9 h-9 rounded-lg flex items-center justify-center
-              bg-red-500 text-white hover:bg-red-600
-            "
-          >
-            ✕
-          </button>
-        </div>
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
       </div>
+
+      {/* Expanded details — shown on tap */}
+      {expanded && (
+        <div className="px-3 pb-3 pt-1 border-t border-slate-100 bg-slate-50/50">
+          {/* Stats */}
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs font-medium">
+              GP {player.gamesPlayed}
+            </span>
+            <span className="bg-green-50 text-green-700 px-2 py-0.5 rounded text-xs font-medium">
+              W {player.wins || 0}
+            </span>
+            <span className="bg-red-50 text-red-700 px-2 py-0.5 rounded text-xs font-medium">
+              L {player.losses || 0}
+            </span>
+            <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-xs font-medium">
+              👥 {Object.keys(player.partnerHistory || {}).length}
+            </span>
+            {!openMode && (
+              <span className="bg-yellow-50 text-yellow-700 px-2 py-0.5 rounded text-xs font-medium">
+                👑 {player.kingCourtEntries || 0}
+              </span>
+            )}
+            <span className="bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-xs">
+              ⏳ {getRelativeTime(player.waitingSince)}
+            </span>
+          </div>
+
+          {/* Court assignment */}
+          <div className="flex items-center gap-2 mb-3">
+            <select
+              value={selectedCourt[player.id] || ""}
+              onChange={(e) => setSelectedCourt((prev) => ({ ...prev, [player.id]: e.target.value }))}
+              onClick={(e) => e.stopPropagation()}
+              className="flex-1 h-9 px-3 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              <option value="">Assign to court...</option>
+              {availableCourts.map((court) => (
+                <option key={court.id} value={court.id}>{getCourtOptionLabel(court)}</option>
+              ))}
+            </select>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const courtId = selectedCourt[player.id];
+                if (!courtId) { alert("Select a court first."); return; }
+                onAddToCourt(player.id, courtId);
+              }}
+              className="h-9 px-3 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600"
+            >
+              ➕
+            </button>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex flex-wrap gap-1.5">
+            <button onClick={(e) => { e.stopPropagation(); onTogglePriority(player); }}
+              className={`h-8 px-2.5 rounded-lg text-xs font-medium ${player.priority ? "bg-yellow-500 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
+              ⭐ Priority
+            </button>
+            <button onClick={(e) => { e.stopPropagation(); onToggleNoPriority(player); }}
+              className={`h-8 px-2.5 rounded-lg text-xs font-medium ${player.noPriority ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
+              🕒 Late
+            </button>
+            {!openMode && (
+              <button onClick={(e) => { e.stopPropagation(); onEditTier(player.id); }}
+                className="h-8 px-2.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-600 hover:bg-slate-200">
+                🔄 Tier
+              </button>
+            )}
+            <button onClick={(e) => { e.stopPropagation(); onEditName(player); }}
+              className="h-8 px-2.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-600 hover:bg-slate-200">
+              ✏️ Name
+            </button>
+            <button onClick={(e) => { e.stopPropagation(); onViewProfile(player); }}
+              className="h-8 px-2.5 rounded-lg text-xs font-medium bg-blue-50 text-blue-600 hover:bg-blue-100">
+              👤 Profile
+            </button>
+            <button onClick={(e) => { e.stopPropagation(); onRemovePlayer(player.id); }}
+              className="h-8 px-2.5 rounded-lg text-xs font-medium bg-red-50 text-red-600 hover:bg-red-100">
+              ✕ Remove
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
