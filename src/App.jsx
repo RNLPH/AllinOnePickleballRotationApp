@@ -36,6 +36,7 @@ import PreviewPlayerModal from "./components/modals/PreviewPlayerModal";
 import SessionModeModal from "./components/modals/SessionModeModal";
 import EditPlayerNameModal from "./components/modals/EditPlayerNameModal";
 import TierAssignmentPreviewModal from "./components/modals/TierAssignmentPreviewModal";
+import LiveBoard from "./components/LiveBoard";
 
 // ===== AUTH WRAPPER =====
 // Handles auth state ONLY. Renders the main App or auth screens.
@@ -127,6 +128,8 @@ function AppMain({ club, authUser, onLogout }) {
       return next;
     });
   };
+
+  const [showLiveBoard, setShowLiveBoard] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [showTierModal, setShowTierModal] = useState(false);
   const [pendingPlayerName, setPendingPlayerName] = useState("");
@@ -139,6 +142,7 @@ function AppMain({ club, authUser, onLogout }) {
   const [activePlayer, setActivePlayer] = useState(null);
   const [selectedCourt, setSelectedCourt] = useState({});
   const [editingPlayer, setEditingPlayer] = useState(null);
+  const [isSwitchingMode, setIsSwitchingMode] = useState(false);
   const [tierAssignmentPreview, setTierAssignmentPreview] = useState(null);
   const [partnerWarnings, setPartnerWarnings] = useState({});
   // { [courtId]: { teamA: count, teamB: count } }
@@ -360,6 +364,19 @@ function AppMain({ club, authUser, onLogout }) {
     persistPlayers();
   }, [players, playersLoaded]);
 
+  // ===== SAVE COURTS TO SUPABASE =====
+  useEffect(() => {
+    async function persistCourts() {
+      // Save to localStorage for fast local reads
+      localStorage.setItem(STORAGE_KEYS.COURTS, JSON.stringify(courts));
+      // Save to Supabase for public board access
+      await supabase
+        .from("courts")
+        .upsert({ club_id: club.id, data: courts }, { onConflict: "club_id" });
+    }
+    persistCourts();
+  }, [courts, club.id]);
+
   // ===== DERIVED DATA =====
 
   const sortedPlayers = sortPlayers(players);
@@ -441,18 +458,26 @@ function AppMain({ club, authUser, onLogout }) {
 
   const currentAttendance = attendance.filter((r) => r.sessionId === sessionId);
 
+  // Count unique sessions attended per player (across all sessions)
   const attendanceMap = {};
-  currentAttendance.forEach((record) => {
+  attendance.forEach((record) => {
     if (!attendanceMap[record.playerId]) {
       attendanceMap[record.playerId] = {
         playerId: record.playerId,
         playerName: record.playerName,
-        count: 0,
+        sessions: new Set(),
       };
     }
-    attendanceMap[record.playerId].count++;
+    attendanceMap[record.playerId].sessions.add(record.sessionId);
   });
-  const attendanceLeaders = Object.values(attendanceMap).sort((a, b) => b.count - a.count);
+
+  const attendanceLeaders = Object.values(attendanceMap)
+    .map((entry) => ({
+      playerId: entry.playerId,
+      playerName: entry.playerName,
+      count: entry.sessions.size,
+    }))
+    .sort((a, b) => b.count - a.count);
 
   const totalSessions = Math.max(
     new Set(attendance.map((r) => r.sessionId)).size,
@@ -1768,32 +1793,53 @@ function AppMain({ club, authUser, onLogout }) {
 
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl p-6 mb-6 shadow-lg">
-          <div className="flex items-start justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
             <div>
-              <h1 className="text-4xl font-bold">🏓 PickleStack</h1>
+              <h1 className="text-2xl sm:text-4xl font-bold">🏓 PickleStack</h1>
               {club && (
                 <p className="text-white/70 text-sm mt-1">🏢 {club.name}</p>
               )}
             </div>
 
-            <div className="flex items-center gap-2 mt-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Live Board */}
+              <button
+                onClick={() => setShowLiveBoard(true)}
+                className="px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-green-500/80 hover:bg-green-500 text-white transition-all"
+              >
+                📺 Live
+              </button>
+
+              {/* Copy public link */}
+              <button
+                onClick={() => {
+                  const url = `${window.location.origin}/live/${club.id}`;
+                  navigator.clipboard.writeText(url);
+                  alert("Live board link copied!\n\n" + url);
+                }}
+                className="px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-white/20 hover:bg-white/30 text-white transition-all"
+                title="Copy public live board link"
+              >
+                🔗
+              </button>
+
               {/* View Mode toggle */}
               <button
                 onClick={toggleViewMode}
                 className={`
-                  px-4 py-2 rounded-xl text-sm font-semibold transition-all
+                  px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all
                   ${viewMode
                     ? "bg-white text-blue-600 shadow"
                     : "bg-white/20 hover:bg-white/30 text-white"}
                 `}
               >
-                {viewMode ? "👁 View Mode  ·  Tap to Manage" : "👁 View Mode"}
+                {viewMode ? "👁 Manage" : "👁 View"}
               </button>
 
               {/* Logout */}
               <button
                 onClick={onLogout}
-                className="px-3 py-2 rounded-xl text-sm font-semibold bg-white/20 hover:bg-white/30 text-white transition-all"
+                className="px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-white/20 hover:bg-white/30 text-white transition-all"
                 title="Log out"
               >
                 🚪
@@ -1817,6 +1863,7 @@ function AppMain({ club, authUser, onLogout }) {
               </span>
               <button
                 onClick={() => {
+                  setIsSwitchingMode(true);
                   setSessionMode(null);
                   localStorage.removeItem(STORAGE_KEYS.SESSION_MODE);
                 }}
@@ -2095,7 +2142,29 @@ function AppMain({ club, authUser, onLogout }) {
       {!sessionMode && (
         <SessionModeModal
           sessionId={sessionId}
-          onSelect={handleSelectSessionMode}
+          onSelect={(mode) => {
+            setIsSwitchingMode(false);
+            handleSelectSessionMode(mode);
+          }}
+          onCancel={
+            isSwitchingMode
+              ? () => {
+                  const prev = sessionMode;
+                  setIsSwitchingMode(false);
+                  // Restore previous mode from what was active before
+                  // Since we cleared it, just re-set from courts state
+                  const courtType = courts[0]?.type;
+                  const restored =
+                    courtType === "any" || courtType === "winner" || courtType === "loser"
+                      ? "open"
+                      : courtType === "general"
+                      ? "extended_ladder"
+                      : "ladder";
+                  setSessionMode(restored);
+                  localStorage.setItem(STORAGE_KEYS.SESSION_MODE, restored);
+                }
+              : null
+          }
         />
       )}
 
@@ -2180,6 +2249,11 @@ function AppMain({ club, authUser, onLogout }) {
           replacePreviewPlayer={replacePreviewPlayer}
           onCancel={() => setSelectedPreviewCourt(null)}
         />
+      )}
+
+      {/* Live Session Board */}
+      {showLiveBoard && (
+        <LiveBoard club={club} onClose={() => setShowLiveBoard(false)} />
       )}
 
     </div>

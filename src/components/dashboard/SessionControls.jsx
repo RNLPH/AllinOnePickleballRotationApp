@@ -1,8 +1,11 @@
 const actionButton = `
   h-11
-  px-4
+  px-3
+  sm:px-4
   rounded-lg
   font-medium
+  text-sm
+  sm:text-base
   text-white
   transition-all
   shadow-sm
@@ -51,7 +54,7 @@ export default function SessionControls({
         🎮 Session Controls
       </h2>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
         {/* Player Name Input */}
         <div className="relative flex-1">
           <input
@@ -192,7 +195,7 @@ export default function SessionControls({
 
       {/* Stats */}
       <div className="mt-4 space-y-1 text-sm md:text-base">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-6">
+        <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 mt-6">
           <div className="bg-blue-50 p-4 rounded-xl">
             <div className="text-sm text-gray-500">Waiting</div>
             <div className="text-3xl font-bold text-blue-600">

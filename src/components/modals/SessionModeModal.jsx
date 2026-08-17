@@ -1,9 +1,19 @@
 import { SESSION_MODES } from "../../constants";
 
-export default function SessionModeModal({ sessionId, onSelect }) {
+export default function SessionModeModal({ sessionId, onSelect, onCancel }) {
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-8 shadow-2xl w-96 max-w-[90vw]">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-2xl w-96 max-w-[90vw] max-h-[90vh] overflow-y-auto relative">
+
+        {/* Close button — only show if onCancel is provided (mode already selected) */}
+        {onCancel && (
+          <button
+            onClick={onCancel}
+            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-bold"
+          >
+            ✕
+          </button>
+        )}
 
         <h2 className="text-2xl font-bold text-center text-slate-800 mb-2">
           🏓 Session {sessionId}

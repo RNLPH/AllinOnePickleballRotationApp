@@ -167,7 +167,7 @@ export default function PlayerRow({
           ))}
         </select>
 
-        <div className="flex gap-2 mt-3 pt-3 border-t border-slate-100">
+        <div className="flex gap-2 mt-3 pt-3 border-t border-slate-100 flex-wrap sm:flex-nowrap">
           <button
             onClick={() => onTogglePriority(player)}
             className={`px-2 py-1 rounded text-sm ${
