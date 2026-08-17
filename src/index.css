@@ -2,6 +2,11 @@
 
 html, body {
   background-color: #f8fafc;
+  overflow-x: hidden;
+}
+
+#root {
+  overflow-x: hidden;
 }
 
 :root {
