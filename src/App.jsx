@@ -1878,29 +1878,16 @@ function AppMain({ club, authUser, onLogout }) {
 
       {/* Slim sticky header */}
       <header className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img src="/logo.svg" alt="RallyStack" className="w-8 h-8" />
-            <div>
-              <h1 className="text-lg font-bold text-slate-800 leading-tight">RallyStack</h1>
-              {club && <p className="text-xs text-slate-400 leading-tight">{club.name}</p>}
+        <div className="max-w-7xl mx-auto px-3 py-2.5 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <img src="/logo.svg" alt="RallyStack" className="w-7 h-7 shrink-0" />
+            <div className="min-w-0">
+              <h1 className="text-base font-bold text-slate-800 leading-tight truncate">RallyStack</h1>
+              {club && <p className="text-[10px] text-slate-400 leading-tight truncate">{club.name}</p>}
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5">
-            {sessionMode && !viewMode && (
-              <span className={`
-                hidden sm:inline-flex px-2.5 py-1 rounded-full text-xs font-semibold mr-1
-                ${sessionMode === SESSION_MODES.LADDER ? "bg-yellow-100 text-yellow-800"
-                  : sessionMode === SESSION_MODES.EXTENDED_LADDER ? "bg-purple-100 text-purple-800"
-                  : "bg-blue-100 text-blue-800"}
-              `}>
-                {sessionMode === SESSION_MODES.LADDER && "Ladder"}
-                {sessionMode === SESSION_MODES.EXTENDED_LADDER && "Extended"}
-                {sessionMode === SESSION_MODES.OPEN && "Open"}
-              </span>
-            )}
-
+          <div className="flex items-center gap-1 shrink-0">
             {sessionMode && !viewMode && (
               <button
                 onClick={() => {
@@ -1909,27 +1896,27 @@ function AppMain({ club, authUser, onLogout }) {
                   setSessionMode(null);
                   localStorage.removeItem(STORAGE_KEYS.SESSION_MODE);
                 }}
-                className="h-8 px-2 rounded-lg text-xs text-slate-500 hover:bg-slate-100"
+                className="h-7 px-1.5 rounded text-[10px] text-slate-500 hover:bg-slate-100"
               >
                 Switch
               </button>
             )}
 
             <button onClick={() => setShowLiveBoard(true)}
-              className="h-8 w-8 rounded-lg bg-green-50 text-green-600 flex items-center justify-center hover:bg-green-100 text-sm">
+              className="h-7 w-7 rounded bg-green-50 text-green-600 flex items-center justify-center hover:bg-green-100 text-xs">
               📺
             </button>
             <button
               onClick={() => { const url = `${window.location.origin}/live/${club.id}`; navigator.clipboard.writeText(url); alert("Link copied!\n" + url); }}
-              className="h-8 w-8 rounded-lg bg-slate-50 text-slate-500 flex items-center justify-center hover:bg-slate-100 text-sm">
+              className="h-7 w-7 rounded bg-slate-50 text-slate-500 flex items-center justify-center hover:bg-slate-100 text-xs">
               🔗
             </button>
             <button onClick={toggleViewMode}
-              className={`h-8 px-2.5 rounded-lg text-xs font-medium ${viewMode ? "bg-blue-600 text-white" : "bg-slate-50 text-slate-500 hover:bg-slate-100"}`}>
-              {viewMode ? "Managing" : "View"}
+              className={`h-7 px-1.5 rounded text-[10px] font-medium ${viewMode ? "bg-blue-600 text-white" : "bg-slate-50 text-slate-500 hover:bg-slate-100"}`}>
+              {viewMode ? "✓" : "👁"}
             </button>
             <button onClick={onLogout}
-              className="h-8 w-8 rounded-lg bg-slate-50 text-slate-500 flex items-center justify-center hover:bg-slate-100 text-sm"
+              className="h-7 w-7 rounded bg-slate-50 text-slate-500 flex items-center justify-center hover:bg-slate-100 text-xs"
               title="Log out">
               🚪
             </button>
