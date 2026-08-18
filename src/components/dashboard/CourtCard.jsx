@@ -2,6 +2,7 @@ import DroppableCourt from "../dnd/DroppableCourt";
 import DroppableCourtPlayer from "../dnd/DroppableCourtPlayer";
 import DraggableCourtPlayer from "../dnd/DraggableCourtPlayer";
 import { getCourtDuration, getCourtMinutes } from "../../utils/playerUtils";
+import { useI18n } from "../../i18n/index.jsx";
 
 function getCourtLabel(type) {
   if (type === "king")    return "👑 King's Court";
@@ -30,6 +31,7 @@ export default function CourtCard({
   onSetSelectedPreviewCourt,
   onSetSelectedPreviewPlayer,
 }) {
+  const { t } = useI18n();
   const preview = courtPreviews[court.id] || [];
   const isSingles = court.format === "singles";
   const maxPlayers = isSingles ? 2 : 4;
@@ -321,7 +323,7 @@ export default function CourtCard({
             rounded-xl
           "
         >
-          👀 Preview Next Match
+          👀 {t("preview_next")}
         </button>
 
         {preview.length > 0 && (
@@ -583,7 +585,7 @@ export default function CourtCard({
               disabled:bg-gray-400
             "
           >
-            {isSingles ? "Player A Wins" : "Team A Wins"}
+            {isSingles ? "Player A Wins" : t("team_a_wins")}
           </button>
 
           <button
@@ -602,7 +604,7 @@ export default function CourtCard({
               disabled:bg-gray-400
             "
           >
-            {isSingles ? "Player B Wins" : "Team B Wins"}
+            {isSingles ? "Player B Wins" : t("team_b_wins")}
           </button>
         </div>
       </div>

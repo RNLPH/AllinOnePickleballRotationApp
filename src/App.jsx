@@ -2784,10 +2784,10 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
                 {tab === "history" && "📜"}
               </span>
               <span className="text-[10px] font-medium leading-tight">
-                {tab === "dashboard" && "Home"}
-                {tab === "standings" && "Stats"}
-                {tab === "attendance" && "Attend"}
-                {tab === "history" && "History"}
+                {tab === "dashboard" && t("tab_dashboard")}
+                {tab === "standings" && t("tab_standings")}
+                {tab === "attendance" && t("tab_attendance")}
+                {tab === "history" && t("tab_history")}
               </span>
             </button>
           ))}
@@ -2811,10 +2811,10 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
                     : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
                 }`}
               >
-                {tab === "dashboard" && "🏠 Dashboard"}
-                {tab === "standings" && "🏆 Standings"}
-                {tab === "attendance" && "👥 Attendance"}
-                {tab === "history" && "📜 History"}
+                {tab === "dashboard" && `🏠 ${t("tab_dashboard")}`}
+                {tab === "standings" && `🏆 ${t("tab_standings")}`}
+                {tab === "attendance" && `👥 ${t("tab_attendance")}`}
+                {tab === "history" && `📜 ${t("tab_history")}`}
               </button>
             ))}
           </div>

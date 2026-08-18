@@ -1,6 +1,7 @@
 import { useState } from "react";
 import DraggablePlayer from "../dnd/DraggablePlayer";
 import { getRelativeTime } from "../../utils/playerUtils";
+import { useI18n } from "../../i18n/index.jsx";
 
 function getOpenModeQueueLabel(player) {
   if (player.lastResult === "win")  return { label: "Winner", color: "text-blue-600" };
@@ -32,6 +33,7 @@ export default function PlayerRow({
   openMode = false,
 }) {
   const [expanded, setExpanded] = useState(false);
+  const { t } = useI18n();
   const courtLabel = openMode ? getOpenModeQueueLabel(player) : getLadderCourtLabel(player);
 
   const availableCourts = openMode
@@ -166,11 +168,11 @@ export default function PlayerRow({
             )}
             <button onClick={(e) => { e.stopPropagation(); onTogglePriority(player); }}
               className={`h-8 px-2.5 rounded-lg text-xs font-medium ${player.priority ? "bg-yellow-500 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
-              ⭐ Priority
+              ⭐ {t("priority")}
             </button>
             <button onClick={(e) => { e.stopPropagation(); onToggleNoPriority(player); }}
               className={`h-8 px-2.5 rounded-lg text-xs font-medium ${player.noPriority ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
-              🕒 No Priority
+              🕒 {t("not_priority")}
             </button>
             {!openMode && (
               <button onClick={(e) => { e.stopPropagation(); onEditTier(player.id); }}

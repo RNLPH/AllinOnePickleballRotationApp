@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useI18n } from "../../i18n/index.jsx";
 
 export default function SessionControls({
   name,
@@ -35,6 +36,7 @@ export default function SessionControls({
   onShowQrLiveBoard,
 }) {
   const [showMore, setShowMore] = useState(false);
+  const { t } = useI18n();
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4 overflow-hidden">
@@ -42,19 +44,19 @@ export default function SessionControls({
       <div className="flex items-center justify-around px-4 py-2.5 bg-slate-50 border-b border-slate-100">
         <div className="text-center">
           <div className="text-lg font-bold text-blue-600">{players.length}</div>
-          <div className="text-[10px] text-slate-400 uppercase">Queue</div>
+          <div className="text-[10px] text-slate-400 uppercase">{t("queue")}</div>
         </div>
         <div className="text-center">
           <div className="text-lg font-bold text-green-600">{activePlayers}</div>
-          <div className="text-[10px] text-slate-400 uppercase">Playing</div>
+          <div className="text-[10px] text-slate-400 uppercase">{t("playing")}</div>
         </div>
         <div className="text-center">
           <div className="text-lg font-bold text-purple-600">{courts.length}</div>
-          <div className="text-[10px] text-slate-400 uppercase">Courts</div>
+          <div className="text-[10px] text-slate-400 uppercase">{t("courts")}</div>
         </div>
         <div className="text-center">
           <div className="text-lg font-bold text-amber-600">{totalGamesPlayed}</div>
-          <div className="text-[10px] text-slate-400 uppercase">Matches</div>
+          <div className="text-[10px] text-slate-400 uppercase">{t("matches")}</div>
         </div>
       </div>
 
@@ -62,15 +64,15 @@ export default function SessionControls({
       {sessionMode && (
         <div className="px-3 py-1.5 border-b border-slate-100 flex items-center justify-center">
           <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
-            {sessionMode === "open" && "🏓 Open Mode"}
-            {sessionMode === "ladder" && "🏆 Ladder Mode"}
-            {sessionMode === "extended_ladder" && "🏅 Extended Ladder"}
-            {sessionMode === "king_of_court" && "👑 King of the Court"}
-            {sessionMode === "round_robin" && "🔄 Round Robin"}
-            {sessionMode === "swiss" && "🧩 Swiss System"}
-            {sessionMode === "random_draw" && "🎲 Random Draw"}
-            {sessionMode === "fixed_teams" && "🤝 Fixed Teams"}
-            {sessionMode === "challenge" && "⚔️ Challenge Mode"}
+            {sessionMode === "open" && t("mode_open")}
+            {sessionMode === "ladder" && t("mode_ladder")}
+            {sessionMode === "extended_ladder" && t("mode_extended")}
+            {sessionMode === "king_of_court" && t("mode_king")}
+            {sessionMode === "round_robin" && t("mode_round_robin")}
+            {sessionMode === "swiss" && t("mode_swiss")}
+            {sessionMode === "random_draw" && t("mode_random")}
+            {sessionMode === "fixed_teams" && t("mode_fixed")}
+            {sessionMode === "challenge" && t("mode_challenge")}
           </span>
         </div>
       )}
@@ -84,7 +86,7 @@ export default function SessionControls({
               ref={inputRef}
               type="text"
               value={name}
-              placeholder="Player name..."
+              placeholder={t("player_name")}
               onChange={(e) => { setName(e.target.value); setHighlightedIndex(-1); }}
               onKeyDown={(e) => {
                 if (e.key === "ArrowDown") { e.preventDefault(); setHighlightedIndex((prev) => prev < matchingPlayers.length - 1 ? prev + 1 : prev); }
@@ -118,7 +120,7 @@ export default function SessionControls({
             disabled={addingPlayer}
             className="h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium disabled:opacity-50 whitespace-nowrap"
           >
-            {addingPlayer ? "..." : "+ Add"}
+            {addingPlayer ? "..." : t("add_player")}
           </button>
         </div>
 
@@ -126,15 +128,15 @@ export default function SessionControls({
         <div className="flex gap-2 mb-2">
           <button onClick={onStartNextGame}
             className="flex-1 h-10 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-medium">
-            ▶ Start Game
+            {t("start_game")}
           </button>
           <button onClick={onShowCourtTypeModal}
             className="h-10 px-4 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium">
-            + Court
+            {t("add_court")}
           </button>
           <button onClick={onRemoveCourt}
             className="h-10 px-4 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 text-sm font-medium">
-            − Court
+            {t("remove_court")}
           </button>
         </div>
 
@@ -143,7 +145,7 @@ export default function SessionControls({
           onClick={() => setShowMore(!showMore)}
           className="w-full text-xs text-slate-400 hover:text-slate-600 py-1"
         >
-          {showMore ? "▲ Less options" : "▼ More options"}
+          {showMore ? t("less_options") : t("more_options")}
         </button>
 
         {/* Advanced options — hidden by default */}
@@ -151,27 +153,27 @@ export default function SessionControls({
           <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-slate-100">
             <button onClick={onReCheckin}
               className="col-span-2 h-9 rounded-lg bg-blue-50 text-blue-700 text-xs font-medium hover:bg-blue-100">
-              🔁 Re-check-in Last Session
+              {t("recheckin")}
             </button>
             <button onClick={onUndoLastMatch}
               className="col-span-2 h-9 rounded-lg bg-amber-50 text-amber-700 text-xs font-medium hover:bg-amber-100">
-              ⏪ Undo Last Match
+              {t("undo_match")}
             </button>
             <button onClick={onStartNewSession}
               className="h-9 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-medium hover:bg-indigo-100">
-              ➡️ New Session
+              {t("new_session")}
             </button>
             <button onClick={onResetSession}
               className="h-9 rounded-lg bg-amber-50 text-amber-700 text-xs font-medium hover:bg-amber-100">
-              🔄 Restart Session
+              {t("restart_session")}
             </button>
             <button onClick={onFactoryReset}
               className="col-span-2 h-9 rounded-lg bg-red-50 text-red-600 text-xs font-medium hover:bg-red-100">
-              ☢️ Factory Reset
+              {t("factory_reset")}
             </button>
             <button onClick={onBulkImport}
               className="h-9 rounded-lg bg-teal-50 text-teal-700 text-xs font-medium hover:bg-teal-100">
-              📥 Bulk Import CSV
+              {t("bulk_import")}
             </button>
             <button
               onClick={() => {
@@ -188,11 +190,11 @@ export default function SessionControls({
             </button>
             <button onClick={onShowQrCheckin}
               className="h-9 rounded-lg bg-violet-50 text-violet-700 text-xs font-medium hover:bg-violet-100">
-              📱 QR Check-in
+              {t("qr_checkin")}
             </button>
             <button onClick={onShowQrLiveBoard}
               className="h-9 rounded-lg bg-cyan-50 text-cyan-700 text-xs font-medium hover:bg-cyan-100">
-              📺 QR Live Board
+              {t("qr_liveboard")}
             </button>
             {clubId && (
               <button
