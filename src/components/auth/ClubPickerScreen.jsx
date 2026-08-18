@@ -7,6 +7,27 @@ export default function ClubPickerScreen({ user, clubs, onSelectClub, onCreateCl
   const [error, setError] = useState("");
   const [showJoin, setShowJoin] = useState(false);
 
+  const handleDeleteClub = async (membership) => {
+    const clubName = membership.club.name;
+    if (!window.confirm(`Delete "${clubName}" permanently? This will delete ALL data. This cannot be undone.`)) return;
+    const typed = window.prompt(`Type "${clubName}" to confirm:`);
+    if (typed !== clubName) { alert("Club name didn't match. Cancelled."); return; }
+
+    const clubId = membership.club_id;
+    await supabase.from("players").delete().eq("club_id", clubId);
+    await supabase.from("directory").delete().eq("club_id", clubId);
+    await supabase.from("matches").delete().eq("club_id", clubId);
+    await supabase.from("attendance").delete().eq("club_id", clubId);
+    await supabase.from("standings_history").delete().eq("club_id", clubId);
+    await supabase.from("courts").delete().eq("club_id", clubId);
+    await supabase.from("club_members").delete().eq("club_id", clubId);
+    await supabase.from("clubs").delete().eq("id", clubId);
+
+    localStorage.removeItem("kngsstack_active_club");
+    alert("Club deleted.");
+    onRefresh();
+  };
+
   const handleJoin = async (e) => {
     e.preventDefault();
     const code = joinCode.trim().toLowerCase();
@@ -72,21 +93,34 @@ export default function ClubPickerScreen({ user, clubs, onSelectClub, onCreateCl
         {/* Club list */}
         <div className="space-y-2 mb-4">
           {clubs.map((membership) => (
-            <button
+            <div
               key={membership.club_id}
-              onClick={() => onSelectClub(membership.club)}
-              className="w-full flex items-center justify-between bg-white border border-slate-200 rounded-xl p-4 hover:bg-blue-50 hover:border-blue-200 transition-all text-left"
+              className="flex items-center bg-white border border-slate-200 rounded-xl overflow-hidden hover:border-blue-200 transition-all"
             >
-              <div>
-                <div className="font-semibold text-slate-800">{membership.club.name}</div>
-                <div className="text-xs text-slate-400 mt-0.5">
-                  {membership.role === "owner" ? "👑 Owner" : "👤 Member"}
+              <button
+                onClick={() => onSelectClub(membership.club)}
+                className="flex-1 flex items-center justify-between p-4 hover:bg-blue-50 text-left"
+              >
+                <div>
+                  <div className="font-semibold text-slate-800">{membership.club.name}</div>
+                  <div className="text-xs text-slate-400 mt-0.5">
+                    {membership.role === "owner" ? "👑 Owner" : "👤 Member"}
+                  </div>
                 </div>
-              </div>
-              <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
+                <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+              {membership.role === "owner" && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleDeleteClub(membership); }}
+                  className="px-3 h-full text-red-400 hover:text-red-600 hover:bg-red-50 border-l border-slate-100"
+                  title="Delete club"
+                >
+                  🗑️
+                </button>
+              )}
+            </div>
           ))}
 
           {clubs.length === 0 && (

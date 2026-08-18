@@ -1694,6 +1694,16 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
 
   // ===== GAME ACTIONS =====
 
+  // Helper: get eligible players for auto-fill, preferring non-resting players
+  // Falls back to resting players only if not enough non-resting are available
+  const getEligibleForCourt = (pool, needed) => {
+    const notOnCourt = pool.filter((p) => !courts.flatMap((c) => c.players).some((cp) => cp.id === p.id));
+    const ready = notOnCourt.filter((p) => !p.cooldownUntil || Date.now() >= p.cooldownUntil);
+    if (ready.length >= needed) return ready;
+    // Not enough ready players — include resting ones as fallback
+    return notOnCourt;
+  };
+
   const assignPlayersToAllCourts = () => {
     const availableCourts = courts.filter((c) => {
       const maxP = c.format === "singles" ? 2 : 4;
@@ -1730,7 +1740,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
         const maxP = court.format === "singles" ? 2 : 4;
         if (court.players.length >= maxP) return court;
         const needed = maxP - court.players.length;
-        const eligible = waitingPlayers.filter((p) => !courts.flatMap((c) => c.players).some((cp) => cp.id === p.id));
+        const eligible = getEligibleForCourt(waitingPlayers, needed);
         if (eligible.length < needed) return court;
 
         const selected = eligible.slice(0, needed).map((p) => ({ ...p, consecutiveGames: (p.consecutiveGames || 0) + 1 }));
@@ -1751,7 +1761,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
         const maxP = court.format === "singles" ? 2 : 4;
         if (court.players.length >= maxP) return court;
         const needed = maxP - court.players.length;
-        const eligible = waitingPlayers.filter((p) => !courts.flatMap((c) => c.players).some((cp) => cp.id === p.id));
+        const eligible = getEligibleForCourt(waitingPlayers, needed);
         if (eligible.length < needed) return court;
 
         const paired = swissPairing(eligible, needed);
@@ -1779,7 +1789,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
         const maxP = court.format === "singles" ? 2 : 4;
         if (court.players.length >= maxP) return court;
         const needed = maxP - court.players.length;
-        const eligible = waitingPlayers.filter((p) => !courts.flatMap((c) => c.players).some((cp) => cp.id === p.id));
+        const eligible = getEligibleForCourt(waitingPlayers, needed);
         if (eligible.length < needed) return court;
 
         const isSingles = court.format === "singles";
