@@ -1499,8 +1499,11 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
   // ===== GAME ACTIONS =====
 
   const assignPlayersToAllCourts = () => {
-    const emptyCourts = courts.filter((c) => c.players.length === 0);
-    if (emptyCourts.length === 0) { alert("No empty court available."); return; }
+    const availableCourts = courts.filter((c) => {
+      const maxP = c.format === "singles" ? 2 : 4;
+      return c.players.length < maxP;
+    });
+    if (availableCourts.length === 0) { alert("No court available to fill."); return; }
 
     // ===== RANDOM DRAW MODE =====
     if (isRandomDraw) {
