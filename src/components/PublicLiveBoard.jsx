@@ -91,6 +91,29 @@ export default function PublicLiveBoard() {
   const activePlaying = courts.reduce((c, court) => c + (court.players?.length || 0), 0);
   const [showAllStandings, setShowAllStandings] = useState(false);
 
+  // ===== COURT AVAILABILITY / ESTIMATED WAIT TIME =====
+  // Calculate average match duration from active courts
+  const activeCourts = courts.filter((c) => c.players && c.players.length > 0 && c.startedAt);
+  const avgMatchMinutes = (() => {
+    // Use recent matches to estimate average duration
+    const recentWithDuration = matches.filter((m) => m.startedAt && m.endedAt);
+    if (recentWithDuration.length === 0) return 10; // default 10 min
+    const totalMs = recentWithDuration.reduce((s, m) => s + (m.endedAt - m.startedAt), 0);
+    return Math.max(1, Math.round((totalMs / recentWithDuration.length) / 60000));
+  })();
+
+  // Estimate: how many rotations until a player in position X gets to play
+  const playersPerRotation = activeCourts.length * 4; // rough: each court takes ~4 players per rotation
+  const getEstimatedWait = (position) => {
+    if (activeCourts.length === 0) return null;
+    const rotationsNeeded = Math.ceil((position + 1) / Math.max(playersPerRotation, 1));
+    // Factor in how long current courts have been running
+    const oldestCourt = activeCourts.reduce((oldest, c) => c.startedAt < oldest ? c.startedAt : oldest, Date.now());
+    const elapsedMin = Math.floor((Date.now() - oldestCourt) / 60000);
+    const remainingMin = Math.max(0, avgMatchMinutes - elapsedMin);
+    return remainingMin + (rotationsNeeded - 1) * avgMatchMinutes;
+  };
+
   // Standings from directory
   const standings = directory
     .filter((p) => (p.gamesPlayed || 0) > 0)
@@ -226,6 +249,9 @@ export default function PublicLiveBoard() {
                     </span>
                     {index < 4 && (
                       <span className="bg-green-100 text-green-700 px-1.5 py-0.5 rounded text-[9px] font-semibold shrink-0">Next</span>
+                    )}
+                    {index >= 4 && getEstimatedWait(index) !== null && (
+                      <span className="text-[9px] text-slate-400 shrink-0">~{getEstimatedWait(index)}m</span>
                     )}
                   </div>
                 ))}

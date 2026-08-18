@@ -25,12 +25,15 @@ export default function SessionControls({
   onStartNewSession,
   onResetSession,
   onFactoryReset,
+  onDeleteClub,
   onDeleteDirectoryPlayer,
   onReCheckin,
   onUndoLastMatch,
   inviteCode,
   clubId,
   clubSlug,
+  cooldownMinutes,
+  onSetCooldown,
   onBulkImport,
   onShowQrCheckin,
   onShowQrLiveBoard,
@@ -171,6 +174,10 @@ export default function SessionControls({
               className="col-span-2 h-9 rounded-lg bg-red-50 text-red-600 text-xs font-medium hover:bg-red-100">
               {t("factory_reset")}
             </button>
+            <button onClick={onDeleteClub}
+              className="col-span-2 h-9 rounded-lg bg-red-100 text-red-700 text-xs font-medium hover:bg-red-200 border border-red-200">
+              🗑️ Delete Club
+            </button>
             <button onClick={onBulkImport}
               className="h-9 rounded-lg bg-teal-50 text-teal-700 text-xs font-medium hover:bg-teal-100">
               {t("bulk_import")}
@@ -224,6 +231,22 @@ export default function SessionControls({
                 </button>
               </div>
             )}
+            {/* Rest Timer / Cooldown Setting */}
+            <div className="col-span-2 flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2">
+              <div className="text-[10px] text-slate-500">😴 Rest Timer (minutes after playing)</div>
+              <select
+                value={cooldownMinutes}
+                onChange={(e) => onSetCooldown(Number(e.target.value))}
+                className="h-7 px-2 rounded bg-white border border-slate-200 text-xs"
+              >
+                <option value={0}>Off</option>
+                <option value={1}>1 min</option>
+                <option value={2}>2 min</option>
+                <option value={3}>3 min</option>
+                <option value={5}>5 min</option>
+                <option value={10}>10 min</option>
+              </select>
+            </div>
           </div>
         )}
 

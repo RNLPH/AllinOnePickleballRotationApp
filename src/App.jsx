@@ -177,6 +177,28 @@ export default function App() {
       authUser={authUser}
       clubs={clubs}
       onSwitchClub={() => setShowPicker(true)}
+      onDeleteClub={async () => {
+        if (!window.confirm(`Delete "${club.name}" permanently? This will delete ALL data (players, matches, history). This cannot be undone.`)) return;
+        if (!window.confirm("Are you REALLY sure? Type the club name in the next prompt to confirm.")) return;
+        const typed = window.prompt(`Type "${club.name}" to confirm deletion:`);
+        if (typed !== club.name) { alert("Club name didn't match. Deletion cancelled."); return; }
+
+        // Delete all related data
+        await supabase.from("players").delete().eq("club_id", club.id);
+        await supabase.from("directory").delete().eq("club_id", club.id);
+        await supabase.from("matches").delete().eq("club_id", club.id);
+        await supabase.from("attendance").delete().eq("club_id", club.id);
+        await supabase.from("standings_history").delete().eq("club_id", club.id);
+        await supabase.from("courts").delete().eq("club_id", club.id);
+        await supabase.from("club_members").delete().eq("club_id", club.id);
+        await supabase.from("clubs").delete().eq("id", club.id);
+
+        localStorage.removeItem("kngsstack_active_club");
+        setClub(null);
+        setClubs([]);
+        loadMemberships(authUser.id);
+        alert("Club deleted.");
+      }}
       onLogout={async () => { 
         await supabase.auth.signOut({ scope: 'local' }); 
         localStorage.clear();
@@ -188,7 +210,7 @@ export default function App() {
 
 // ===== MAIN APP =====
 // All hooks live here, unconditionally. club is always set.
-function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
+function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }) {
 
   // ===== THEME & I18N =====
   const { dark, toggle: toggleDark } = useTheme();
@@ -216,6 +238,12 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
       if (next) setActiveTab("standings"); // default to standings in view mode
       return next;
     });
+
+  // ===== REST TIMER / COOLDOWN =====
+  // Number of minutes a player must rest after playing. 0 = disabled.
+  const [cooldownMinutes, setCooldownMinutes] = useState(() => {
+    return Number(localStorage.getItem("rallystack_cooldown") || 0);
+  });
   };
 
   const [showLiveBoard, setShowLiveBoard] = useState(false);
@@ -491,6 +519,9 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
 
   const sortedPlayers = sortPlayers(players);
   const waitingPlayers = sortedPlayers;
+
+  // Players available for auto-fill (not on cooldown)
+  const readyPlayers = waitingPlayers.filter((p) => !p.cooldownUntil || Date.now() >= p.cooldownUntil);
 
   const kingQueue = waitingPlayers.filter((p) => p.tier === "king");
   const knightQueue = waitingPlayers.filter((p) => p.tier === "knight");
@@ -2169,9 +2200,15 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
     setDirectory(updatedDirectory);
     await Promise.all(updatedDirectory.map((p) => saveDirectoryPlayer(p, club.id)));
 
-    setPlayers((prev) => sortPlayers([...prev, ...returningPlayers]));
+    setPlayers((prev) => sortPlayers([...prev, ...returningPlayers.map((p) => ({
+      ...p,
+      cooldownUntil: cooldownMinutes > 0 ? Date.now() + cooldownMinutes * 60000 : null,
+    }))]));
     // Persist returning players
-    returningPlayers.forEach((p) => savePlayer(p, club.id));
+    returningPlayers.forEach((p) => savePlayer({
+      ...p,
+      cooldownUntil: cooldownMinutes > 0 ? Date.now() + cooldownMinutes * 60000 : null,
+    }, club.id));
     setCourts((prev) =>
       prev.map((c) => (c.id === courtId ? { ...c, players: [], startedAt: null } : c))
     );
@@ -2650,12 +2687,15 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
               onStartNewSession={startNewSession}
               onResetSession={resetSession}
               onFactoryReset={factoryReset}
+              onDeleteClub={onDeleteClub}
               onDeleteDirectoryPlayer={handleDeleteDirectoryPlayer}
               onReCheckin={handleReCheckin}
               onUndoLastMatch={undoLastMatch}
               inviteCode={club.invite_code}
               clubId={club.id}
               clubSlug={club.slug}
+              cooldownMinutes={cooldownMinutes}
+              onSetCooldown={(val) => { setCooldownMinutes(val); localStorage.setItem("rallystack_cooldown", val); }}
               onBulkImport={() => setShowCsvImport(true)}
               onShowQrCheckin={() => setShowQrModal("checkin")}
               onShowQrLiveBoard={() => setShowQrModal("liveboard")}

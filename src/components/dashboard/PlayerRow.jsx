@@ -88,6 +88,11 @@ export default function PlayerRow({
         </div>
 
         <div className="flex items-center gap-1">
+          {player.cooldownUntil && Date.now() < player.cooldownUntil && (
+            <span className="text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full font-medium">
+              😴 Rest {Math.ceil((player.cooldownUntil - Date.now()) / 60000)}m
+            </span>
+          )}
           {player.pendingChallenge && (
             <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-medium">
               vs {player.pendingChallenge.from}

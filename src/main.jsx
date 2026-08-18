@@ -7,6 +7,7 @@ import PublicLiveBoard from "./components/PublicLiveBoard.jsx";
 import PublicCheckin from "./components/PublicCheckin.jsx";
 import PublicInvite from "./components/PublicInvite.jsx";
 import PublicChallenge from "./components/PublicChallenge.jsx";
+import PlayerDashboard from "./components/PlayerDashboard.jsx";
 import { ThemeProvider } from "./contexts/ThemeContext.jsx";
 import { I18nProvider } from "./i18n/index.jsx";
 import { registerSW } from "virtual:pwa-register";
@@ -24,6 +25,7 @@ createRoot(document.getElementById("root")).render(
             <Route path="/live/:clubId" element={<PublicLiveBoard />} />
             <Route path="/checkin/:clubId" element={<PublicCheckin />} />
             <Route path="/challenge/:clubId" element={<PublicChallenge />} />
+            <Route path="/player/:clubId/:playerName" element={<PlayerDashboard />} />
             <Route path="/invite/:inviteCode" element={<PublicInvite />} />
             <Route path="*" element={<App />} />
           </Routes>
