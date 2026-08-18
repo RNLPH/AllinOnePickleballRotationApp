@@ -5,6 +5,7 @@ export default function SessionControls({
   setName,
   error,
   sessionId,
+  sessionMode,
   players,
   courts,
   directory,
@@ -51,6 +52,23 @@ export default function SessionControls({
           <div className="text-[10px] text-slate-400 uppercase">Matches</div>
         </div>
       </div>
+
+      {/* Mode badge */}
+      {sessionMode && (
+        <div className="px-3 py-1.5 border-b border-slate-100 flex items-center justify-center">
+          <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
+            {sessionMode === "open" && "🏓 Open Mode"}
+            {sessionMode === "ladder" && "🏆 Ladder Mode"}
+            {sessionMode === "extended_ladder" && "🏅 Extended Ladder"}
+            {sessionMode === "king_of_court" && "👑 King of the Court"}
+            {sessionMode === "round_robin" && "🔄 Round Robin"}
+            {sessionMode === "swiss" && "🧩 Swiss System"}
+            {sessionMode === "random_draw" && "🎲 Random Draw"}
+            {sessionMode === "fixed_teams" && "🤝 Fixed Teams"}
+            {sessionMode === "challenge" && "⚔️ Challenge Mode"}
+          </span>
+        </div>
+      )}
 
       {/* Main controls */}
       <div className="p-3">

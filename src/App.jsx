@@ -252,7 +252,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
             mode === "open"            ? "any"  :
             mode === "ladder"          ? "king" :
             mode === "extended_ladder" ? "king" :
-            c.type,
+            null, // new modes use generic courts
         };
       })
     );
@@ -322,9 +322,10 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
         return {
           ...c,
           type:
+            targetMode === "open"            ? "any"  :
             targetMode === "ladder"          ? "king" :
             targetMode === "extended_ladder" ? "king" :
-            "any",
+            null,
         };
       })
     );
@@ -2337,6 +2338,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
               setName={setName}
               error={error}
               sessionId={sessionId}
+              sessionMode={sessionMode}
               players={players}
               courts={courts}
               directory={directory}
