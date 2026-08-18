@@ -26,6 +26,7 @@ export default function SessionControls({
   onDeleteDirectoryPlayer,
   onReCheckin,
   onUndoLastMatch,
+  inviteCode,
 }) {
   const [showMore, setShowMore] = useState(false);
 
@@ -145,6 +146,20 @@ export default function SessionControls({
               className="col-span-2 h-9 rounded-lg bg-red-50 text-red-600 text-xs font-medium hover:bg-red-100">
               ☢️ Factory Reset
             </button>
+            {inviteCode && (
+              <div className="col-span-2 flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2">
+                <div>
+                  <div className="text-[10px] text-slate-500">Invite Code</div>
+                  <div className="text-sm font-mono font-bold text-slate-800">{inviteCode}</div>
+                </div>
+                <button
+                  onClick={() => { navigator.clipboard.writeText(inviteCode); alert("Invite code copied!"); }}
+                  className="h-7 px-2 bg-blue-100 text-blue-700 rounded text-xs font-medium hover:bg-blue-200"
+                >
+                  Copy
+                </button>
+              </div>
+            )}
           </div>
         )}
 

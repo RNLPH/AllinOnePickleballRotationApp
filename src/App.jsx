@@ -38,46 +38,90 @@ import SessionModeModal from "./components/modals/SessionModeModal";
 import EditPlayerNameModal from "./components/modals/EditPlayerNameModal";
 import TierAssignmentPreviewModal from "./components/modals/TierAssignmentPreviewModal";
 import LiveBoard from "./components/LiveBoard";
+import ClubPickerScreen from "./components/auth/ClubPickerScreen";
 
 // ===== AUTH WRAPPER =====
-// Handles auth state ONLY. Renders the main App or auth screens.
-// This keeps all hooks in AppMain unconditional.
+// Handles auth state and club selection. Renders the main App or auth/picker screens.
 export default function App() {
   const [authUser, setAuthUser]       = useState(null);
   const [club, setClub]               = useState(null);
+  const [clubs, setClubs]             = useState([]);  // all memberships
   const [authLoading, setAuthLoading] = useState(true);
+  const [showPicker, setShowPicker]   = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setAuthUser(session?.user ?? null);
-      if (session?.user) loadClub(session.user.id);
+      if (session?.user) loadMemberships(session.user.id);
       else setAuthLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setAuthUser(session?.user ?? null);
-      if (session?.user) loadClub(session.user.id);
-      else { setClub(null); setAuthLoading(false); }
+      if (session?.user) loadMemberships(session.user.id);
+      else { setClub(null); setClubs([]); setAuthLoading(false); }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  const loadClub = async (userId) => {
+  const loadMemberships = async (userId) => {
     const { data } = await supabase
-      .from("clubs")
-      .select("*")
-      .eq("owner_id", userId)
-      .single();
-    setClub(data || null);
+      .from("club_members")
+      .select("club_id, role, club:clubs(*)")
+      .eq("user_id", userId);
+
+    const memberships = data || [];
+    setClubs(memberships);
+
+    if (memberships.length === 1) {
+      // Only 1 club — go directly
+      setClub(memberships[0].club);
+    } else if (memberships.length > 1) {
+      // Multiple clubs — check if there's a saved preference
+      const savedClubId = localStorage.getItem("kngsstack_active_club");
+      const saved = memberships.find((m) => m.club_id === savedClubId);
+      if (saved) {
+        setClub(saved.club);
+      } else {
+        setShowPicker(true);
+      }
+    } else {
+      // No clubs — show setup screen
+      setClub(null);
+    }
+
     setAuthLoading(false);
+  };
+
+  const handleSelectClub = (selectedClub) => {
+    setClub(selectedClub);
+    setShowPicker(false);
+    localStorage.setItem("kngsstack_active_club", selectedClub.id);
+  };
+
+  const handleCreateClub = () => {
+    setClub(null);
+    setShowPicker(false);
+  };
+
+  const handleClubCreated = async (newClub) => {
+    // Add owner as member
+    await supabase.from("club_members").insert({
+      club_id: newClub.id,
+      user_id: authUser.id,
+      role: "owner",
+    });
+    setClub(newClub);
+    localStorage.setItem("kngsstack_active_club", newClub.id);
+    loadMemberships(authUser.id);
   };
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-100 via-blue-50 to-purple-50 flex items-center justify-center">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
-          <img src="/logo.png" alt="KNGS Stack" className="w-12 h-12 mx-auto mb-4" />
+          <img src="/logo.png" alt="" className="w-12 h-12 mx-auto mb-4" />
           <div className="text-gray-500">Loading...</div>
         </div>
       </div>
@@ -86,10 +130,24 @@ export default function App() {
 
   if (!authUser) return <AuthScreen />;
 
+  // Show club picker if multiple clubs or user requests it
+  if (showPicker || (clubs.length > 1 && !club)) {
+    return (
+      <ClubPickerScreen
+        user={authUser}
+        clubs={clubs}
+        onSelectClub={handleSelectClub}
+        onCreateClub={handleCreateClub}
+        onRefresh={() => loadMemberships(authUser.id)}
+      />
+    );
+  }
+
+  // No clubs — show setup
   if (!club) return (
     <ClubSetupScreen
       user={authUser}
-      onClubCreated={(newClub) => setClub(newClub)}
+      onClubCreated={handleClubCreated}
     />
   );
 
@@ -97,6 +155,8 @@ export default function App() {
     <AppMain
       club={club}
       authUser={authUser}
+      clubs={clubs}
+      onSwitchClub={() => setShowPicker(true)}
       onLogout={async () => { 
         await supabase.auth.signOut({ scope: 'local' }); 
         localStorage.clear();
@@ -108,7 +168,7 @@ export default function App() {
 
 // ===== MAIN APP =====
 // All hooks live here, unconditionally. club is always set.
-function AppMain({ club, authUser, onLogout }) {
+function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
 
   // ===== REFS =====
   const inputRef = useRef(null);
@@ -2065,6 +2125,11 @@ function AppMain({ club, authUser, onLogout }) {
               <h1 className="text-base font-bold text-white leading-tight truncate">KNGS Stack</h1>
               {club && <p className="text-[10px] text-[#7ABFED] leading-tight truncate">{club.name}</p>}
             </div>
+            {clubs.length > 1 && (
+              <button onClick={onSwitchClub} className="h-6 px-2 rounded bg-white/10 text-[10px] text-white hover:bg-white/20 ml-1">
+                Switch
+              </button>
+            )}
           </div>
 
           <div className="flex items-center gap-1 shrink-0">
@@ -2217,6 +2282,7 @@ function AppMain({ club, authUser, onLogout }) {
               onDeleteDirectoryPlayer={handleDeleteDirectoryPlayer}
               onReCheckin={handleReCheckin}
               onUndoLastMatch={undoLastMatch}
+              inviteCode={club.invite_code}
             />
 
             <DndContext
