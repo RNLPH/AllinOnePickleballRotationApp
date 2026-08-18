@@ -459,10 +459,10 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
 
   useEffect(() => {
     if (!playersLoaded) return;
-    async function persistPlayers() {
+    const timeout = setTimeout(async () => {
       await savePlayers(players, club.id);
-    }
-    persistPlayers();
+    }, 1000); // Debounce: wait 1s after last change before saving
+    return () => clearTimeout(timeout);
   }, [players, playersLoaded]);
 
   // ===== SAVE COURTS TO SUPABASE =====
