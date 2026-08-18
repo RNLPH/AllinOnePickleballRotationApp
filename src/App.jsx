@@ -3,7 +3,7 @@ import { DndContext, DragOverlay } from "@dnd-kit/core";
 
 import { supabase } from "./db/supabase";
 import { getDirectory, saveDirectoryPlayer, deleteDirectoryPlayer } from "./db/directoryService";
-import { getPlayers, savePlayers, savePlayer, removePlayer as removePlayerFromDb } from "./db/playerService";
+import { getPlayers, savePlayers, savePlayer, removePlayer as removePlayerFromDb, clearPlayers } from "./db/playerService";
 import { saveMatch, getMatches, updateMatch, deleteMatchesBySession, clearAllMatches } from "./db/matchService";
 import { getAttendance, saveAttendance, clearAttendance, deleteAttendanceBySession } from "./db/attendanceService";
 import { getStandingsHistory, saveStandingsHistory, clearStandingsHistory } from "./db/standingsHistoryService";
@@ -1982,6 +1982,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
     if (!confirmed) return;
 
     setPlayers([]);
+    await clearPlayers(club.id);
     setCourts(getDefaultCourts(sessionMode));
     setName("");
     setError("");
@@ -2024,7 +2025,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
     alert(`Session ${sessionId + 1} started.`);
   };
 
-  const resetSession = () => {
+  const resetSession = async () => {
     if (hasActiveGames()) {
       alert("Finish or clear all active games before resetting the session.");
       return;
@@ -2032,6 +2033,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
     const confirmed = window.confirm(`Reset Session ${sessionId}?`);
     if (!confirmed) return;
     setPlayers([]);
+    await clearPlayers(club.id);
     setCourts(getDefaultCourts(sessionMode));
     setName("");
     setError("");
@@ -2130,6 +2132,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
     await clearAllMatches(club.id);
     await clearAttendance(club.id);
     await clearStandingsHistory(club.id);
+    await clearPlayers(club.id);
 
     for (const player of directory) {
       await deleteDirectoryPlayer(player.id);
