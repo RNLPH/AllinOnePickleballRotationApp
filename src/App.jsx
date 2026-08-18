@@ -238,13 +238,13 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
       if (next) setActiveTab("standings"); // default to standings in view mode
       return next;
     });
+  };
 
   // ===== REST TIMER / COOLDOWN =====
   // Number of minutes a player must rest after playing. 0 = disabled.
   const [cooldownMinutes, setCooldownMinutes] = useState(() => {
     return Number(localStorage.getItem("rallystack_cooldown") || 0);
   });
-  };
 
   const [showLiveBoard, setShowLiveBoard] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
