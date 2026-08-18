@@ -62,7 +62,7 @@ export default function PublicLiveBoard() {
     };
 
     refresh();
-    const dataTimer = setInterval(refresh, 15000);
+    const dataTimer = setInterval(refresh, 5000);
     const tickTimer = setInterval(() => forceUpdate((v) => v + 1), 1000);
     return () => { clearInterval(dataTimer); clearInterval(tickTimer); };
   }, [clubId]);
@@ -297,12 +297,14 @@ export default function PublicLiveBoard() {
             ✅ Check In Here
           </a>
           <div className="text-[10px] text-slate-300">
-            Auto-refreshes every 15s
+            Auto-refreshes every 5s
           </div>
         </div>
       </main>
     </div>
   );
 }
+
+
 
 

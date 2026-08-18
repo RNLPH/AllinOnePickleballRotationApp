@@ -60,7 +60,7 @@ export default function LiveBoard({ club, onClose }) {
     };
 
     refresh();
-    const dataTimer = setInterval(refresh, 15000);
+    const dataTimer = setInterval(refresh, 5000);
     const tickTimer = setInterval(() => forceUpdate((v) => v + 1), 1000);
     return () => { clearInterval(dataTimer); clearInterval(tickTimer); };
   }, [club.id]);
@@ -272,8 +272,10 @@ export default function LiveBoard({ club, onClose }) {
       </main>
 
       <div className="text-center text-slate-300 text-[10px] py-3">
-        Auto-refreshes every 15s · {new Date().toLocaleTimeString()}
+        Auto-refreshes every 5s · {new Date().toLocaleTimeString()}
       </div>
     </div>
   );
 }
+
+

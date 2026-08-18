@@ -335,7 +335,7 @@ function AppMain({ club, authUser, onLogout }) {
     };
 
     refresh();
-    const timer = setInterval(refresh, 30000);
+    const timer = setInterval(refresh, 5000);
     return () => clearInterval(timer);
   }, [viewMode, club?.id]);
 
@@ -2530,6 +2530,7 @@ function AppMain({ club, authUser, onLogout }) {
     </div>
   );
 }
+
 
 
 
