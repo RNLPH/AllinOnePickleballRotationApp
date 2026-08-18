@@ -48,6 +48,7 @@ export default function App() {
   const [clubs, setClubs]             = useState([]);  // all memberships
   const [authLoading, setAuthLoading] = useState(true);
   const [showPicker, setShowPicker]   = useState(false);
+  const [showSetup, setShowSetup]     = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -101,8 +102,8 @@ export default function App() {
   };
 
   const handleCreateClub = () => {
-    setClub(null);
     setShowPicker(false);
+    setShowSetup(true);
   };
 
   const handleClubCreated = async (newClub) => {
@@ -113,6 +114,7 @@ export default function App() {
       role: "owner",
     });
     setClub(newClub);
+    setShowSetup(false);
     localStorage.setItem("kngsstack_active_club", newClub.id);
     loadMemberships(authUser.id);
   };
@@ -129,6 +131,16 @@ export default function App() {
   }
 
   if (!authUser) return <AuthScreen />;
+
+  // Show club setup (creating a new club)
+  if (showSetup || (clubs.length === 0 && !club)) {
+    return (
+      <ClubSetupScreen
+        user={authUser}
+        onClubCreated={handleClubCreated}
+      />
+    );
+  }
 
   // Show club picker if multiple clubs or user requests it
   if (showPicker || (clubs.length > 1 && !club)) {
