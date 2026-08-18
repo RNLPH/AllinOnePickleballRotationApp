@@ -441,9 +441,14 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
 
   // ===== DASHBOARD AUTO-REFRESH (every 5s) =====
   // Keeps the operator in sync when players self-check-in
+  // Skips if a local change was made recently (prevents overwrite race)
+  const lastLocalChange = useRef(0);
+
   useEffect(() => {
     if (viewMode) return; // View mode has its own refresh
     const dashRefresh = setInterval(async () => {
+      // Skip refresh if a local change was made in the last 3 seconds
+      if (Date.now() - lastLocalChange.current < 3000) return;
       try {
         const [freshPlayers, freshDir, freshMatches, freshAttendance] = await Promise.all([
           getPlayers(club.id),
@@ -906,6 +911,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
     }
 
     setPlayers((prev) => [...prev, newPlayer]);
+    lastLocalChange.current = Date.now();
     setName("");
     setError("");
     setPendingPlayerName("");
@@ -918,6 +924,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
     if (!player) return;
     if (!window.confirm(`Remove ${player.name} from the waiting queue?`)) return;
     setPlayers((prev) => prev.filter((p) => p.id !== id));
+    lastLocalChange.current = Date.now();
   };
 
   const handleTogglePriority = async (player) => {
@@ -1523,6 +1530,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
       setCourts(updatedCourts);
       const usedIds = updatedCourts.flatMap((c) => c.players || []).map((p) => p.id);
       setPlayers(players.filter((p) => !usedIds.includes(p.id)));
+    lastLocalChange.current = Date.now();
       return;
     }
 
@@ -1543,6 +1551,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
       setCourts(updatedCourts);
       const usedIds = updatedCourts.flatMap((c) => c.players || []).map((p) => p.id);
       setPlayers(players.filter((p) => !usedIds.includes(p.id)));
+    lastLocalChange.current = Date.now();
       return;
     }
 
@@ -2684,6 +2693,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
     </div>
   );
 }
+
 
 
 
