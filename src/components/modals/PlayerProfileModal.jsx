@@ -79,9 +79,8 @@ export default function PlayerProfileModal({
           <div>King Court Entries: {player.kingCourtEntries || 0}</div>
 
           {/* ELO Rating */}
-          <div className="flex items-center gap-2">
-            <span>Rating:</span>
-            <span className="font-bold text-blue-600">{(player.eloRating || 2.0).toFixed(2)}</span>
+          <div>
+            Rating: <span className="font-bold text-blue-600">{(player.eloRating || 2.0).toFixed(2)}</span>
           </div>
           <div>👥 Sessions Attended: {getAttendanceCount(player.id)}</div>
           <div>
