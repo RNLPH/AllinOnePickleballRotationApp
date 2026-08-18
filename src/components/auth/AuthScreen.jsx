@@ -1,9 +1,19 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../db/supabase";
 
-const APP_VERSION = "1.5.0";
+const APP_VERSION = "1.6.0";
 
 const RELEASE_NOTES = [
+  { version: "1.6.0", date: "2026-08-18", changes: [
+    "6 new game modes: King of Court, Round Robin, Swiss System, Random Draw, Fixed Teams, Challenge",
+    "Preview Next Match now works in all 9 modes",
+    "Priority / Not Priority queue ordering fixed for all modes",
+    "Player persistence rewritten (event-driven, no more disappearing players)",
+    "Auto-refresh removed from operator dashboard (manual refresh button added)",
+    "Mode indicator shown in dashboard header",
+    "Court defaults reset when switching modes",
+    "King of Court: winners stay on court after match",
+  ]},
   { version: "1.5.0", date: "2026-08-17", changes: [
     "ELO/Rating system (DUPR-style)",
     "Player self check-in via public link",
@@ -47,7 +57,7 @@ const RELEASE_NOTES = [
 
 const HELP_SECTIONS = [
   { title: "Getting Started", content: "Sign up with your email and create a club. Add players by typing names and selecting a tier (or no tier in Open Mode). Create courts and start games." },
-  { title: "Game Modes", content: "Open Mode: no tiers, winners play winners, losers play losers. Ladder Mode: 3-tier (King/Knight/Squire) with promotions. Extended Ladder: 4-tier with General added." },
+  { title: "Game Modes", content: "Open: no tiers, winners vs winners. Ladder: 3-tier (King/Knight/Squire). Extended Ladder: 4-tier. King of Court: winners stay on court. Round Robin: everyone plays everyone. Swiss: paired by similar record. Random Draw: random teams each round. Fixed Teams: pre-set teams. Challenge: players challenge others." },
   { title: "Courts", content: "Add courts with + Court. Each court can be Doubles (2v2) or Singles (1v1). Set the court type in ⚙️ settings. Start Game auto-fills empty courts from the queue." },
   { title: "Live Board", content: "Share the 🔗 link with players. They can see active courts, queue position, and recent matches in real-time." },
   { title: "Self Check-in", content: "Share the 📋 check-in link. Players can add themselves to the queue without the operator typing their name." },

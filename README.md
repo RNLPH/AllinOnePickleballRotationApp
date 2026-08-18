@@ -4,11 +4,14 @@ Court session manager for racket sports. Manage player queues, court rotation, s
 
 ## Features
 
-- **3 Game Modes** — Open (winners vs winners), Ladder (King/Knight/Squire), Extended Ladder (4-tier)
+- **9 Game Modes** — Open, Ladder, Extended Ladder, King of Court, Round Robin, Swiss System, Random Draw, Fixed Teams, Challenge Mode
 - **Singles & Doubles** — each court can independently be 1v1 or 2v2
 - **ELO Rating** — DUPR-style skill rating that updates after every match
 - **Auto-Rotation** — balanced team pairing with partner/opponent history
+- **Priority Queue** — mark players as priority/not-priority for queue ordering
+- **Preview Next Match** — see who's up next on each court before starting
 - **Multi-Club** — each club gets isolated data with Supabase auth
+- **Invite Links** — share a link for others to join your club
 - **Live Board** — public URL for TV/tablet display at the venue
 - **Self Check-in** — players add themselves via a public link
 - **PWA** — installable on phone, works offline, auto-updates
@@ -176,13 +179,14 @@ Open http://localhost:5173
 ### For Club Leaders (Operators)
 
 1. Sign up → create your club
-2. Choose a game mode (Open, Ladder, or Extended Ladder)
+2. Choose a game mode (Open, Ladder, Extended Ladder, King of Court, Round Robin, Swiss, Random Draw, Fixed Teams, or Challenge)
 3. Add players to the queue
-4. Create courts (set type and format: doubles/singles)
+4. Create courts (set format: doubles/singles)
 5. Click "Start Game" to auto-fill courts
 6. Record results with "Team A Wins" / "Team B Wins"
 7. Share the Live Board link (🔗) for players to watch
 8. Share the Check-in link (📋) for self check-in
+9. Invite other operators via Invite Link
 
 ### For Players
 
