@@ -27,6 +27,12 @@ export const SESSION_MODES = {
   LADDER:          "ladder",
   OPEN:            "open",
   EXTENDED_LADDER: "extended_ladder",
+  KING_OF_COURT:   "king_of_court",
+  ROUND_ROBIN:     "round_robin",
+  SWISS:           "swiss",
+  RANDOM_DRAW:     "random_draw",
+  FIXED_TEAMS:     "fixed_teams",
+  CHALLENGE:       "challenge",
 };
 
 // ===== LADDER MODE (3-tier) =====

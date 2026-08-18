@@ -499,6 +499,15 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
   const isOpenMode     = sessionMode === SESSION_MODES.OPEN;
   const isExtendedMode = sessionMode === SESSION_MODES.EXTENDED_LADDER;
   const isLadderMode   = sessionMode === SESSION_MODES.LADDER;
+  const isKingOfCourt  = sessionMode === SESSION_MODES.KING_OF_COURT;
+  const isRoundRobin   = sessionMode === SESSION_MODES.ROUND_ROBIN;
+  const isSwiss        = sessionMode === SESSION_MODES.SWISS;
+  const isRandomDraw   = sessionMode === SESSION_MODES.RANDOM_DRAW;
+  const isFixedTeams   = sessionMode === SESSION_MODES.FIXED_TEAMS;
+  const isChallenge    = sessionMode === SESSION_MODES.CHALLENGE;
+
+  // Modes that don't use tier-based queues
+  const isTierless = isOpenMode || isKingOfCourt || isRandomDraw || isRoundRobin || isSwiss || isFixedTeams || isChallenge;
 
   // Extended Ladder queues (4-tier)
   const generalQueue = waitingPlayers.filter((p) => p.tier === "general");
@@ -790,10 +799,8 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
       return;
     }
 
-    // In Open Mode skip tier selection — add directly with a neutral tier
-    if (isOpenMode) {
-      if (addingPlayer) return;
-      setAddingPlayer(true);
+    // In tierless modes skip tier selection — add directly
+    if (isTierless) {
       setPendingPlayerName(trimmedName);
       await addPlayer("squire", trimmedName);
       setAddingPlayer(false);
@@ -1113,8 +1120,8 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
     const court = courts.find((c) => c.id === Number(courtId));
     if (!court) return;
 
-    // In Ladder Mode enforce tier matching; in Open Mode enforce result matching
-    if (!isOpenMode && court.type && player.tier !== court.type) {
+    // In Ladder Mode enforce tier matching; in tierless modes skip this check
+    if (!isTierless && court.type && player.tier !== court.type) {
       alert(
         `${player.name} belongs to the ${player.tier.toUpperCase()} queue and cannot be assigned to a ${court.type.toUpperCase()} court.`
       );
@@ -1494,6 +1501,47 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
     const emptyCourts = courts.filter((c) => c.players.length === 0);
     if (emptyCourts.length === 0) { alert("No empty court available."); return; }
 
+    // ===== RANDOM DRAW MODE =====
+    if (isRandomDraw) {
+      const shuffled = shufflePlayers([...waitingPlayers]);
+      let idx = 0;
+
+      const updatedCourts = courts.map((court) => {
+        const maxP = court.format === "singles" ? 2 : 4;
+        if (court.players.length >= maxP) return court;
+        const needed = maxP - court.players.length;
+        if (idx + needed > shuffled.length) return court;
+        const selected = shuffled.slice(idx, idx + needed).map((p) => ({ ...p, consecutiveGames: (p.consecutiveGames || 0) + 1 }));
+        idx += needed;
+        return { ...court, players: [...court.players, ...selected], startedAt: court.players.length + selected.length >= maxP ? (court.startedAt || Date.now()) : court.startedAt };
+      });
+
+      setCourts(updatedCourts);
+      const usedIds = updatedCourts.flatMap((c) => c.players || []).map((p) => p.id);
+      setPlayers(players.filter((p) => !usedIds.includes(p.id)));
+      return;
+    }
+
+    // ===== KING OF THE COURT / CHALLENGE / SWISS / ROUND ROBIN / FIXED TEAMS =====
+    // These modes use the same basic fill logic as Open Mode (fill from full queue)
+    if (isKingOfCourt || isChallenge || isSwiss || isRoundRobin || isFixedTeams) {
+      const updatedCourts = courts.map((court) => {
+        const maxP = court.format === "singles" ? 2 : 4;
+        if (court.players.length >= maxP) return court;
+        const needed = maxP - court.players.length;
+        const eligible = waitingPlayers.filter((p) => !courts.flatMap((c) => c.players).some((cp) => cp.id === p.id));
+        if (eligible.length < needed) return court;
+
+        const selected = eligible.slice(0, needed).map((p) => ({ ...p, consecutiveGames: (p.consecutiveGames || 0) + 1 }));
+        return { ...court, players: [...court.players, ...selected], startedAt: court.players.length + selected.length >= maxP ? (court.startedAt || Date.now()) : court.startedAt };
+      });
+
+      setCourts(updatedCourts);
+      const usedIds = updatedCourts.flatMap((c) => c.players || []).map((p) => p.id);
+      setPlayers(players.filter((p) => !usedIds.includes(p.id)));
+      return;
+    }
+
     if (isOpenMode) {
       // Open Mode: each court pulls from its matching result pool
       // "winner" court → winners first, fall back to new players
@@ -1815,8 +1863,8 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
         (winningTeam === "A" && isTeamA) || (winningTeam === "B" && !isTeamA);
       const currentStreak = won ? (player.currentStreak || 0) + 1 : 0;
 
-      if (isOpenMode) {
-        // Open Mode: no tier changes, just update stats and lastResult
+      if (isTierless) {
+        // Tierless modes: no tier changes, just update stats and lastResult
         return {
           ...player,
           consecutiveGames: player.consecutiveGames || 0,
@@ -1890,6 +1938,24 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
     setCourts((prev) =>
       prev.map((c) => (c.id === courtId ? { ...c, players: [], startedAt: null } : c))
     );
+
+    // ===== KING OF THE COURT: Winners stay on court =====
+    if (isKingOfCourt) {
+      const winners = returningPlayers.filter((p) => p.lastResult === "win");
+      const losers = returningPlayers.filter((p) => p.lastResult === "loss");
+
+      // Put only losers in the queue, keep winners on court
+      setPlayers((prev) => {
+        // Remove winners from queue (they were just added above)
+        const withoutWinners = prev.filter((p) => !winners.some((w) => w.id === p.id));
+        return sortPlayers(withoutWinners);
+      });
+
+      // Put winners back on court
+      setCourts((prev) =>
+        prev.map((c) => c.id === courtId ? { ...c, players: winners, startedAt: null } : c)
+      );
+    }
 
     // Clear warning for this court once game ends
     setPartnerWarnings((prev) => {
@@ -2302,7 +2368,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
             >
               <div className="space-y-6">
                 <div>
-                  {isOpenMode ? (
+                  {isTierless ? (
                     <OpenPlayerQueue
                       winnerQueue={winnerQueue}
                       loserQueue={loserQueue}
