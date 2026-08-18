@@ -82,16 +82,20 @@ export default function CourtSettingsModal({
 
           <hr className="my-3" />
 
-          {/* Court Type */}
-          <div className="text-sm font-semibold text-slate-600 mb-2">Court Type</div>
-          <CourtTypeButtons
-            sessionMode={sessionMode}
-            editingCourt={editingCourt}
-            selectedCourtForEdit={selectedCourtForEdit}
-            onUpdateType={onUpdateType}
-          />
+          {/* Court Type — only for modes that use court types */}
+          {(sessionMode === "open" || sessionMode === "ladder" || sessionMode === "extended_ladder") && (
+            <>
+              <div className="text-sm font-semibold text-slate-600 mb-2">Court Type</div>
+              <CourtTypeButtons
+                sessionMode={sessionMode}
+                editingCourt={editingCourt}
+                selectedCourtForEdit={selectedCourtForEdit}
+                onUpdateType={onUpdateType}
+              />
 
-          <hr className="my-3" />
+              <hr className="my-3" />
+            </>
+          )}
 
           <button
             onClick={() => onDeleteCourt(selectedCourtForEdit)}

@@ -2350,7 +2350,14 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
               onOpenTierSelection={openTierSelection}
               addingPlayer={addingPlayer}
               onStartNextGame={startNextGame}
-              onShowCourtTypeModal={() => setShowCourtTypeModal(true)}
+              onShowCourtTypeModal={() => {
+                // New modes don't need court types — just add a generic court
+                if (isTierless && !isOpenMode) {
+                  addCourt(null);
+                } else {
+                  setShowCourtTypeModal(true);
+                }
+              }}
               onRemoveCourt={removeCourt}
               onStartNewSession={startNewSession}
               onResetSession={resetSession}
