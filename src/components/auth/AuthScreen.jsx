@@ -1,9 +1,17 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../db/supabase";
 
-const APP_VERSION = "1.7.0";
+const APP_VERSION = "1.8.0";
 
 const RELEASE_NOTES = [
+  { version: "1.8.0", date: "2026-08-18", changes: [
+    "Player Dashboard: public page showing personal stats, ELO, match history, recent form",
+    "Rest Timer / Cooldown: configurable sit-out period after playing (1-10 min)",
+    "Court Availability: estimated wait time shown on Live Board for each queued player",
+    "Delete Club: button in dashboard + club picker (triple confirmation required)",
+    "Login flow: no more 'Set Up Your Club' flash on login",
+    "Bug fixes: hooks violation, King of Court duplicates, bulk import batch detection",
+  ]},
   { version: "1.7.0", date: "2026-08-18", changes: [
     "Dark Mode toggle (persists in localStorage)",
     "Multi-language: 9 languages (EN, DE, ES, FR, PT, JA, ZH, KO, Filipino)",
