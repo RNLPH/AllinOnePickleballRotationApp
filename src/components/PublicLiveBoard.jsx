@@ -81,6 +81,7 @@ export default function PublicLiveBoard() {
 
   const sortedQueue = sortPlayers(players);
   const activePlaying = courts.reduce((c, court) => c + (court.players?.length || 0), 0);
+  const [showAllStandings, setShowAllStandings] = useState(false);
 
   // Standings from directory
   const standings = directory
@@ -90,8 +91,9 @@ export default function PublicLiveBoard() {
       const wrB = (b.wins || 0) + (b.losses || 0) > 0 ? (b.wins || 0) / ((b.wins || 0) + (b.losses || 0)) : 0;
       if (wrB !== wrA) return wrB - wrA;
       return (b.wins || 0) - (a.wins || 0);
-    })
-    .slice(0, 10);
+    });
+
+  const visibleStandings = showAllStandings ? standings : standings.slice(0, 3);
 
   return (
     <div className="min-h-screen w-full bg-slate-50 overflow-x-hidden">
@@ -249,7 +251,7 @@ export default function PublicLiveBoard() {
         {standings.length > 0 && (
           <section>
             <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">
-              Standings <span className="font-normal text-slate-400">(Top 10)</span>
+              Standings <span className="font-normal text-slate-400">({standings.length})</span>
             </h2>
             <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm">
               <div className="grid grid-cols-[20px_1fr_auto_auto_auto] gap-x-2 px-2 py-1 text-[10px] text-slate-400 font-medium border-b border-slate-100 mb-1">
@@ -259,7 +261,7 @@ export default function PublicLiveBoard() {
                 <span>L</span>
                 <span>WR</span>
               </div>
-              {standings.map((player, index) => {
+              {visibleStandings.map((player, index) => {
                 const wr = player.gamesPlayed > 0 ? Math.round((player.wins / player.gamesPlayed) * 100) : 0;
                 return (
                   <div key={player.id} className="grid grid-cols-[20px_1fr_auto_auto_auto] gap-x-2 items-center px-2 py-1.5 border-b border-slate-50 last:border-0">
@@ -274,6 +276,14 @@ export default function PublicLiveBoard() {
                   </div>
                 );
               })}
+              {standings.length > 3 && (
+                <button
+                  onClick={() => setShowAllStandings(!showAllStandings)}
+                  className="w-full mt-2 text-[10px] text-blue-600 hover:text-blue-800 font-medium"
+                >
+                  {showAllStandings ? "▲ Show less" : `▼ Show all (${standings.length})`}
+                </button>
+              )}
             </div>
           </section>
         )}
