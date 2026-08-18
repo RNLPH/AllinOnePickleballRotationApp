@@ -1016,41 +1016,86 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
 
   // Accept/dismiss a challenge: clear the pendingChallenge from the player
   const handleAcceptChallenge = async (player) => {
-    const challenger = players.find((p) => p.id === player.pendingChallenge?.fromId);
-    // Clear the challenge flag from the player
-    const updatedPlayer = { ...player, pendingChallenge: undefined };
+    const ch = player.pendingChallenge;
+    if (!ch) return;
+
+    const isDoubles = ch.type === "doubles";
+    const challenger = players.find((p) => p.id === ch.fromId);
+
+    // Clear the challenge flag from this player (and second opponent if doubles)
+    const updatedPlayer = { ...player };
     delete updatedPlayer.pendingChallenge;
     setPlayers((prev) => prev.map((p) => p.id === player.id ? updatedPlayer : p));
     await savePlayer(updatedPlayer, club.id);
 
-    // If both challenger and challenged are in the queue and there's an empty court, assign them
-    if (challenger) {
-      const emptyCourt = courts.find((c) => {
-        const maxP = c.format === "singles" ? 2 : 4;
-        return c.players.length === 0 && maxP >= 2;
-      });
-      if (emptyCourt) {
-        const matchPlayers = [
-          { ...challenger, pendingChallenge: undefined },
-          updatedPlayer,
-        ].map((p) => {
-          const clean = { ...p, consecutiveGames: (p.consecutiveGames || 0) + 1 };
-          delete clean.pendingChallenge;
-          return clean;
-        });
+    // For doubles: also clear pendingChallenge from the second opponent
+    if (isDoubles && ch.opponents && ch.opponents.length > 1) {
+      const secondOpponent = players.find(
+        (p) => p.name.toLowerCase() === ch.opponents[1].toLowerCase() && p.id !== player.id
+      );
+      if (secondOpponent && secondOpponent.pendingChallenge) {
+        const updatedSecond = { ...secondOpponent };
+        delete updatedSecond.pendingChallenge;
+        setPlayers((prev) => prev.map((p) => p.id === secondOpponent.id ? updatedSecond : p));
+        await savePlayer(updatedSecond, club.id);
+      }
+    }
 
+    // Gather all match participants
+    let matchPlayers = [];
+
+    if (isDoubles) {
+      // Team A: challenger + partner
+      const partner = ch.partner ? players.find((p) => p.name.toLowerCase() === ch.partner.toLowerCase()) : null;
+      // Team B: both opponents
+      const opponent1 = updatedPlayer;
+      const opponent2 = ch.opponents && ch.opponents.length > 1
+        ? players.find((p) => p.name.toLowerCase() === ch.opponents[1].toLowerCase() && p.id !== player.id)
+        : null;
+
+      if (challenger) matchPlayers.push(challenger);
+      if (partner) matchPlayers.push(partner);
+      matchPlayers.push(opponent1);
+      if (opponent2) matchPlayers.push(opponent2);
+    } else {
+      // Singles: challenger vs opponent
+      if (challenger) matchPlayers.push(challenger);
+      matchPlayers.push(updatedPlayer);
+    }
+
+    // Clean up all players
+    matchPlayers = matchPlayers.map((p) => {
+      const clean = { ...p, consecutiveGames: (p.consecutiveGames || 0) + 1 };
+      delete clean.pendingChallenge;
+      return clean;
+    });
+
+    const needed = isDoubles ? 4 : 2;
+
+    if (matchPlayers.length >= needed) {
+      // Find an empty court
+      const emptyCourt = courts.find((c) => c.players.length === 0);
+      if (emptyCourt) {
+        const courtPlayers = matchPlayers.slice(0, needed);
         const updatedCourts = courts.map((c) => {
           if (c.id !== emptyCourt.id) return c;
-          return { ...c, players: matchPlayers, startedAt: Date.now() };
+          return { ...c, players: courtPlayers, startedAt: Date.now() };
         });
         setCourts(updatedCourts);
-        const usedIds = matchPlayers.map((p) => p.id);
+        const usedIds = courtPlayers.map((p) => p.id);
         setPlayers((prev) => prev.filter((p) => !usedIds.includes(p.id)));
         usedIds.forEach((id) => removePlayerFromDb(id));
-        alert(`⚔️ ${challenger.name} vs ${updatedPlayer.name} — matched on Court #${emptyCourt.id}!`);
+
+        const teamANames = courtPlayers.slice(0, needed / 2).map((p) => p.name).join(" & ");
+        const teamBNames = courtPlayers.slice(needed / 2).map((p) => p.name).join(" & ");
+        alert(`⚔️ ${teamANames} vs ${teamBNames} — matched on Court #${emptyCourt.id}!`);
       } else {
-        alert(`Challenge accepted! Assign ${challenger.name} and ${updatedPlayer.name} to a court manually.`);
+        const names = matchPlayers.map((p) => p.name).join(", ");
+        alert(`Challenge accepted! No empty court available. Assign manually: ${names}`);
       }
+    } else {
+      const names = matchPlayers.map((p) => p.name).join(", ");
+      alert(`Challenge accepted but not all players found in queue. Found: ${names}. Assign manually.`);
     }
   };
 
@@ -2622,19 +2667,28 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
                 <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
                   <div className="text-xs font-semibold text-red-700 mb-2">⚔️ Pending Challenges</div>
                   <div className="space-y-1.5">
-                    {players.filter((p) => p.pendingChallenge).map((p) => (
-                      <div key={p.id} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-red-100">
-                        <span className="text-sm text-slate-700">
-                          <strong>{p.pendingChallenge.from}</strong> → <strong>{p.name}</strong>
-                        </span>
-                        <button
-                          onClick={() => handleAcceptChallenge(p)}
-                          className="h-7 px-2.5 rounded-lg bg-red-600 text-white text-xs font-medium hover:bg-red-700"
-                        >
-                          ⚔️ Match Them
-                        </button>
-                      </div>
-                    ))}
+                    {players.filter((p) => p.pendingChallenge).map((p) => {
+                      const ch = p.pendingChallenge;
+                      const isDoubles = ch.type === "doubles";
+                      const teamA = isDoubles && ch.partner ? `${ch.from} & ${ch.partner}` : ch.from;
+                      const teamB = isDoubles && ch.opponents ? ch.opponents.join(" & ") : p.name;
+                      return (
+                        <div key={p.id} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-red-100">
+                          <div className="text-sm text-slate-700">
+                            <strong>{teamA}</strong>
+                            <span className="text-slate-400 mx-1.5">vs</span>
+                            <strong>{teamB}</strong>
+                            {isDoubles && <span className="ml-2 text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">2v2</span>}
+                          </div>
+                          <button
+                            onClick={() => handleAcceptChallenge(p)}
+                            className="h-7 px-2.5 rounded-lg bg-red-600 text-white text-xs font-medium hover:bg-red-700"
+                          >
+                            ⚔️ Match Them
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
