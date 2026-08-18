@@ -811,7 +811,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
     const trimmedName = (overrideName ?? pendingPlayerName).trim();
 
     // Tier limit only enforced in Ladder/Extended Ladder Mode
-    if (!isOpenMode) {
+    if (!isTierless) {
       const limits = getActiveTierLimits();
       const tierCount = players.filter((p) => p.tier === tier).length;
       if (tierCount >= (limits[tier] || Infinity)) {
