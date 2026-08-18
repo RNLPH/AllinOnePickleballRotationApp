@@ -2137,11 +2137,9 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
               <h1 className="text-base font-bold text-white leading-tight truncate">KNGS Stack</h1>
               {club && <p className="text-[10px] text-[#7ABFED] leading-tight truncate">{club.name}</p>}
             </div>
-            {clubs.length > 1 && (
-              <button onClick={onSwitchClub} className="h-6 px-2 rounded bg-white/10 text-[10px] text-white hover:bg-white/20 ml-1">
-                Switch
-              </button>
-            )}
+            <button onClick={onSwitchClub} className="h-6 px-2 rounded bg-white/10 text-[10px] text-white hover:bg-white/20 ml-1">
+              {clubs.length > 1 ? "Switch" : "+ Club"}
+            </button>
           </div>
 
           <div className="flex items-center gap-1 shrink-0">
