@@ -175,7 +175,7 @@ export default function SessionControls({
             </button>
             <button
               onClick={() => {
-                const csv = "Name, Tier\nJohn Smith, king\nJane Doe, knight\nBob Wilson, squire\nAlice, \nCharlie, ";
+                const csv = "Name, Tier\nRalph, king\nJane Doe, knight\nBob Wilson, squire\nAlice, \nCharlie, ";
                 const blob = new Blob([csv], { type: "text/csv" });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");

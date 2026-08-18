@@ -1017,10 +1017,11 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
   // Accept/dismiss a challenge: clear the pendingChallenge from the player
   const handleAcceptChallenge = async (player) => {
     const challenger = players.find((p) => p.id === player.pendingChallenge?.fromId);
-    // Clear the challenge flag
-    const updated = { ...player, pendingChallenge: undefined };
-    setPlayers((prev) => prev.map((p) => p.id === player.id ? updated : p));
-    await savePlayer(updated, club.id);
+    // Clear the challenge flag from the player
+    const updatedPlayer = { ...player, pendingChallenge: undefined };
+    delete updatedPlayer.pendingChallenge;
+    setPlayers((prev) => prev.map((p) => p.id === player.id ? updatedPlayer : p));
+    await savePlayer(updatedPlayer, club.id);
 
     // If both challenger and challenged are in the queue and there's an empty court, assign them
     if (challenger) {
@@ -1029,22 +1030,26 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
         return c.players.length === 0 && maxP >= 2;
       });
       if (emptyCourt) {
-        const isSingles = emptyCourt.format === "singles";
-        const matchPlayers = isSingles
-          ? [challenger, player]
-          : [challenger, player]; // For doubles, operator adds more manually
+        const matchPlayers = [
+          { ...challenger, pendingChallenge: undefined },
+          updatedPlayer,
+        ].map((p) => {
+          const clean = { ...p, consecutiveGames: (p.consecutiveGames || 0) + 1 };
+          delete clean.pendingChallenge;
+          return clean;
+        });
 
         const updatedCourts = courts.map((c) => {
           if (c.id !== emptyCourt.id) return c;
-          return { ...c, players: matchPlayers.map((p) => ({ ...p, consecutiveGames: (p.consecutiveGames || 0) + 1 })), startedAt: Date.now() };
+          return { ...c, players: matchPlayers, startedAt: Date.now() };
         });
         setCourts(updatedCourts);
         const usedIds = matchPlayers.map((p) => p.id);
         setPlayers((prev) => prev.filter((p) => !usedIds.includes(p.id)));
         usedIds.forEach((id) => removePlayerFromDb(id));
-        alert(`⚔️ ${challenger.name} vs ${player.name} — matched on Court #${emptyCourt.id}!`);
+        alert(`⚔️ ${challenger.name} vs ${updatedPlayer.name} — matched on Court #${emptyCourt.id}!`);
       } else {
-        alert(`Challenge accepted! Assign ${challenger.name} and ${player.name} to a court manually.`);
+        alert(`Challenge accepted! Assign ${challenger.name} and ${updatedPlayer.name} to a court manually.`);
       }
     }
   };
