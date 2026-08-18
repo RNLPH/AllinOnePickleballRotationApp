@@ -28,6 +28,10 @@ export default function SessionControls({
   onReCheckin,
   onUndoLastMatch,
   inviteCode,
+  clubId,
+  onBulkImport,
+  onShowQrCheckin,
+  onShowQrLiveBoard,
 }) {
   const [showMore, setShowMore] = useState(false);
 
@@ -163,6 +167,18 @@ export default function SessionControls({
             <button onClick={onFactoryReset}
               className="col-span-2 h-9 rounded-lg bg-red-50 text-red-600 text-xs font-medium hover:bg-red-100">
               ☢️ Factory Reset
+            </button>
+            <button onClick={onBulkImport}
+              className="col-span-2 h-9 rounded-lg bg-teal-50 text-teal-700 text-xs font-medium hover:bg-teal-100">
+              📥 Bulk Import CSV
+            </button>
+            <button onClick={onShowQrCheckin}
+              className="h-9 rounded-lg bg-violet-50 text-violet-700 text-xs font-medium hover:bg-violet-100">
+              📱 QR Check-in
+            </button>
+            <button onClick={onShowQrLiveBoard}
+              className="h-9 rounded-lg bg-cyan-50 text-cyan-700 text-xs font-medium hover:bg-cyan-100">
+              📺 QR Live Board
             </button>
             {inviteCode && (
               <div className="col-span-2 flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2">

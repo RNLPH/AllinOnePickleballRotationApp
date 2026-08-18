@@ -39,6 +39,12 @@ import EditPlayerNameModal from "./components/modals/EditPlayerNameModal";
 import TierAssignmentPreviewModal from "./components/modals/TierAssignmentPreviewModal";
 import LiveBoard from "./components/LiveBoard";
 import ClubPickerScreen from "./components/auth/ClubPickerScreen";
+import CsvImportModal from "./components/modals/CsvImportModal";
+import QrCodeModal from "./components/modals/QrCodeModal";
+import { useTheme } from "./contexts/ThemeContext";
+import { useI18n, LANGUAGES } from "./i18n/index.jsx";
+import { swissPairing, roundRobinNextMatch } from "./utils/pairingUtils";
+import { requestNotificationPermission, getNotificationStatus, isNotificationEnabled, setNotificationEnabled, notifyPlayerTurn } from "./utils/notifications";
 
 // ===== AUTH WRAPPER =====
 // Handles auth state and club selection. Renders the main App or auth/picker screens.
@@ -182,6 +188,10 @@ export default function App() {
 // All hooks live here, unconditionally. club is always set.
 function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
 
+  // ===== THEME & I18N =====
+  const { dark, toggle: toggleDark } = useTheme();
+  const { lang, setLang, t } = useI18n();
+
   // ===== REFS =====
   const inputRef = useRef(null);
 
@@ -222,6 +232,8 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
   const [isSwitchingMode, setIsSwitchingMode] = useState(false);
   const [tierAssignmentPreview, setTierAssignmentPreview] = useState(null);
   const [partnerWarnings, setPartnerWarnings] = useState({});
+  const [showCsvImport, setShowCsvImport] = useState(false);
+  const [showQrModal, setShowQrModal] = useState(null); // "checkin" | "liveboard" | null
   // { [courtId]: { teamA: count, teamB: count } }
 
   // ===== SESSION MODE =====
@@ -904,6 +916,79 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
     inputRef.current?.focus();
   };
 
+  // ===== BULK IMPORT =====
+  const handleBulkImport = async (importedPlayers) => {
+    for (const { name: playerName, tier } of importedPlayers) {
+      const existsInQueue = players.some((p) => p.name.toLowerCase() === playerName.toLowerCase());
+      const existsInCourts = courts.some((court) =>
+        court.players.some((p) => p.name.toLowerCase() === playerName.toLowerCase())
+      );
+      if (existsInQueue || existsInCourts) continue;
+
+      const existingDirectoryPlayer = directory.find(
+        (p) => p.name.toLowerCase() === playerName.toLowerCase()
+      );
+
+      let newPlayer;
+      if (existingDirectoryPlayer) {
+        newPlayer = {
+          ...existingDirectoryPlayer,
+          tier: existingDirectoryPlayer.tier || tier,
+          consecutiveGames: 0,
+          restedOnce: false,
+          lastPartnerId: null,
+          lastOpponents: [],
+          partnerHistory: existingDirectoryPlayer.partnerHistory || {},
+          priority: false,
+          noPriority: false,
+          waitingSince: Date.now(),
+        };
+      } else {
+        newPlayer = {
+          id: crypto.randomUUID(),
+          name: playerName,
+          consecutiveGames: 0,
+          tier,
+          restedOnce: false,
+          lastPartnerId: null,
+          lastOpponents: [],
+          priority: false,
+          noPriority: false,
+          gamesPlayed: 0,
+          wins: 0,
+          losses: 0,
+          currentStreak: 0,
+          bestStreak: 0,
+          kingCourtEntries: 0,
+          partnerHistory: {},
+          queueGroup: "unmatched",
+          waitingSince: Date.now(),
+        };
+        await saveDirectoryPlayer(newPlayer, club.id);
+        setDirectory((prev) => [...prev, newPlayer]);
+      }
+
+      // Attendance
+      const alreadyAttended = attendance.some(
+        (r) => r.sessionId === sessionId && r.playerId === newPlayer.id
+      );
+      if (!alreadyAttended) {
+        const attendanceRecord = {
+          id: crypto.randomUUID(),
+          playerId: newPlayer.id,
+          playerName: newPlayer.name,
+          sessionId,
+          timestamp: Date.now(),
+        };
+        await saveAttendance(attendanceRecord, club.id);
+        setAttendance((prev) => [...prev, attendanceRecord]);
+      }
+
+      setPlayers((prev) => [...prev, newPlayer]);
+      savePlayer(newPlayer, club.id);
+    }
+  };
+
   const removePlayer = (id) => {
     const player = players.find((p) => p.id === id);
     if (!player) return;
@@ -1518,9 +1603,9 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
       return;
     }
 
-    // ===== KING OF THE COURT / CHALLENGE / SWISS / ROUND ROBIN / FIXED TEAMS =====
+    // ===== KING OF THE COURT / CHALLENGE / FIXED TEAMS =====
     // These modes use the same basic fill logic as Open Mode (fill from full queue)
-    if (isKingOfCourt || isChallenge || isSwiss || isRoundRobin || isFixedTeams) {
+    if (isKingOfCourt || isChallenge || isFixedTeams) {
       const updatedCourts = courts.map((court) => {
         const maxP = court.format === "singles" ? 2 : 4;
         if (court.players.length >= maxP) return court;
@@ -1536,6 +1621,63 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
       const usedIds = updatedCourts.flatMap((c) => c.players || []).map((p) => p.id);
       setPlayers(players.filter((p) => !usedIds.includes(p.id)));
     usedIds.forEach((id) => removePlayerFromDb(id));
+      return;
+    }
+
+    // ===== SWISS SYSTEM =====
+    // Pairs players with similar win records
+    if (isSwiss) {
+      const updatedCourts = courts.map((court) => {
+        const maxP = court.format === "singles" ? 2 : 4;
+        if (court.players.length >= maxP) return court;
+        const needed = maxP - court.players.length;
+        const eligible = waitingPlayers.filter((p) => !courts.flatMap((c) => c.players).some((cp) => cp.id === p.id));
+        if (eligible.length < needed) return court;
+
+        const paired = swissPairing(eligible, needed);
+        const selected = paired.slice(0, needed).map((p) => ({ ...p, consecutiveGames: (p.consecutiveGames || 0) + 1 }));
+        return { ...court, players: [...court.players, ...selected], startedAt: court.players.length + selected.length >= maxP ? (court.startedAt || Date.now()) : court.startedAt };
+      });
+
+      setCourts(updatedCourts);
+      const usedIds = updatedCourts.flatMap((c) => c.players || []).map((p) => p.id);
+      setPlayers(players.filter((p) => !usedIds.includes(p.id)));
+      usedIds.forEach((id) => removePlayerFromDb(id));
+      // Notify next players
+      if (isNotificationEnabled()) {
+        updatedCourts.forEach((c, i) => {
+          c.players.forEach((p) => notifyPlayerTurn(p.name, i + 1));
+        });
+      }
+      return;
+    }
+
+    // ===== ROUND ROBIN =====
+    // Picks the next unplayed matchup
+    if (isRoundRobin) {
+      const updatedCourts = courts.map((court) => {
+        const maxP = court.format === "singles" ? 2 : 4;
+        if (court.players.length >= maxP) return court;
+        const needed = maxP - court.players.length;
+        const eligible = waitingPlayers.filter((p) => !courts.flatMap((c) => c.players).some((cp) => cp.id === p.id));
+        if (eligible.length < needed) return court;
+
+        const isSingles = court.format === "singles";
+        const nextMatch = roundRobinNextMatch(eligible, matches, isSingles);
+        const selected = nextMatch.slice(0, needed).map((p) => ({ ...p, consecutiveGames: (p.consecutiveGames || 0) + 1 }));
+        return { ...court, players: [...court.players, ...selected], startedAt: court.players.length + selected.length >= maxP ? (court.startedAt || Date.now()) : court.startedAt };
+      });
+
+      setCourts(updatedCourts);
+      const usedIds = updatedCourts.flatMap((c) => c.players || []).map((p) => p.id);
+      setPlayers(players.filter((p) => !usedIds.includes(p.id)));
+      usedIds.forEach((id) => removePlayerFromDb(id));
+      // Notify next players
+      if (isNotificationEnabled()) {
+        updatedCourts.forEach((c, i) => {
+          c.players.forEach((p) => notifyPlayerTurn(p.name, i + 1));
+        });
+      }
       return;
     }
 
@@ -2262,6 +2404,44 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
         </div>
       </header>
 
+      {/* Settings bar: Dark Mode + Language */}
+      <div className="bg-white dark:bg-slate-800 border-b border-slate-100 px-4 py-1.5 flex items-center justify-end gap-3">
+        <button
+          onClick={toggleDark}
+          className="h-7 px-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs text-slate-600 flex items-center gap-1"
+          title="Toggle dark mode"
+        >
+          {dark ? "☀️" : "🌙"}
+        </button>
+        <select
+          value={lang}
+          onChange={(e) => setLang(e.target.value)}
+          className="h-7 px-2 rounded-lg bg-slate-100 text-xs text-slate-600 border-0 cursor-pointer"
+        >
+          {LANGUAGES.map((l) => (
+            <option key={l.code} value={l.code}>{l.flag} {l.label}</option>
+          ))}
+        </select>
+        <button
+          onClick={async () => {
+            if (getNotificationStatus() === "granted") {
+              setNotificationEnabled(!isNotificationEnabled());
+            } else {
+              const result = await requestNotificationPermission();
+              if (result === "granted") setNotificationEnabled(true);
+            }
+            // Force re-render
+            setPlayers((p) => [...p]);
+          }}
+          className={`h-7 px-2 rounded-lg text-xs flex items-center gap-1 ${
+            isNotificationEnabled() ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+          }`}
+          title="Toggle notifications"
+        >
+          {isNotificationEnabled() ? "🔔" : "🔕"}
+        </button>
+      </div>
+
       {/* Main content */}
       <main className="max-w-7xl mx-auto px-4 py-4">
 
@@ -2378,6 +2558,10 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
               onReCheckin={handleReCheckin}
               onUndoLastMatch={undoLastMatch}
               inviteCode={club.invite_code}
+              clubId={club.id}
+              onBulkImport={() => setShowCsvImport(true)}
+              onShowQrCheckin={() => setShowQrModal("checkin")}
+              onShowQrLiveBoard={() => setShowQrModal("liveboard")}
             />
 
             <DndContext
@@ -2686,6 +2870,31 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
       {/* Live Session Board */}
       {showLiveBoard && (
         <LiveBoard club={club} onClose={() => setShowLiveBoard(false)} />
+      )}
+
+      {/* CSV Import Modal */}
+      {showCsvImport && (
+        <CsvImportModal
+          onImport={handleBulkImport}
+          onClose={() => setShowCsvImport(false)}
+          existingNames={[
+            ...players.map((p) => p.name),
+            ...courts.flatMap((c) => c.players.map((p) => p.name)),
+          ]}
+        />
+      )}
+
+      {/* QR Code Modal */}
+      {showQrModal && (
+        <QrCodeModal
+          url={
+            showQrModal === "checkin"
+              ? `${window.location.origin}/checkin/${club.id}`
+              : `${window.location.origin}/live/${club.id}`
+          }
+          title={showQrModal === "checkin" ? "Player Check-in" : "Live Board"}
+          onClose={() => setShowQrModal(null)}
+        />
       )}
 
     </div>
