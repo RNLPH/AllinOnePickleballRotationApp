@@ -157,7 +157,7 @@ export default function PlayerRow({
             </button>
             <button onClick={(e) => { e.stopPropagation(); onToggleNoPriority(player); }}
               className={`h-8 px-2.5 rounded-lg text-xs font-medium ${player.noPriority ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
-              🕒 Late
+              🕒 No Priority
             </button>
             {!openMode && (
               <button onClick={(e) => { e.stopPropagation(); onEditTier(player.id); }}
