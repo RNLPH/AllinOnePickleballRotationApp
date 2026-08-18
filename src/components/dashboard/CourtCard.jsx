@@ -380,9 +380,35 @@ export default function CourtCard({
             )}
 
             <p className="text-xs text-gray-500 mb-2">
-              Click two players to swap positions.
+              {isSingles ? "Click two players to swap." : "Click two players to swap positions."}
             </p>
 
+            {isSingles ? (
+              /* Singles Preview — Player A vs Player B */
+              <>
+                <div className="text-sm">
+                  🔵 Player A
+                  <br />
+                  {preview[0] && (
+                    <div className={`flex justify-between items-center p-2 rounded mb-1 ${selectedPreviewPlayer?.playerId === preview[0].id ? "bg-yellow-200" : "bg-white"}`}>
+                      <span className="flex-1 cursor-pointer" onClick={() => onPreviewPlayerClick(court.id, preview[0])}>{preview[0].name}</span>
+                      <button onClick={() => onRemovePreviewPlayer(court.id, preview[0].id)} className="ml-2 text-red-500 font-bold">✕</button>
+                    </div>
+                  )}
+                </div>
+                <div className="text-sm mt-2">
+                  🟣 Player B
+                  {preview[1] && (
+                    <div className={`flex justify-between items-center p-2 rounded mb-1 ${selectedPreviewPlayer?.playerId === preview[1].id ? "bg-yellow-200" : "bg-white"}`}>
+                      <span className="flex-1 cursor-pointer" onClick={() => onPreviewPlayerClick(court.id, preview[1])}>{preview[1].name}</span>
+                      <button onClick={() => onRemovePreviewPlayer(court.id, preview[1].id)} className="ml-2 text-red-500 font-bold">✕</button>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              /* Doubles Preview — Team A vs Team B */
+              <>
             {/* Team A Preview */}
             <div className="text-sm">
               🔵 Team A
@@ -477,9 +503,11 @@ export default function CourtCard({
                 </div>
               ))}
             </div>
+              </>
+            )}
 
             {/* Add / Replace player */}
-            {preview.length < 4 ? (
+            {preview.length < (isSingles ? 2 : 4) ? (
               <button
                 onClick={() => onSetSelectedPreviewCourt(court.id)}
                 className="
