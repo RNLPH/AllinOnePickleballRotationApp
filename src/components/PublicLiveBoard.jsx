@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { supabase } from "../db/supabase";
 import { sortPlayers } from "../utils/playerUtils";
 import PlayerAvatar from "./ui/PlayerAvatar";
+import { resolveClub } from "../db/clubResolver";
 
 function getCourtLabel(type) {
   if (type === "king")    return "👑 King's";
@@ -29,7 +30,8 @@ function getCourtMinutes(startedAt) {
 }
 
 export default function PublicLiveBoard() {
-  const { clubId } = useParams();
+  const { clubId: identifier } = useParams();
+  const [clubId, setClubId]     = useState(null);
   const [clubName, setClubName] = useState("Loading...");
   const [players, setPlayers]   = useState([]);
   const [courts, setCourts]     = useState([]);
@@ -39,18 +41,24 @@ export default function PublicLiveBoard() {
   const [, forceUpdate]         = useState(0);
 
   useEffect(() => {
-    const refresh = async () => {
-      try {
-        const { data: clubData } = await supabase
-          .from("clubs").select("name").eq("id", clubId).single();
-        if (!clubData) { setNotFound(true); return; }
-        setClubName(clubData.name);
+    let resolvedId = null;
 
+    const resolve = async () => {
+      const club = await resolveClub(identifier);
+      if (!club) { setNotFound(true); return; }
+      resolvedId = club.id;
+      setClubId(club.id);
+      setClubName(club.name);
+    };
+
+    const refresh = async () => {
+      if (!resolvedId) return;
+      try {
         const [playersRes, matchesRes, courtsRes, directoryRes] = await Promise.all([
-          supabase.from("players").select("*").eq("club_id", clubId),
-          supabase.from("matches").select("*").eq("club_id", clubId).order("id", { ascending: false }).limit(10),
-          supabase.from("courts").select("data").eq("club_id", clubId).single(),
-          supabase.from("directory").select("*").eq("club_id", clubId),
+          supabase.from("players").select("*").eq("club_id", resolvedId),
+          supabase.from("matches").select("*").eq("club_id", resolvedId).order("id", { ascending: false }).limit(10),
+          supabase.from("courts").select("data").eq("club_id", resolvedId).single(),
+          supabase.from("directory").select("*").eq("club_id", resolvedId),
         ]);
         if (playersRes.data) setPlayers(playersRes.data.map((r) => ({ id: r.id, name: r.name, ...r.data })));
         if (matchesRes.data) setMatches(matchesRes.data.map((r) => ({ ...r.data, id: r.id })));
@@ -61,11 +69,11 @@ export default function PublicLiveBoard() {
       }
     };
 
-    refresh();
+    resolve().then(refresh);
     const dataTimer = setInterval(refresh, 5000);
     const tickTimer = setInterval(() => forceUpdate((v) => v + 1), 1000);
     return () => { clearInterval(dataTimer); clearInterval(tickTimer); };
-  }, [clubId]);
+  }, [identifier]);
 
   if (notFound) {
     return (
@@ -291,7 +299,7 @@ export default function PublicLiveBoard() {
         {/* Check-in link */}
         <div className="text-center py-4 space-y-2">
           <a
-            href={`/checkin/${clubId}`}
+            href={`/checkin/${identifier}`}
             className="inline-block px-5 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700"
           >
             ✅ Check In Here

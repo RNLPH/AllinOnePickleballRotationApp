@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "../db/supabase";
+import { resolveClub } from "../db/clubResolver";
 
 export default function PublicCheckin() {
-  const { clubId } = useParams();
+  const { clubId: identifier } = useParams();
+  const [clubId, setClubId] = useState(null);
   const [clubName, setClubName] = useState("Loading...");
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
@@ -14,21 +16,22 @@ export default function PublicCheckin() {
 
   useEffect(() => {
     const loadClub = async () => {
-      const { data } = await supabase
-        .from("clubs").select("name").eq("id", clubId).single();
-      if (!data) { setNotFound(true); return; }
-      setClubName(data.name);
+      const club = await resolveClub(identifier);
+      if (!club) { setNotFound(true); return; }
+      setClubId(club.id);
+      setClubName(club.name);
 
       // Load recent check-ins for this session
       const { data: players } = await supabase
-        .from("players").select("name").eq("club_id", clubId);
+        .from("players").select("name").eq("club_id", club.id);
       if (players) setRecentCheckins(players.map((p) => p.name));
     };
     loadClub();
-  }, [clubId]);
+  }, [identifier]);
 
   const handleCheckin = async (e) => {
     e.preventDefault();
+    if (!clubId) return;
     const trimmed = name.trim();
     if (!trimmed) { setError("Enter your name."); return; }
     if (trimmed.length < 2) { setError("Name must be at least 2 characters."); return; }

@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "../db/supabase";
+import { resolveClub } from "../db/clubResolver";
 
 export default function PublicChallenge() {
-  const { clubId } = useParams();
+  const { clubId: identifier } = useParams();
+  const [clubId, setClubId] = useState(null);
   const [clubName, setClubName] = useState("Loading...");
   const [players, setPlayers] = useState([]);
   const [challenger, setChallenger] = useState("");
@@ -14,13 +16,13 @@ export default function PublicChallenge() {
 
   useEffect(() => {
     const load = async () => {
-      const { data: club } = await supabase
-        .from("clubs").select("name").eq("id", clubId).single();
+      const club = await resolveClub(identifier);
       if (!club) { setNotFound(true); return; }
+      setClubId(club.id);
       setClubName(club.name);
 
       const { data: queuePlayers } = await supabase
-        .from("players").select("id, name, data").eq("club_id", clubId);
+        .from("players").select("id, name, data").eq("club_id", club.id);
       if (queuePlayers) {
         setPlayers(queuePlayers.map((p) => ({
           id: p.id,
@@ -35,9 +37,10 @@ export default function PublicChallenge() {
     // Auto-refresh every 10s
     const interval = setInterval(load, 10000);
     return () => clearInterval(interval);
-  }, [clubId]);
+  }, [identifier]);
 
   const handleChallenge = async () => {
+    if (!clubId) return;
     if (!challenger.trim()) { setError("Enter your name first."); return; }
     if (!selectedOpponent) { setError("Select an opponent to challenge."); return; }
 

@@ -41,10 +41,12 @@ import LiveBoard from "./components/LiveBoard";
 import ClubPickerScreen from "./components/auth/ClubPickerScreen";
 import CsvImportModal from "./components/modals/CsvImportModal";
 import QrCodeModal from "./components/modals/QrCodeModal";
+import SlugEditorModal from "./components/modals/SlugEditorModal";
 import { useTheme } from "./contexts/ThemeContext";
 import { useI18n, LANGUAGES } from "./i18n/index.jsx";
 import { swissPairing, roundRobinNextMatch } from "./utils/pairingUtils";
 import { requestNotificationPermission, getNotificationStatus, isNotificationEnabled, setNotificationEnabled, notifyPlayerTurn } from "./utils/notifications";
+import { updateClubSlug } from "./db/clubResolver";
 
 // ===== AUTH WRAPPER =====
 // Handles auth state and club selection. Renders the main App or auth/picker screens.
@@ -234,6 +236,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
   const [partnerWarnings, setPartnerWarnings] = useState({});
   const [showCsvImport, setShowCsvImport] = useState(false);
   const [showQrModal, setShowQrModal] = useState(null); // "checkin" | "liveboard" | null
+  const [showSlugEditor, setShowSlugEditor] = useState(false);
   // { [courtId]: { teamA: count, teamB: count } }
 
   // ===== SESSION MODE =====
@@ -2385,7 +2388,11 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
             <div className="min-w-0">
               <h1 className="text-base font-bold text-white leading-tight truncate">KNGS Stack</h1>
               {club && <p className="text-[10px] text-[#7ABFED] leading-tight truncate">{club.name}</p>}
+              {club?.slug && <p className="text-[9px] text-[#7ABFED]/60 leading-tight truncate">/{club.slug}</p>}
             </div>
+            <button onClick={() => setShowSlugEditor(true)} className="h-6 w-6 rounded bg-white/10 text-[10px] text-white hover:bg-white/20 flex items-center justify-center" title="Edit club URL">
+              🔗
+            </button>
             <button onClick={onSwitchClub} className="h-6 px-2 rounded bg-white/10 text-[10px] text-white hover:bg-white/20 ml-1">
               {clubs.length > 1 ? "Switch Club" : "+ Club"}
             </button>
@@ -2416,12 +2423,12 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
               📺
             </button>
             <button
-              onClick={() => { const url = `${window.location.origin}/live/${club.id}`; navigator.clipboard.writeText(url); alert("Live board link copied!\n" + url); }}
+              onClick={() => { const url = `${window.location.origin}/live/${club.slug || club.id}`; navigator.clipboard.writeText(url); alert("Live board link copied!\n" + url); }}
               className="h-7 w-7 rounded bg-white/10 text-white flex items-center justify-center hover:bg-white/20 text-xs">
               🔗
             </button>
             <button
-              onClick={() => { const url = `${window.location.origin}/checkin/${club.id}`; navigator.clipboard.writeText(url); alert("Check-in link copied!\n" + url); }}
+              onClick={() => { const url = `${window.location.origin}/checkin/${club.slug || club.id}`; navigator.clipboard.writeText(url); alert("Check-in link copied!\n" + url); }}
               className="h-7 w-7 rounded bg-white/10 text-white flex items-center justify-center hover:bg-white/20 text-xs"
               title="Copy check-in link">
               📋
@@ -2594,6 +2601,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
               onUndoLastMatch={undoLastMatch}
               inviteCode={club.invite_code}
               clubId={club.id}
+              clubSlug={club.slug}
               onBulkImport={() => setShowCsvImport(true)}
               onShowQrCheckin={() => setShowQrModal("checkin")}
               onShowQrLiveBoard={() => setShowQrModal("liveboard")}
@@ -2946,11 +2954,28 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
         <QrCodeModal
           url={
             showQrModal === "checkin"
-              ? `${window.location.origin}/checkin/${club.id}`
-              : `${window.location.origin}/live/${club.id}`
+              ? `${window.location.origin}/checkin/${club.slug || club.id}`
+              : `${window.location.origin}/live/${club.slug || club.id}`
           }
           title={showQrModal === "checkin" ? "Player Check-in" : "Live Board"}
           onClose={() => setShowQrModal(null)}
+        />
+      )}
+
+      {/* Slug Editor Modal */}
+      {showSlugEditor && (
+        <SlugEditorModal
+          currentSlug={club.slug || ""}
+          clubId={club.id}
+          onSave={async (newSlug) => {
+            const result = await updateClubSlug(club.id, newSlug);
+            if (result.error) { alert(result.error); return; }
+            // Update local club state
+            club.slug = result.slug;
+            setShowSlugEditor(false);
+            alert(`Slug updated! Your links now use: ${window.location.origin}/live/${result.slug}`);
+          }}
+          onClose={() => setShowSlugEditor(false)}
         />
       )}
 

@@ -29,6 +29,7 @@ export default function SessionControls({
   onUndoLastMatch,
   inviteCode,
   clubId,
+  clubSlug,
   onBulkImport,
   onShowQrCheckin,
   onShowQrLiveBoard,
@@ -196,7 +197,7 @@ export default function SessionControls({
             {clubId && (
               <button
                 onClick={() => {
-                  const url = `${window.location.origin}/challenge/${clubId}`;
+                  const url = `${window.location.origin}/challenge/${clubSlug || clubId}`;
                   navigator.clipboard.writeText(url);
                   alert("Challenge link copied!\n\n" + url);
                 }}
