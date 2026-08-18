@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getPlayers } from "../db/playerService";
 import { getMatches } from "../db/matchService";
+import { getDirectory } from "../db/directoryService";
 import { supabase } from "../db/supabase";
 import { sortPlayers } from "../utils/playerUtils";
 import { STORAGE_KEYS } from "../constants";
@@ -34,17 +35,20 @@ export default function LiveBoard({ club, onClose }) {
   const [players, setPlayers]     = useState([]);
   const [courts, setCourts]       = useState([]);
   const [matches, setMatches]     = useState([]);
+  const [directory, setDirectory] = useState([]);
   const [, forceUpdate]           = useState(0);
 
   useEffect(() => {
     const refresh = async () => {
       try {
-        const [freshPlayers, freshMatches] = await Promise.all([
+        const [freshPlayers, freshMatches, freshDirectory] = await Promise.all([
           getPlayers(club.id),
           getMatches(club.id),
+          getDirectory(club.id),
         ]);
         setPlayers(freshPlayers);
         setMatches(freshMatches);
+        setDirectory(freshDirectory);
 
         // Read courts from Supabase (for cross-device support)
         const { data: courtsData } = await supabase
@@ -69,6 +73,16 @@ export default function LiveBoard({ club, onClose }) {
   const upNext = sortedQueue.slice(0, 8);
   const activePlayers = courts.reduce((c, court) => c + court.players.length, 0);
   const totalCheckedIn = players.length + activePlayers;
+
+  const standings = directory
+    .filter((p) => (p.gamesPlayed || 0) > 0)
+    .sort((a, b) => {
+      const wrA = (a.wins || 0) + (a.losses || 0) > 0 ? (a.wins || 0) / ((a.wins || 0) + (a.losses || 0)) : 0;
+      const wrB = (b.wins || 0) + (b.losses || 0) > 0 ? (b.wins || 0) / ((b.wins || 0) + (b.losses || 0)) : 0;
+      if (wrB !== wrA) return wrB - wrA;
+      return (b.wins || 0) - (a.wins || 0);
+    })
+    .slice(0, 10);
 
   return (
     <div className="fixed inset-0 z-[99999] bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 overflow-auto">
@@ -236,6 +250,35 @@ export default function LiveBoard({ club, onClose }) {
                     <span className="text-green-600 font-semibold ml-2 shrink-0">Team {match.winner} 🏆</span>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* Standings */}
+          {standings.length > 0 && (
+            <div className="mt-6">
+              <h2 className="text-lg font-bold text-slate-700 mb-4">🏆 Standings</h2>
+              <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                {standings.map((player, index) => {
+                  const wr = player.gamesPlayed > 0 ? Math.round((player.wins / player.gamesPlayed) * 100) : 0;
+                  return (
+                    <div key={player.id} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-slate-400 w-5">
+                          {index === 0 && "🥇"}{index === 1 && "🥈"}{index === 2 && "🥉"}
+                          {index > 2 && (index + 1)}
+                        </span>
+                        <PlayerAvatar player={player} size="w-7 h-7" textSize="text-[9px]" />
+                        <span className="text-sm font-medium text-slate-700">{player.name}</span>
+                      </div>
+                      <div className="flex items-center gap-3 text-xs">
+                        <span className="text-green-600 font-semibold">{player.wins}W</span>
+                        <span className="text-red-500 font-semibold">{player.losses}L</span>
+                        <span className="text-blue-600 font-bold">{wr}%</span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

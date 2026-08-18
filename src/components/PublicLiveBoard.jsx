@@ -34,6 +34,7 @@ export default function PublicLiveBoard() {
   const [players, setPlayers]   = useState([]);
   const [courts, setCourts]     = useState([]);
   const [matches, setMatches]   = useState([]);
+  const [directory, setDirectory] = useState([]);
   const [notFound, setNotFound] = useState(false);
   const [, forceUpdate]         = useState(0);
 
@@ -45,14 +46,16 @@ export default function PublicLiveBoard() {
         if (!clubData) { setNotFound(true); return; }
         setClubName(clubData.name);
 
-        const [playersRes, matchesRes, courtsRes] = await Promise.all([
+        const [playersRes, matchesRes, courtsRes, directoryRes] = await Promise.all([
           supabase.from("players").select("*").eq("club_id", clubId),
           supabase.from("matches").select("*").eq("club_id", clubId).order("id", { ascending: false }).limit(10),
           supabase.from("courts").select("data").eq("club_id", clubId).single(),
+          supabase.from("directory").select("*").eq("club_id", clubId),
         ]);
         if (playersRes.data) setPlayers(playersRes.data.map((r) => ({ id: r.id, name: r.name, ...r.data })));
         if (matchesRes.data) setMatches(matchesRes.data.map((r) => ({ ...r.data, id: r.id })));
         if (courtsRes.data) setCourts(courtsRes.data.data || []);
+        if (directoryRes.data) setDirectory(directoryRes.data.map((r) => ({ id: r.id, name: r.name, ...r.data })));
       } catch (err) {
         console.error("Public board refresh failed:", err);
       }
@@ -78,6 +81,17 @@ export default function PublicLiveBoard() {
 
   const sortedQueue = sortPlayers(players);
   const activePlaying = courts.reduce((c, court) => c + (court.players?.length || 0), 0);
+
+  // Standings from directory
+  const standings = directory
+    .filter((p) => (p.gamesPlayed || 0) > 0)
+    .sort((a, b) => {
+      const wrA = (a.wins || 0) + (a.losses || 0) > 0 ? (a.wins || 0) / ((a.wins || 0) + (a.losses || 0)) : 0;
+      const wrB = (b.wins || 0) + (b.losses || 0) > 0 ? (b.wins || 0) / ((b.wins || 0) + (b.losses || 0)) : 0;
+      if (wrB !== wrA) return wrB - wrA;
+      return (b.wins || 0) - (a.wins || 0);
+    })
+    .slice(0, 10);
 
   return (
     <div className="min-h-screen w-full bg-slate-50 overflow-x-hidden">
@@ -227,6 +241,39 @@ export default function PublicLiveBoard() {
                   </span>
                 </div>
               ))}
+            </div>
+          </section>
+        )}
+
+        {/* Standings */}
+        {standings.length > 0 && (
+          <section>
+            <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">
+              Standings <span className="font-normal text-slate-400">(Top 10)</span>
+            </h2>
+            <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm">
+              <div className="grid grid-cols-[20px_1fr_auto_auto_auto] gap-x-2 px-2 py-1 text-[10px] text-slate-400 font-medium border-b border-slate-100 mb-1">
+                <span>#</span>
+                <span>Player</span>
+                <span>W</span>
+                <span>L</span>
+                <span>WR</span>
+              </div>
+              {standings.map((player, index) => {
+                const wr = player.gamesPlayed > 0 ? Math.round((player.wins / player.gamesPlayed) * 100) : 0;
+                return (
+                  <div key={player.id} className="grid grid-cols-[20px_1fr_auto_auto_auto] gap-x-2 items-center px-2 py-1.5 border-b border-slate-50 last:border-0">
+                    <span className="text-[10px] font-bold text-slate-400">
+                      {index === 0 && "🥇"}{index === 1 && "🥈"}{index === 2 && "🥉"}
+                      {index > 2 && (index + 1)}
+                    </span>
+                    <span className="text-xs font-medium text-slate-700 truncate">{player.name}</span>
+                    <span className="text-xs font-semibold text-green-600">{player.wins || 0}</span>
+                    <span className="text-xs font-semibold text-red-500">{player.losses || 0}</span>
+                    <span className="text-xs font-bold text-blue-600">{wr}%</span>
+                  </div>
+                );
+              })}
             </div>
           </section>
         )}
