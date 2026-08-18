@@ -2095,18 +2095,21 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
         (winningTeam === "A" && isTeamA) || (winningTeam === "B" && !isTeamA);
       const currentStreak = won ? (player.currentStreak || 0) + 1 : 0;
 
+      // Clean up any challenge data
+      const { pendingChallenge, ...cleanPlayer } = player;
+
       if (isTierless) {
         // Tierless modes: no tier changes, just update stats and lastResult
         return {
-          ...player,
-          consecutiveGames: player.consecutiveGames || 0,
+          ...cleanPlayer,
+          consecutiveGames: cleanPlayer.consecutiveGames || 0,
           priority: false,
           noPriority: false,
-          gamesPlayed: player.gamesPlayed + 1,
-          wins: (player.wins || 0) + (won ? 1 : 0),
-          losses: (player.losses || 0) + (won ? 0 : 1),
+          gamesPlayed: cleanPlayer.gamesPlayed + 1,
+          wins: (cleanPlayer.wins || 0) + (won ? 1 : 0),
+          losses: (cleanPlayer.losses || 0) + (won ? 0 : 1),
           currentStreak,
-          bestStreak: Math.max(player.bestStreak || 0, currentStreak),
+          bestStreak: Math.max(cleanPlayer.bestStreak || 0, currentStreak),
           queueGroup: won ? "winner" : "loser",
           lastResult: won ? "win" : "loss",
           waitingSince: Date.now(),
@@ -2115,22 +2118,22 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
 
       // Ladder Mode: tier promotions/demotions unchanged
       const rawNextTier = getNextTier(court.type, won);
-      const nextTier = getEffectiveTier(player.tier, rawNextTier);
+      const nextTier = getEffectiveTier(cleanPlayer.tier, rawNextTier);
 
       return {
-        ...player,
+        ...cleanPlayer,
         tier: nextTier,
         kingCourtEntries:
-          (player.kingCourtEntries || 0) +
-          (nextTier === "king" && player.tier !== "king" ? 1 : 0),
-        consecutiveGames: player.consecutiveGames || 0,
+          (cleanPlayer.kingCourtEntries || 0) +
+          (nextTier === "king" && cleanPlayer.tier !== "king" ? 1 : 0),
+        consecutiveGames: cleanPlayer.consecutiveGames || 0,
         priority: false,
         noPriority: false,
-        gamesPlayed: player.gamesPlayed + 1,
-        wins: (player.wins || 0) + (won ? 1 : 0),
-        losses: (player.losses || 0) + (won ? 0 : 1),
+        gamesPlayed: cleanPlayer.gamesPlayed + 1,
+        wins: (cleanPlayer.wins || 0) + (won ? 1 : 0),
+        losses: (cleanPlayer.losses || 0) + (won ? 0 : 1),
         currentStreak,
-        bestStreak: Math.max(player.bestStreak || 0, currentStreak),
+        bestStreak: Math.max(cleanPlayer.bestStreak || 0, currentStreak),
         queueGroup: "matched",
         lastResult: won ? "win" : "loss",
         waitingSince: Date.now(),
