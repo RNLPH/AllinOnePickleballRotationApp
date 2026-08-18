@@ -9,37 +9,37 @@ export async function getPlayers(clubId) {
   return data.map((row) => ({ id: row.id, name: row.name, ...row.data }));
 }
 
-export async function savePlayers(players, clubId) {
-  // Step 1 — get existing IDs for this club
-  const { data: existing, error: fetchError } = await supabase
+// Save a single player (add or update)
+export async function savePlayer(player, clubId) {
+  const { id, name, ...rest } = player;
+  const { error } = await supabase
     .from("players")
-    .select("id")
-    .eq("club_id", clubId);
-  if (fetchError) { console.error("savePlayers fetch:", fetchError); return; }
+    .upsert({ id, name, club_id: clubId, data: rest }, { onConflict: "id" });
+  if (error) console.error("savePlayer:", error);
+}
 
-  const existingIds = new Set(existing.map((r) => r.id));
-  const incomingIds = new Set(players.map((p) => p.id));
+// Remove a single player from the queue
+export async function removePlayer(playerId) {
+  const { error } = await supabase
+    .from("players")
+    .delete()
+    .eq("id", playerId);
+  if (error) console.error("removePlayer:", error);
+}
 
-  // Step 2 — delete rows no longer in the queue
-  const toDelete = [...existingIds].filter((id) => !incomingIds.has(id));
-  if (toDelete.length > 0) {
-    const { error: deleteError } = await supabase
-      .from("players")
-      .delete()
-      .in("id", toDelete);
-    if (deleteError) console.error("savePlayers delete:", deleteError);
-  }
+// Save all players (full sync — used only on initial load or bulk operations)
+export async function savePlayers(players, clubId) {
+  // Clear all for this club then re-insert
+  await supabase.from("players").delete().eq("club_id", clubId);
+  if (players.length === 0) return;
 
-  // Step 3 — upsert current players
-  if (players.length > 0) {
-    const rows = players.map(({ id, name, ...rest }) => ({
-      id, name, club_id: clubId, data: rest,
-    }));
-    const { error: upsertError } = await supabase
-      .from("players")
-      .upsert(rows, { onConflict: "id" });
-    if (upsertError) console.error("savePlayers upsert:", upsertError);
-  }
+  const rows = players.map(({ id, name, ...rest }) => ({
+    id, name, club_id: clubId, data: rest,
+  }));
+  const { error } = await supabase
+    .from("players")
+    .upsert(rows, { onConflict: "id" });
+  if (error) console.error("savePlayers:", error);
 }
 
 export async function clearPlayers(clubId) {
@@ -53,5 +53,3 @@ export async function clearPlayers(clubId) {
 export async function clearSessionPlayers(clubId) {
   await clearPlayers(clubId);
 }
-
-

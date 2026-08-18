@@ -3,7 +3,7 @@ import { DndContext, DragOverlay } from "@dnd-kit/core";
 
 import { supabase } from "./db/supabase";
 import { getDirectory, saveDirectoryPlayer, deleteDirectoryPlayer } from "./db/directoryService";
-import { getPlayers, savePlayers } from "./db/playerService";
+import { getPlayers, savePlayers, savePlayer, removePlayer as removePlayerFromDb } from "./db/playerService";
 import { saveMatch, getMatches, updateMatch, deleteMatchesBySession, clearAllMatches } from "./db/matchService";
 import { getAttendance, saveAttendance, clearAttendance, deleteAttendanceBySession } from "./db/attendanceService";
 import { getStandingsHistory, saveStandingsHistory, clearStandingsHistory } from "./db/standingsHistoryService";
@@ -457,13 +457,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
     }
   };
 
-  useEffect(() => {
-    if (!playersLoaded) return;
-    const timeout = setTimeout(async () => {
-      await savePlayers(players, club.id);
-    }, 1000); // Debounce: wait 1s after last change before saving
-    return () => clearTimeout(timeout);
-  }, [players, playersLoaded]);
+  // Players are now saved individually (event-driven) — no bulk sync effect needed
 
   // ===== SAVE COURTS TO SUPABASE =====
   useEffect(() => {
@@ -901,6 +895,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
     }
 
     setPlayers((prev) => [...prev, newPlayer]);
+    savePlayer(newPlayer, club.id); // persist immediately
     setName("");
     setError("");
     setPendingPlayerName("");
@@ -913,6 +908,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
     if (!player) return;
     if (!window.confirm(`Remove ${player.name} from the waiting queue?`)) return;
     setPlayers((prev) => prev.filter((p) => p.id !== id));
+    removePlayerFromDb(id); // persist immediately
   };
 
   const handleTogglePriority = async (player) => {
@@ -1150,6 +1146,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
       })
     );
     setPlayers((prev) => prev.filter((p) => p.id !== playerId));
+    removePlayerFromDb(playerId);
   };
 
   const removeCourt = () => {
@@ -1518,6 +1515,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
       setCourts(updatedCourts);
       const usedIds = updatedCourts.flatMap((c) => c.players || []).map((p) => p.id);
       setPlayers(players.filter((p) => !usedIds.includes(p.id)));
+    usedIds.forEach((id) => removePlayerFromDb(id));
       return;
     }
 
@@ -1538,6 +1536,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
       setCourts(updatedCourts);
       const usedIds = updatedCourts.flatMap((c) => c.players || []).map((p) => p.id);
       setPlayers(players.filter((p) => !usedIds.includes(p.id)));
+    usedIds.forEach((id) => removePlayerFromDb(id));
       return;
     }
 
@@ -1610,6 +1609,8 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
           selectedIds
         )
       );
+      // Remove assigned players from Supabase
+      selectedIds.forEach((id) => removePlayerFromDb(id));
 
       // Check for repeat partners in newly assigned courts
       const warnings = {};
@@ -1674,6 +1675,8 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
         selectedIds
       )
     );
+    // Remove assigned players from Supabase
+    selectedIds.forEach((id) => removePlayerFromDb(id));
 
     // Check for repeat partners in newly assigned courts
     const warnings = {};
@@ -1934,6 +1937,8 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
     await Promise.all(updatedDirectory.map((p) => saveDirectoryPlayer(p, club.id)));
 
     setPlayers((prev) => sortPlayers([...prev, ...returningPlayers]));
+    // Persist returning players
+    returningPlayers.forEach((p) => savePlayer(p, club.id));
     setCourts((prev) =>
       prev.map((c) => (c.id === courtId ? { ...c, players: [], startedAt: null } : c))
     );
@@ -2684,6 +2689,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
     </div>
   );
 }
+
 
 
 
