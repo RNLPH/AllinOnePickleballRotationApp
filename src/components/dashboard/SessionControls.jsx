@@ -169,8 +169,21 @@ export default function SessionControls({
               ☢️ Factory Reset
             </button>
             <button onClick={onBulkImport}
-              className="col-span-2 h-9 rounded-lg bg-teal-50 text-teal-700 text-xs font-medium hover:bg-teal-100">
+              className="h-9 rounded-lg bg-teal-50 text-teal-700 text-xs font-medium hover:bg-teal-100">
               📥 Bulk Import CSV
+            </button>
+            <button
+              onClick={() => {
+                const csv = "Name, Tier\nJohn Smith, king\nJane Doe, knight\nBob Wilson, squire\nAlice, \nCharlie, ";
+                const blob = new Blob([csv], { type: "text/csv" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url; a.download = "player_template.csv";
+                document.body.appendChild(a); a.click();
+                document.body.removeChild(a); URL.revokeObjectURL(url);
+              }}
+              className="h-9 rounded-lg bg-teal-50 text-teal-700 text-xs font-medium hover:bg-teal-100">
+              📄 CSV Template
             </button>
             <button onClick={onShowQrCheckin}
               className="h-9 rounded-lg bg-violet-50 text-violet-700 text-xs font-medium hover:bg-violet-100">
@@ -180,6 +193,17 @@ export default function SessionControls({
               className="h-9 rounded-lg bg-cyan-50 text-cyan-700 text-xs font-medium hover:bg-cyan-100">
               📺 QR Live Board
             </button>
+            {clubId && (
+              <button
+                onClick={() => {
+                  const url = `${window.location.origin}/challenge/${clubId}`;
+                  navigator.clipboard.writeText(url);
+                  alert("Challenge link copied!\n\n" + url);
+                }}
+                className="col-span-2 h-9 rounded-lg bg-red-50 text-red-700 text-xs font-medium hover:bg-red-100">
+                ⚔️ Copy Challenge Link
+              </button>
+            )}
             {inviteCode && (
               <div className="col-span-2 flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2">
                 <div>

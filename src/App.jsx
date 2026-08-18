@@ -1011,6 +1011,41 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
     await saveDirectoryPlayer(updated, club.id);
   };
 
+  // Accept/dismiss a challenge: clear the pendingChallenge from the player
+  const handleAcceptChallenge = async (player) => {
+    const challenger = players.find((p) => p.id === player.pendingChallenge?.fromId);
+    // Clear the challenge flag
+    const updated = { ...player, pendingChallenge: undefined };
+    setPlayers((prev) => prev.map((p) => p.id === player.id ? updated : p));
+    await savePlayer(updated, club.id);
+
+    // If both challenger and challenged are in the queue and there's an empty court, assign them
+    if (challenger) {
+      const emptyCourt = courts.find((c) => {
+        const maxP = c.format === "singles" ? 2 : 4;
+        return c.players.length === 0 && maxP >= 2;
+      });
+      if (emptyCourt) {
+        const isSingles = emptyCourt.format === "singles";
+        const matchPlayers = isSingles
+          ? [challenger, player]
+          : [challenger, player]; // For doubles, operator adds more manually
+
+        const updatedCourts = courts.map((c) => {
+          if (c.id !== emptyCourt.id) return c;
+          return { ...c, players: matchPlayers.map((p) => ({ ...p, consecutiveGames: (p.consecutiveGames || 0) + 1 })), startedAt: Date.now() };
+        });
+        setCourts(updatedCourts);
+        const usedIds = matchPlayers.map((p) => p.id);
+        setPlayers((prev) => prev.filter((p) => !usedIds.includes(p.id)));
+        usedIds.forEach((id) => removePlayerFromDb(id));
+        alert(`⚔️ ${challenger.name} vs ${player.name} — matched on Court #${emptyCourt.id}!`);
+      } else {
+        alert(`Challenge accepted! Assign ${challenger.name} and ${player.name} to a court manually.`);
+      }
+    }
+  };
+
   const handleDeleteDirectoryPlayer = async (e, player) => {
     e.stopPropagation();
     const confirmed = window.confirm(`Delete ${player.name} permanently?`);
@@ -2569,6 +2604,28 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
               onDragEnd={(event) => { handleDragEnd(event); setActivePlayer(null); }}
               onDragCancel={() => setActivePlayer(null)}
             >
+              {/* Pending Challenges Banner */}
+              {players.filter((p) => p.pendingChallenge).length > 0 && (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
+                  <div className="text-xs font-semibold text-red-700 mb-2">⚔️ Pending Challenges</div>
+                  <div className="space-y-1.5">
+                    {players.filter((p) => p.pendingChallenge).map((p) => (
+                      <div key={p.id} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-red-100">
+                        <span className="text-sm text-slate-700">
+                          <strong>{p.pendingChallenge.from}</strong> → <strong>{p.name}</strong>
+                        </span>
+                        <button
+                          onClick={() => handleAcceptChallenge(p)}
+                          className="h-7 px-2.5 rounded-lg bg-red-600 text-white text-xs font-medium hover:bg-red-700"
+                        >
+                          ⚔️ Match Them
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-6">
                 <div>
                   {isTierless ? (

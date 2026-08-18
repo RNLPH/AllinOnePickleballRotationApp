@@ -54,17 +54,35 @@ export default function PublicChallenge() {
       return;
     }
 
-    // Mark the challenge by updating both players' data with challenge info
+    // Mark the challenge by updating the opponent's data with challenge info
+    // First fetch the current data
+    const { data: opponentRow } = await supabase
+      .from("players")
+      .select("data")
+      .eq("id", selectedOpponent.id)
+      .eq("club_id", clubId)
+      .single();
+
+    const existingData = opponentRow?.data || {};
     const { error: updateError } = await supabase
       .from("players")
       .update({
-        data: supabase.rpc ? undefined : {
-          challengedBy: challengerPlayer.name,
-          challengeTime: Date.now(),
+        data: {
+          ...existingData,
+          pendingChallenge: {
+            from: challengerPlayer.name,
+            fromId: challengerPlayer.id,
+            time: Date.now(),
+          },
         },
       })
       .eq("id", selectedOpponent.id)
       .eq("club_id", clubId);
+
+    if (updateError) {
+      setError("Failed to send challenge. Try again.");
+      return;
+    }
 
     // Simple approach: just show confirmation (operator handles actual matchmaking)
     setMessage(`⚔️ ${challenger.trim()} challenged ${selectedOpponent.name}! The operator will set up your match.`);

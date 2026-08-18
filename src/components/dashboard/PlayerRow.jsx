@@ -28,6 +28,7 @@ export default function PlayerRow({
   onEditTier,
   onViewProfile,
   onEditName,
+  onDismissChallenge,
   openMode = false,
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -80,10 +81,16 @@ export default function PlayerRow({
             {player.lastResult === "loss" && <span className="text-red-500">✗</span>}
             {player.priority && <span className="text-yellow-500">⭐</span>}
             {player.noPriority && <span className="text-orange-500">🕒</span>}
+            {player.pendingChallenge && <span className="text-red-500">⚔️</span>}
           </div>
         </div>
 
         <div className="flex items-center gap-1">
+          {player.pendingChallenge && (
+            <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-medium">
+              vs {player.pendingChallenge.from}
+            </span>
+          )}
           {isWaitingLong && <span className="text-[10px] text-red-500 font-bold">{waitingMinutes}m</span>}
           <span className="text-xs text-slate-300">#{index + 1}</span>
         </div>
@@ -151,6 +158,12 @@ export default function PlayerRow({
 
           {/* Action buttons */}
           <div className="flex flex-wrap gap-1.5">
+            {player.pendingChallenge && (
+              <button onClick={(e) => { e.stopPropagation(); onDismissChallenge && onDismissChallenge(player); }}
+                className="h-8 px-2.5 rounded-lg text-xs font-medium bg-red-100 text-red-700 hover:bg-red-200">
+                ⚔️ Accept Challenge (vs {player.pendingChallenge.from})
+              </button>
+            )}
             <button onClick={(e) => { e.stopPropagation(); onTogglePriority(player); }}
               className={`h-8 px-2.5 rounded-lg text-xs font-medium ${player.priority ? "bg-yellow-500 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
               ⭐ Priority
