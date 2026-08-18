@@ -366,6 +366,29 @@ function AppMain({ club, authUser, onLogout }) {
     loadAll();
   }, [club.id]);
 
+  // ===== DASHBOARD AUTO-REFRESH (every 5s) =====
+  // Keeps the operator in sync when players self-check-in
+  useEffect(() => {
+    if (viewMode) return; // View mode has its own refresh
+    const dashRefresh = setInterval(async () => {
+      try {
+        const [freshPlayers, freshDir, freshMatches, freshAttendance] = await Promise.all([
+          getPlayers(club.id),
+          getDirectory(club.id),
+          getMatches(club.id),
+          getAttendance(club.id),
+        ]);
+        setPlayers(freshPlayers);
+        setDirectory(freshDir);
+        setMatches(freshMatches);
+        setAttendance(freshAttendance);
+      } catch (err) {
+        // silent fail — don't disrupt the operator
+      }
+    }, 5000);
+    return () => clearInterval(dashRefresh);
+  }, [club.id, viewMode]);
+
   useEffect(() => {
     if (!playersLoaded) return;
     async function persistPlayers() {
