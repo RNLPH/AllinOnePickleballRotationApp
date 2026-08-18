@@ -46,9 +46,9 @@ export default function HistoryTab({
               return (
                 <div key={session} className="bg-white rounded-xl border border-slate-100 overflow-hidden">
                   {/* Session header */}
-                  <button
+                  <div
                     onClick={() => setExpandedSession(expandedSession === session ? null : session)}
-                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 text-left"
+                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 text-left cursor-pointer"
                   >
                     <div>
                       <span className="text-sm font-semibold text-slate-700">Session {session}</span>
@@ -74,7 +74,7 @@ export default function HistoryTab({
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                       </svg>
                     </div>
-                  </button>
+                  </div>
 
                   {/* Expanded matches */}
                   {expandedSession === session && (
