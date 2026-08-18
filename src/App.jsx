@@ -512,7 +512,8 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
     if (courtType === "general") return generalQueue;
     if (courtType === "knight")  return knightQueue;
     if (courtType === "squire")  return squireQueue;
-    return [];
+    // Generic courts (new modes) — return all waiting players
+    return waitingPlayers;
   };
 
   const getTierCounts = () => {
