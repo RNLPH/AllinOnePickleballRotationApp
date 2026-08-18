@@ -439,33 +439,23 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
     loadAll();
   }, [club.id]);
 
-  // ===== DASHBOARD AUTO-REFRESH (every 5s) =====
-  // Keeps the operator in sync when players self-check-in
-  // Skips if a local change was made recently (prevents overwrite race)
-  const lastLocalChange = useRef(0);
-
-  useEffect(() => {
-    if (viewMode) return; // View mode has its own refresh
-    const dashRefresh = setInterval(async () => {
-      // Skip refresh if a local change was made in the last 8 seconds
-      if (Date.now() - lastLocalChange.current < 8000) return;
-      try {
-        const [freshPlayers, freshDir, freshMatches, freshAttendance] = await Promise.all([
-          getPlayers(club.id),
-          getDirectory(club.id),
-          getMatches(club.id),
-          getAttendance(club.id),
-        ]);
-        setPlayers(freshPlayers);
-        setDirectory(freshDir);
-        setMatches(freshMatches);
-        setAttendance(freshAttendance);
-      } catch (err) {
-        // silent fail — don't disrupt the operator
-      }
-    }, 5000);
-    return () => clearInterval(dashRefresh);
-  }, [club.id, viewMode]);
+  // ===== MANUAL REFRESH (operator dashboard) =====
+  const handleManualRefresh = async () => {
+    try {
+      const [freshPlayers, freshDir, freshMatches, freshAttendance] = await Promise.all([
+        getPlayers(club.id),
+        getDirectory(club.id),
+        getMatches(club.id),
+        getAttendance(club.id),
+      ]);
+      setPlayers(freshPlayers);
+      setDirectory(freshDir);
+      setMatches(freshMatches);
+      setAttendance(freshAttendance);
+    } catch (err) {
+      console.error("Manual refresh failed:", err);
+    }
+  };
 
   useEffect(() => {
     if (!playersLoaded) return;
@@ -911,7 +901,6 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
     }
 
     setPlayers((prev) => [...prev, newPlayer]);
-    lastLocalChange.current = Date.now();
     setName("");
     setError("");
     setPendingPlayerName("");
@@ -924,7 +913,6 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
     if (!player) return;
     if (!window.confirm(`Remove ${player.name} from the waiting queue?`)) return;
     setPlayers((prev) => prev.filter((p) => p.id !== id));
-    lastLocalChange.current = Date.now();
   };
 
   const handleTogglePriority = async (player) => {
@@ -1093,7 +1081,6 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
   };
 
   const removeCourtPlayer = (courtId, playerId) => {
-    lastLocalChange.current = Date.now();
     const court = courts.find((c) => c.id === courtId);
     if (!court) return;
     const player = court.players.find((p) => p.id === playerId);
@@ -1124,7 +1111,6 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
   };
 
   const addPlayerToCourt = (playerId, courtId) => {
-    lastLocalChange.current = Date.now();
     const player = players.find((p) => p.id === playerId);
     if (!player) return;
     const court = courts.find((c) => c.id === Number(courtId));
@@ -1280,7 +1266,6 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
   };
 
   const moveCourtPlayerToQueue = (playerId) => {
-    lastLocalChange.current = Date.now();
     let playerToMove = null;
     setCourts((prev) =>
       prev.map((court) => {
@@ -1509,7 +1494,6 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
   // ===== GAME ACTIONS =====
 
   const assignPlayersToAllCourts = () => {
-    lastLocalChange.current = Date.now();
     const availableCourts = courts.filter((c) => {
       const maxP = c.format === "singles" ? 2 : 4;
       return c.players.length < maxP;
@@ -1534,7 +1518,6 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
       setCourts(updatedCourts);
       const usedIds = updatedCourts.flatMap((c) => c.players || []).map((p) => p.id);
       setPlayers(players.filter((p) => !usedIds.includes(p.id)));
-    lastLocalChange.current = Date.now();
       return;
     }
 
@@ -1555,7 +1538,6 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
       setCourts(updatedCourts);
       const usedIds = updatedCourts.flatMap((c) => c.players || []).map((p) => p.id);
       setPlayers(players.filter((p) => !usedIds.includes(p.id)));
-    lastLocalChange.current = Date.now();
       return;
     }
 
@@ -1845,7 +1827,6 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
   };
 
   const endGame = async (courtId, winningTeam) => {
-    lastLocalChange.current = Date.now();
     const court = courts.find((c) => c.id === courtId);
     if (!court) return;
 
@@ -2241,6 +2222,11 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
               </button>
             )}
 
+            <button onClick={handleManualRefresh}
+              className="h-7 w-7 rounded bg-white/10 text-white flex items-center justify-center hover:bg-white/20 text-xs"
+              title="Refresh data">
+              🔄
+            </button>
             <button onClick={() => setShowLiveBoard(true)}
               className="h-7 w-7 rounded bg-white/10 text-white flex items-center justify-center hover:bg-white/20 text-xs">
               📺
@@ -2698,6 +2684,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
     </div>
   );
 }
+
 
 
 
