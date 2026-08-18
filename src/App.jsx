@@ -2671,7 +2671,14 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
                 <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
                   <div className="text-xs font-semibold text-red-700 mb-2">⚔️ Pending Challenges</div>
                   <div className="space-y-1.5">
-                    {players.filter((p) => p.pendingChallenge).map((p) => {
+                    {(() => {
+                      const seen = new Set();
+                      return players.filter((p) => p.pendingChallenge).filter((p) => {
+                        const key = `${p.pendingChallenge.fromId}-${p.pendingChallenge.time}`;
+                        if (seen.has(key)) return false;
+                        seen.add(key);
+                        return true;
+                      }).map((p) => {
                       const ch = p.pendingChallenge;
                       const isDoubles = ch.type === "doubles";
                       const teamA = isDoubles && ch.partner ? `${ch.from} & ${ch.partner}` : ch.from;
@@ -2692,7 +2699,8 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
                           </button>
                         </div>
                       );
-                    })}
+                    });
+                    })()}
                   </div>
                 </div>
               )}
