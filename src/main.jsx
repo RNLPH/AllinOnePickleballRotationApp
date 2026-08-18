@@ -5,6 +5,7 @@ import "./index.css";
 import App from "./App.jsx";
 import PublicLiveBoard from "./components/PublicLiveBoard.jsx";
 import PublicCheckin from "./components/PublicCheckin.jsx";
+import PublicInvite from "./components/PublicInvite.jsx";
 import { registerSW } from "virtual:pwa-register";
 
 registerSW({
@@ -17,6 +18,7 @@ createRoot(document.getElementById("root")).render(
       <Routes>
         <Route path="/live/:clubId" element={<PublicLiveBoard />} />
         <Route path="/checkin/:clubId" element={<PublicCheckin />} />
+        <Route path="/invite/:inviteCode" element={<PublicInvite />} />
         <Route path="*" element={<App />} />
       </Routes>
     </BrowserRouter>

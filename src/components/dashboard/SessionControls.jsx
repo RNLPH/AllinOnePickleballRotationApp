@@ -149,14 +149,17 @@ export default function SessionControls({
             {inviteCode && (
               <div className="col-span-2 flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2">
                 <div>
-                  <div className="text-[10px] text-slate-500">Invite Code</div>
-                  <div className="text-sm font-mono font-bold text-slate-800">{inviteCode}</div>
+                  <div className="text-[10px] text-slate-500">Invite Code: <span className="font-mono font-bold text-slate-800">{inviteCode}</span></div>
                 </div>
                 <button
-                  onClick={() => { navigator.clipboard.writeText(inviteCode); alert("Invite code copied!"); }}
+                  onClick={() => {
+                    const url = `${window.location.origin}/invite/${inviteCode}`;
+                    navigator.clipboard.writeText(url);
+                    alert("Invite link copied!\n\n" + url);
+                  }}
                   className="h-7 px-2 bg-blue-100 text-blue-700 rounded text-xs font-medium hover:bg-blue-200"
                 >
-                  Copy
+                  📋 Copy Link
                 </button>
               </div>
             )}
