@@ -75,6 +75,8 @@ export default function PublicLiveBoard() {
     return () => { clearInterval(dataTimer); clearInterval(tickTimer); };
   }, [identifier]);
 
+  const [showAllStandings, setShowAllStandings] = useState(false);
+
   if (notFound) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
@@ -89,7 +91,6 @@ export default function PublicLiveBoard() {
 
   const sortedQueue = sortPlayers(players);
   const activePlaying = courts.reduce((c, court) => c + (court.players?.length || 0), 0);
-  const [showAllStandings, setShowAllStandings] = useState(false);
 
   // ===== COURT AVAILABILITY / ESTIMATED WAIT TIME =====
   // Calculate average match duration from active courts

@@ -123,7 +123,7 @@ export default function PlayerDashboard() {
       <div className="max-w-lg mx-auto">
         {/* Header */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 text-center mb-4">
-          <PlayerAvatar player={player} size={72} />
+          <PlayerAvatar player={player} size="w-18 h-18" textSize="text-2xl" />
           <h1 className="text-2xl font-bold text-slate-800 mt-3">{player.name}</h1>
           <p className="text-sm text-slate-500">{clubName}</p>
           {rank > 0 && (

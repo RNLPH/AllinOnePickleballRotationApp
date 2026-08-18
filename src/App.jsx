@@ -966,12 +966,14 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
 
   // ===== BULK IMPORT =====
   const handleBulkImport = async (importedPlayers) => {
+    const addedNames = new Set(players.map((p) => p.name.toLowerCase()));
+    courts.forEach((c) => c.players.forEach((p) => addedNames.add(p.name.toLowerCase())));
+    const newPlayers = [];
+    const newAttendance = [];
+
     for (const { name: playerName, tier } of importedPlayers) {
-      const existsInQueue = players.some((p) => p.name.toLowerCase() === playerName.toLowerCase());
-      const existsInCourts = courts.some((court) =>
-        court.players.some((p) => p.name.toLowerCase() === playerName.toLowerCase())
-      );
-      if (existsInQueue || existsInCourts) continue;
+      if (addedNames.has(playerName.toLowerCase())) continue;
+      addedNames.add(playerName.toLowerCase());
 
       const existingDirectoryPlayer = directory.find(
         (p) => p.name.toLowerCase() === playerName.toLowerCase()
@@ -1029,12 +1031,16 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
           timestamp: Date.now(),
         };
         await saveAttendance(attendanceRecord, club.id);
-        setAttendance((prev) => [...prev, attendanceRecord]);
+        newAttendance.push(attendanceRecord);
       }
 
-      setPlayers((prev) => [...prev, newPlayer]);
+      newPlayers.push(newPlayer);
       savePlayer(newPlayer, club.id);
     }
+
+    // Batch state updates
+    if (newPlayers.length > 0) setPlayers((prev) => [...prev, ...newPlayers]);
+    if (newAttendance.length > 0) setAttendance((prev) => [...prev, ...newAttendance]);
   };
 
   const removePlayer = (id) => {
@@ -2249,6 +2255,9 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
         return sortPlayers(withoutWinners);
       });
 
+      // Remove winners from players DB (they're on court, not in queue)
+      winners.forEach((w) => removePlayerFromDb(w.id));
+
       // Put winners back on court
       setCourts((prev) =>
         prev.map((c) => c.id === courtId ? { ...c, players: winners, startedAt: null } : c)
@@ -3105,8 +3114,9 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
           onSave={async (newSlug) => {
             const result = await updateClubSlug(club.id, newSlug);
             if (result.error) { alert(result.error); return; }
-            // Update local club state
+            // Update local club state (mutation + force re-render)
             club.slug = result.slug;
+            forceUpdate((v) => v + 1);
             setShowSlugEditor(false);
             alert(`Slug updated! Your links now use: ${window.location.origin}/live/${result.slug}`);
           }}
