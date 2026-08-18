@@ -1,9 +1,22 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../db/supabase";
 
-const APP_VERSION = "1.6.0";
+const APP_VERSION = "1.7.0";
 
 const RELEASE_NOTES = [
+  { version: "1.7.0", date: "2026-08-18", changes: [
+    "Dark Mode toggle (persists in localStorage)",
+    "Multi-language: 9 languages (EN, DE, ES, FR, PT, JA, ZH, KO, Filipino)",
+    "CSV Bulk Import with template download",
+    "QR Code generator for Check-in and Live Board links",
+    "Challenge Mode: public page for players to challenge others (singles & doubles)",
+    "Doubles challenge: pick partner + 2 opponents",
+    "Push Notifications: browser alerts when it's your turn",
+    "Swiss System auto-pairing (matches by win rate)",
+    "Round Robin smart pairing (picks unplayed matchups)",
+    "Custom club URL slugs (e.g., /live/kngs instead of UUID)",
+    "Slug editor in header (🔗 button)",
+  ]},
   { version: "1.6.0", date: "2026-08-18", changes: [
     "6 new game modes: King of Court, Round Robin, Swiss System, Random Draw, Fixed Teams, Challenge",
     "Preview Next Match now works in all 9 modes",

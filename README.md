@@ -14,6 +14,15 @@ Court session manager for racket sports. Manage player queues, court rotation, s
 - **Invite Links** — share a link for others to join your club
 - **Live Board** — public URL for TV/tablet display at the venue
 - **Self Check-in** — players add themselves via a public link
+- **Challenge Mode** — players challenge others via public link (singles & doubles)
+- **Dark Mode** — toggle light/dark theme
+- **Multi-language** — 9 languages (EN, DE, ES, FR, PT, JA, ZH, KO, FIL)
+- **CSV Bulk Import** — upload a roster to add many players at once
+- **QR Codes** — scannable/printable QR for check-in and live board
+- **Push Notifications** — browser alerts when it's your turn
+- **Custom Club URLs** — set a slug for short, memorable public links
+- **Swiss Auto-Pairing** — pairs players by similar win rate
+- **Round Robin Pairing** — picks unplayed matchups first
 - **PWA** — installable on phone, works offline, auto-updates
 
 ## Tech Stack
