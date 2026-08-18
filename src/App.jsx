@@ -2138,7 +2138,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
               {club && <p className="text-[10px] text-[#7ABFED] leading-tight truncate">{club.name}</p>}
             </div>
             <button onClick={onSwitchClub} className="h-6 px-2 rounded bg-white/10 text-[10px] text-white hover:bg-white/20 ml-1">
-              {clubs.length > 1 ? "Switch" : "+ Club"}
+              {clubs.length > 1 ? "Switch Club" : "+ Club"}
             </button>
           </div>
 
@@ -2153,7 +2153,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
                 }}
                 className="h-7 px-1.5 rounded text-[10px] text-[#7ABFED] hover:bg-white/10"
               >
-                Switch
+                Switch Mode
               </button>
             )}
 
