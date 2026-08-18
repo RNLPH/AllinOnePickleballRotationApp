@@ -447,8 +447,8 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
   useEffect(() => {
     if (viewMode) return; // View mode has its own refresh
     const dashRefresh = setInterval(async () => {
-      // Skip refresh if a local change was made in the last 3 seconds
-      if (Date.now() - lastLocalChange.current < 3000) return;
+      // Skip refresh if a local change was made in the last 8 seconds
+      if (Date.now() - lastLocalChange.current < 8000) return;
       try {
         const [freshPlayers, freshDir, freshMatches, freshAttendance] = await Promise.all([
           getPlayers(club.id),
@@ -1093,6 +1093,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
   };
 
   const removeCourtPlayer = (courtId, playerId) => {
+    lastLocalChange.current = Date.now();
     const court = courts.find((c) => c.id === courtId);
     if (!court) return;
     const player = court.players.find((p) => p.id === playerId);
@@ -1123,6 +1124,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
   };
 
   const addPlayerToCourt = (playerId, courtId) => {
+    lastLocalChange.current = Date.now();
     const player = players.find((p) => p.id === playerId);
     if (!player) return;
     const court = courts.find((c) => c.id === Number(courtId));
@@ -1278,6 +1280,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
   };
 
   const moveCourtPlayerToQueue = (playerId) => {
+    lastLocalChange.current = Date.now();
     let playerToMove = null;
     setCourts((prev) =>
       prev.map((court) => {
@@ -1506,6 +1509,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
   // ===== GAME ACTIONS =====
 
   const assignPlayersToAllCourts = () => {
+    lastLocalChange.current = Date.now();
     const availableCourts = courts.filter((c) => {
       const maxP = c.format === "singles" ? 2 : 4;
       return c.players.length < maxP;
@@ -1841,6 +1845,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
   };
 
   const endGame = async (courtId, winningTeam) => {
+    lastLocalChange.current = Date.now();
     const court = courts.find((c) => c.id === courtId);
     if (!court) return;
 
