@@ -1077,9 +1077,10 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
       const emptyCourt = courts.find((c) => c.players.length === 0);
       if (emptyCourt) {
         const courtPlayers = matchPlayers.slice(0, needed);
+        const courtFormat = isDoubles ? "doubles" : "singles";
         const updatedCourts = courts.map((c) => {
           if (c.id !== emptyCourt.id) return c;
-          return { ...c, players: courtPlayers, startedAt: Date.now() };
+          return { ...c, players: courtPlayers, format: courtFormat, startedAt: Date.now() };
         });
         setCourts(updatedCourts);
         const usedIds = courtPlayers.map((p) => p.id);
