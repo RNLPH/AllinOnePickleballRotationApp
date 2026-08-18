@@ -55,6 +55,7 @@ export default function App() {
   const [club, setClub]               = useState(null);
   const [clubs, setClubs]             = useState([]);  // all memberships
   const [authLoading, setAuthLoading] = useState(true);
+  const [membershipsLoaded, setMembershipsLoaded] = useState(false);
   const [showPicker, setShowPicker]   = useState(false);
   const [showSetup, setShowSetup]     = useState(false);
 
@@ -101,6 +102,7 @@ export default function App() {
     }
 
     setAuthLoading(false);
+    setMembershipsLoaded(true);
   };
 
   const handleSelectClub = (selectedClub) => {
@@ -139,6 +141,18 @@ export default function App() {
   }
 
   if (!authUser) return <AuthScreen />;
+
+  // Still loading memberships — show loading
+  if (!membershipsLoaded) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <img src="/logo.png" alt="" className="w-12 h-12 mx-auto mb-4" />
+          <div className="text-gray-500">Loading...</div>
+        </div>
+      </div>
+    );
+  }
 
   // Show club setup (creating a new club)
   if (showSetup || (clubs.length === 0 && !club)) {
