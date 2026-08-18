@@ -912,19 +912,17 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onLogout }) {
   };
 
   const handleTogglePriority = async (player) => {
-    const updatedPlayers = players.map((p) =>
-      p.id === player.id ? { ...p, priority: !p.priority } : p
-    );
-    setPlayers(updatedPlayers);
-    await saveDirectoryPlayer({ ...player, priority: !player.priority }, club.id);
+    const updated = { ...player, priority: !player.priority };
+    setPlayers((prev) => prev.map((p) => p.id === player.id ? updated : p));
+    await savePlayer(updated, club.id);
+    await saveDirectoryPlayer(updated, club.id);
   };
 
   const handleToggleNoPriority = async (player) => {
-    const updatedPlayers = players.map((p) =>
-      p.id === player.id ? { ...p, noPriority: !p.noPriority } : p
-    );
-    setPlayers(updatedPlayers);
-    await saveDirectoryPlayer({ ...player, noPriority: !player.noPriority }, club.id);
+    const updated = { ...player, noPriority: !player.noPriority };
+    setPlayers((prev) => prev.map((p) => p.id === player.id ? updated : p));
+    await savePlayer(updated, club.id);
+    await saveDirectoryPlayer(updated, club.id);
   };
 
   const handleDeleteDirectoryPlayer = async (e, player) => {
