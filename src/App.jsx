@@ -532,7 +532,9 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
   // ===== DERIVED DATA =====
 
   const sortedPlayers = sortPlayers(players);
-  const waitingPlayers = sortedPlayers;
+  // Filter out any players that are currently on courts (safety check)
+  const courtPlayerIds = new Set(courts.flatMap((c) => c.players || []).map((p) => p.id));
+  const waitingPlayers = sortedPlayers.filter((p) => !courtPlayerIds.has(p.id));
 
   // Players available for auto-fill (not on cooldown)
   const readyPlayers = waitingPlayers.filter((p) => !p.cooldownUntil || Date.now() >= p.cooldownUntil);
@@ -1589,12 +1591,19 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
 
   const generatePreviewForCourt = (court) => {
     const courtQueue = getQueueByCourtType(court.type);
+    // Filter out players already in other court previews
+    const otherPreviewIds = new Set(
+      Object.entries(courtPreviews)
+        .filter(([id]) => id !== String(court.id))
+        .flatMap(([, players]) => players.map((p) => p.id))
+    );
+    const availableQueue = courtQueue.filter((p) => !otherPreviewIds.has(p.id));
     const isSingles = court.format === "singles";
     const needed = isSingles ? 2 : 4;
 
     // Try eligible players first; fall back to full pool if fewer than needed
-    const eligible = eligiblePlayers(courtQueue);
-    const pool = eligible.length >= needed ? eligible : courtQueue;
+    const eligible = eligiblePlayers(availableQueue);
+    const pool = eligible.length >= needed ? eligible : availableQueue;
 
     if (isSingles) {
       if (pool.length < 2) return [];
