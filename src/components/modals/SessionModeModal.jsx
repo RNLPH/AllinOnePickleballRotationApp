@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { SESSION_MODES } from "../../constants";
 
 const MODES = [
@@ -131,28 +132,36 @@ const MODES = [
 ];
 
 export default function SessionModeModal({ sessionId, onSelect, onCancel }) {
+  // Escape key to close
+  useEffect(() => {
+    if (!onCancel) return;
+    const handleKey = (e) => { if (e.key === "Escape") onCancel(); };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [onCancel]);
+
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="force-light bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto relative">
+      <div className="force-light bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col relative">
 
-        {/* Close button — sticky so it stays visible while scrolling */}
-        {onCancel && (
-          <button
-            onClick={onCancel}
-            className="sticky top-3 float-right mr-3 mt-3 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-bold z-10"
-          >
-            ✕
-          </button>
-        )}
+        {/* Header with close button — does NOT scroll */}
+        <div className="flex items-center justify-between px-5 pt-5 pb-2 shrink-0">
+          <div className="flex-1">
+            <h2 className="text-xl font-bold text-slate-800">Session {sessionId}</h2>
+            <p className="text-gray-500 text-xs">Choose a game mode</p>
+          </div>
+          {onCancel && (
+            <button
+              onClick={onCancel}
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-bold"
+            >
+              ✕
+            </button>
+          )}
+        </div>
 
-        <div className="p-5 sm:p-6">
-          <h2 className="text-xl font-bold text-center text-slate-800 mb-1">
-            Session {sessionId}
-          </h2>
-          <p className="text-center text-gray-500 text-xs mb-5">
-            Choose a game mode
-          </p>
-
+        {/* Scrollable content */}
+        <div className="overflow-y-auto flex-1 px-5 pb-5">
           <div className="space-y-5">
             {MODES.map((group) => (
               <div key={group.category}>
