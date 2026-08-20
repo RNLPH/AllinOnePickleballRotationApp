@@ -5,13 +5,10 @@ const APP_VERSION = "1.9.0";
 
 const RELEASE_NOTES = [
   { version: "1.9.0", date: "2026-08-20", changes: [
-    "Local-first data resilience: all data cached in localStorage",
-    "Sync queue: failed Supabase writes auto-retry on next operation",
-    "Data recovery: detects data loss and restores from local cache",
-    "Sync status indicator (⏳) shows pending operations in settings bar",
+    "Supabase Realtime: Live Board updates instantly when operator makes changes",
+    "Resilient writes: failed Supabase operations auto-retry in background",
     "Data integrity check: endGame verifies court state before processing",
-    "Factory reset now clears local cache and sync queue",
-    "Instant page load: cached data shows immediately, Supabase syncs in background",
+    "Multi-operator support: multiple devices can manage the same club",
   ]},
   { version: "1.8.1", date: "2026-08-20", changes: [
     "Clear Court button — return all players to queue with one click",
