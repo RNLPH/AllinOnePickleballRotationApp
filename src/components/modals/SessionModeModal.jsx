@@ -134,11 +134,15 @@ const MODES = [
 export default function SessionModeModal({ sessionId, onSelect, onCancel }) {
   // Escape key to close
   useEffect(() => {
-    if (!onCancel) return;
-    const handleKey = (e) => { if (e.key === "Escape") onCancel(); };
+    const handleKey = (e) => {
+      if (e.key === "Escape") {
+        if (onCancel) onCancel();
+        else onSelect("open");
+      }
+    };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [onCancel]);
+  }, [onCancel, onSelect]);
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
@@ -150,14 +154,12 @@ export default function SessionModeModal({ sessionId, onSelect, onCancel }) {
             <h2 className="text-xl font-bold text-slate-800">Session {sessionId}</h2>
             <p className="text-gray-500 text-xs">Choose a game mode</p>
           </div>
-          {onCancel && (
-            <button
-              onClick={onCancel}
-              className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-bold"
-            >
-              ✕
-            </button>
-          )}
+          <button
+            onClick={() => onCancel ? onCancel() : onSelect("open")}
+            className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-200 hover:bg-slate-300 text-slate-700 text-sm font-bold"
+          >
+            ✕
+          </button>
         </div>
 
         {/* Scrollable content */}
