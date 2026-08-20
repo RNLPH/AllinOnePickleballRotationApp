@@ -70,7 +70,7 @@ const MODES = [
           { label: "King (8)", color: "bg-yellow-200 text-yellow-800" },
           { label: "General (10)", color: "bg-purple-200 text-purple-800" },
           { label: "Knight (10)", color: "bg-indigo-200 text-indigo-800" },
-          { label: "Squire (8)", color: "bg-green-200 text-green-800" },
+          { label: "Squire (10)", color: "bg-green-200 text-green-800" },
         ],
       },
       {

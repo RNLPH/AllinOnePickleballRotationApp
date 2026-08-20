@@ -928,6 +928,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
         currentStreak: existingDirectoryPlayer.currentStreak ?? 0,
         bestStreak: existingDirectoryPlayer.bestStreak ?? 0,
         kingCourtEntries: existingDirectoryPlayer.kingCourtEntries ?? 0,
+        cooldownUntil: null,
         waitingSince: Date.now(),
       };
     } else {
@@ -1006,6 +1007,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
           partnerHistory: existingDirectoryPlayer.partnerHistory || {},
           priority: false,
           noPriority: false,
+          cooldownUntil: null,
           waitingSince: Date.now(),
         };
       } else {
@@ -1778,14 +1780,18 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
     // ===== KING OF THE COURT / CHALLENGE / FIXED TEAMS =====
     // These modes use the same basic fill logic as Open Mode (fill from full queue)
     if (isKingOfCourt || isChallenge || isFixedTeams) {
+      let usedInThisRound = new Set();
       const updatedCourts = courts.map((court) => {
         const maxP = court.format === "singles" ? 2 : 4;
         if (court.players.length >= maxP) return court;
         const needed = maxP - court.players.length;
-        const eligible = getEligibleForCourt(waitingPlayers, needed);
+        const eligible = getEligibleForCourt(
+          waitingPlayers.filter((p) => !usedInThisRound.has(p.id)), needed
+        );
         if (eligible.length < needed) return court;
 
         const selected = eligible.slice(0, needed).map((p) => ({ ...p, consecutiveGames: (p.consecutiveGames || 0) + 1 }));
+        selected.forEach((p) => usedInThisRound.add(p.id));
         return { ...court, players: [...court.players, ...selected], startedAt: court.players.length + selected.length >= maxP ? (court.startedAt || Date.now()) : court.startedAt };
       });
 
@@ -1799,15 +1805,19 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
     // ===== SWISS SYSTEM =====
     // Pairs players with similar win records
     if (isSwiss) {
+      let usedInThisRound = new Set();
       const updatedCourts = courts.map((court) => {
         const maxP = court.format === "singles" ? 2 : 4;
         if (court.players.length >= maxP) return court;
         const needed = maxP - court.players.length;
-        const eligible = getEligibleForCourt(waitingPlayers, needed);
+        const eligible = getEligibleForCourt(
+          waitingPlayers.filter((p) => !usedInThisRound.has(p.id)), needed
+        );
         if (eligible.length < needed) return court;
 
         const paired = swissPairing(eligible, needed);
         const selected = paired.slice(0, needed).map((p) => ({ ...p, consecutiveGames: (p.consecutiveGames || 0) + 1 }));
+        selected.forEach((p) => usedInThisRound.add(p.id));
         return { ...court, players: [...court.players, ...selected], startedAt: court.players.length + selected.length >= maxP ? (court.startedAt || Date.now()) : court.startedAt };
       });
 
@@ -1827,16 +1837,20 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
     // ===== ROUND ROBIN =====
     // Picks the next unplayed matchup
     if (isRoundRobin) {
+      let usedInThisRound = new Set();
       const updatedCourts = courts.map((court) => {
         const maxP = court.format === "singles" ? 2 : 4;
         if (court.players.length >= maxP) return court;
         const needed = maxP - court.players.length;
-        const eligible = getEligibleForCourt(waitingPlayers, needed);
+        const eligible = getEligibleForCourt(
+          waitingPlayers.filter((p) => !usedInThisRound.has(p.id)), needed
+        );
         if (eligible.length < needed) return court;
 
         const isSingles = court.format === "singles";
         const nextMatch = roundRobinNextMatch(eligible, matches, isSingles);
         const selected = nextMatch.slice(0, needed).map((p) => ({ ...p, consecutiveGames: (p.consecutiveGames || 0) + 1 }));
+        selected.forEach((p) => usedInThisRound.add(p.id));
         return { ...court, players: [...court.players, ...selected], startedAt: court.players.length + selected.length >= maxP ? (court.startedAt || Date.now()) : court.startedAt };
       });
 
@@ -2261,28 +2275,28 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
       ...p,
       cooldownUntil: cooldownMinutes > 0 ? Date.now() + cooldownMinutes * 60000 : null,
     }, club.id));
-    setCourts((prev) =>
-      prev.map((c) => (c.id === courtId ? { ...c, players: [], startedAt: null } : c))
-    );
 
     // ===== KING OF THE COURT: Winners stay on court =====
     if (isKingOfCourt) {
       const winners = returningPlayers.filter((p) => p.lastResult === "win");
-      const losers = returningPlayers.filter((p) => p.lastResult === "loss");
 
-      // Put only losers in the queue, keep winners on court
+      // Clear court and immediately place winners back (single state update to avoid race)
+      setCourts((prev) =>
+        prev.map((c) => c.id === courtId ? { ...c, players: winners, startedAt: null } : c)
+      );
+
+      // Remove winners from queue (they were just added above)
       setPlayers((prev) => {
-        // Remove winners from queue (they were just added above)
         const withoutWinners = prev.filter((p) => !winners.some((w) => w.id === p.id));
         return sortPlayers(withoutWinners);
       });
 
       // Remove winners from players DB (they're on court, not in queue)
       winners.forEach((w) => removePlayerFromDb(w.id));
-
-      // Put winners back on court
+    } else {
+      // Normal: clear the court
       setCourts((prev) =>
-        prev.map((c) => c.id === courtId ? { ...c, players: winners, startedAt: null } : c)
+        prev.map((c) => (c.id === courtId ? { ...c, players: [], startedAt: null } : c))
       );
     }
 
