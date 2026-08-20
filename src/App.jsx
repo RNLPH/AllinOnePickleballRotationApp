@@ -564,16 +564,18 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
   // ===== MANUAL REFRESH (operator dashboard) =====
   const handleManualRefresh = async () => {
     try {
-      const [freshPlayers, freshDir, freshMatches, freshAttendance] = await Promise.all([
+      const [freshPlayers, freshDir, freshMatches, freshAttendance, freshCourts] = await Promise.all([
         getPlayers(club.id),
         getDirectory(club.id),
         getMatches(club.id),
         getAttendance(club.id),
+        supabase.from("courts").select("data").eq("club_id", club.id).single(),
       ]);
       setPlayers(freshPlayers);
       setDirectory(freshDir);
       setMatches(freshMatches);
       setAttendance(freshAttendance);
+      if (freshCourts.data?.data) setCourts(freshCourts.data.data);
 
       // Update cache
       cacheSet(CACHE_TYPES.PLAYERS, club.id, freshPlayers);
