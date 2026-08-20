@@ -1,9 +1,21 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../db/supabase";
 
-const APP_VERSION = "1.8.0";
+const APP_VERSION = "1.8.1";
 
 const RELEASE_NOTES = [
+  { version: "1.8.1", date: "2026-08-20", changes: [
+    "Clear Court button — return all players to queue with one click",
+    "Balanced tier assignment when switching to Ladder/Extended (even distribution)",
+    "Courts auto-assign correct types per tier (King, General, Knight, Squire)",
+    "Fixed: players no longer disappear when removed from court",
+    "Fixed: duplicate match recording from spam-clicking prevented",
+    "Fixed: Start Game fills ALL courts in one click (no more double-clicking)",
+    "Fixed: multi-court same-type assignment no longer duplicates players",
+    "Fixed: stale cooldown cleared on player check-in",
+    "Standings: all-time leaderboard + session history always visible",
+    "Performance: endGame only saves changed players (not entire directory)",
+  ]},
   { version: "1.8.0", date: "2026-08-18", changes: [
     "Player Dashboard: public page showing personal stats, ELO, match history, recent form",
     "Rest Timer / Cooldown: configurable sit-out period after playing (1-10 min)",

@@ -27,6 +27,8 @@ Court session manager for racket sports. Manage player queues, court rotation, s
 - **Rest Timer** — configurable cooldown after playing (prevents court-hogging)
 - **Court Wait Time** — estimated wait shown on Live Board for queued players
 - **Delete Club** — remove a club and all its data (owner only, triple confirm)
+- **Clear Court** — return all players from a court to queue with one click
+- **All-Time Leaderboard** — aggregated standings across all sessions
 - **PWA** — installable on phone, works offline, auto-updates
 
 ## Tech Stack
