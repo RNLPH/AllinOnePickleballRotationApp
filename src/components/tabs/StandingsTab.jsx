@@ -121,7 +121,7 @@ export default function StandingsTab({
           {/* Standings History */}
           {standingsHistory.length > 0 && (
             <div>
-              <h3 className="text-sm font-bold text-slate-600 mb-2">History</h3>
+              <h3 className="text-sm font-bold text-slate-600 mb-2">📊 Session History ({standingsHistory.length})</h3>
               <div className="space-y-2">
                 {[...standingsHistory].sort((a, b) => b.sessionId - a.sessionId).map((history) => (
                   <div key={history.id} className="bg-white rounded-xl border border-slate-100 overflow-hidden">
@@ -131,7 +131,7 @@ export default function StandingsTab({
                     >
                       <div>
                         <span className="text-sm font-semibold text-slate-700">Session {history.sessionId}</span>
-                        <span className="text-xs text-slate-400 ml-2">{history.standings.length} players · {history.matchCount || 0} matches</span>
+                        <span className="text-xs text-slate-400 ml-2">{history.standings?.length || 0} players · {history.matchCount || 0} matches</span>
                       </div>
                       <svg className={`w-4 h-4 text-slate-400 transition-transform ${expandedStandings === history.id ? "rotate-180" : ""}`}
                         fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -173,7 +173,7 @@ export default function StandingsTab({
                               <span className="text-slate-600">
                                 {i === 0 && "🥇"}{i === 1 && "🥈"}{i === 2 && "🥉"} {p.playerName}
                               </span>
-                              <span className="text-xs text-slate-400">{p.wins}W-{p.losses}L</span>
+                              <span className="text-xs text-slate-400">{p.wins}W-{p.losses}L {p.eloRating ? `· ${p.eloRating.toFixed(1)}` : ""}</span>
                             </div>
                           ))}
                       </div>

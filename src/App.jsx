@@ -2312,6 +2312,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
         gamesPlayed: p.gamesPlayed,
         wins: p.wins,
         losses: p.losses,
+        eloRating: p.eloRating || 2.0,
         currentStreak: p.currentStreak || 0,
         bestStreak: p.bestStreak || 0,
       })),
