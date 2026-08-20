@@ -1965,12 +1965,13 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
       return;
     }
 
-    // Ladder Mode — original logic unchanged
+    // Ladder Mode — with usedIds tracking to prevent double-assignment across same-type courts
+    let ladderUsedIds = new Set();
     const updatedCourts = courts.map((court) => {
       const isSingles = court.format === "singles";
       const maxPlayers = isSingles ? 2 : 4;
       if (court.players.length >= maxPlayers) return court;
-      const courtQueue = getQueueByCourtType(court.type);
+      const courtQueue = getQueueByCourtType(court.type).filter((p) => !ladderUsedIds.has(p.id));
       const needed = maxPlayers - court.players.length;
 
       if (isSingles) {
@@ -1979,6 +1980,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
         const selected = eligible
           .slice(0, needed)
           .map((p) => ({ ...p, consecutiveGames: (p.consecutiveGames || 0) + 1 }));
+        selected.forEach((p) => ladderUsedIds.add(p.id));
         const allPlayers = [...court.players, ...selected];
         return { ...court, players: allPlayers, startedAt: allPlayers.length >= 2 ? (court.startedAt || Date.now()) : court.startedAt };
       }
@@ -1990,6 +1992,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
         const selected = eligible
           .slice(0, needed)
           .map((p) => ({ ...p, consecutiveGames: (p.consecutiveGames || 0) + 1 }));
+        selected.forEach((p) => ladderUsedIds.add(p.id));
         const allPlayers = [...court.players, ...selected];
         return { ...court, players: allPlayers, startedAt: allPlayers.length >= 4 ? (court.startedAt || Date.now()) : court.startedAt };
       }
@@ -2003,6 +2006,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
           consecutiveGames: (p.consecutiveGames || 0) + 1,
         }))
       );
+      teams.forEach((p) => ladderUsedIds.add(p.id));
       return { ...court, players: teams, startedAt: Date.now() };
     });
 
