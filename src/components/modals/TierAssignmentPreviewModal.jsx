@@ -14,7 +14,7 @@ const TIER_LABELS = {
 
 const TIER_LIMITS_MAP = {
   ladder:          { king: 8, knight: 10, squire: 10 },
-  extended_ladder: { king: 8, general: 10, knight: 10, squire: 8 },
+  extended_ladder: { king: 8, general: 10, knight: 10, squire: 10 },
 };
 
 export default function TierAssignmentPreviewModal({
