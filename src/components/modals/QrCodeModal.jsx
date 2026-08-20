@@ -21,7 +21,7 @@ export default function QrCodeModal({ url, title, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl">
+      <div className="force-light bg-white rounded-2xl w-full max-w-sm shadow-xl">
         <div className="p-4 border-b border-slate-100 text-center">
           <h2 className="text-lg font-bold text-slate-800">📱 {title}</h2>
           <p className="text-xs text-slate-500 mt-1">Scan to open on phone</p>

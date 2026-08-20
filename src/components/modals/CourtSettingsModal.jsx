@@ -53,7 +53,7 @@ export default function CourtSettingsModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl p-6 shadow-xl w-80">
+      <div className="force-light bg-white rounded-2xl p-6 shadow-xl w-80">
         <h2 className="text-xl font-bold mb-4">⚙️ Court Settings</h2>
 
         <div className="space-y-2">

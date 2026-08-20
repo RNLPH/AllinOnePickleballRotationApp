@@ -33,7 +33,7 @@ export default function EditPlayerNameModal({ player, onSave, onCancel }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-6 shadow-xl w-80">
+      <div className="force-light bg-white rounded-2xl p-6 shadow-xl w-80">
         <h2 className="text-xl font-bold mb-1">✏️ Edit Player Name</h2>
         <p className="text-sm text-gray-500 mb-4">Current: <span className="font-semibold text-slate-700">{player.name}</span></p>
 

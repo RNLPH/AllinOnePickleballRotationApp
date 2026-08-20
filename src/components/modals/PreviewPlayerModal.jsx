@@ -25,6 +25,7 @@ export default function PreviewPlayerModal({
     >
       <div
         className="
+          force-light
           bg-white
           rounded-2xl
           p-6

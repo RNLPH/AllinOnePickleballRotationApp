@@ -1,7 +1,7 @@
 export default function PlayerTierModal({ selectedPlayerForEdit, isExtendedMode, onUpdateTier, onCancel }) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-6 shadow-xl w-80">
+      <div className="force-light bg-white rounded-2xl p-6 shadow-xl w-80">
         <h2 className="text-xl font-bold mb-4">Change Player Tier</h2>
 
         <div className="space-y-2">

@@ -21,7 +21,7 @@ export default function PlayerProfileModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-6 shadow-xl w-96 max-h-[90vh] overflow-y-auto">
+      <div className="force-light bg-white rounded-2xl p-6 shadow-xl w-96 max-h-[90vh] overflow-y-auto">
 
         {/* Avatar + name header */}
         <div className="flex flex-col items-center mb-5">
