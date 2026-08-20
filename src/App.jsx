@@ -2314,7 +2314,8 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
     });
 
     setDirectory(updatedDirectory);
-    await Promise.all(updatedDirectory.map((p) => saveDirectoryPlayer(p, club.id)));
+    // Only persist the players that actually changed (not the entire directory)
+    await Promise.all(returningPlayers.map((p) => saveDirectoryPlayer(p, club.id)));
 
     setPlayers((prev) => sortPlayers([...prev, ...returningPlayers.map((p) => ({
       ...p,
@@ -2771,7 +2772,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
             </div>
 
             <p className="text-center text-xs text-gray-400 mt-3">
-              🔄 Auto-refreshes every 30 seconds
+              🔄 Auto-refreshes every 5 seconds
             </p>
           </div>
         )}
@@ -2884,6 +2885,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
                       onToggleNoPriority={handleToggleNoPriority}
                       onViewProfile={(player) => setSelectedPlayerProfile(player)}
                       onEditName={(player) => setEditingPlayer(player)}
+                      onDismissChallenge={handleAcceptChallenge}
                     />
                   ) : (
                     <PlayerQueue
@@ -2902,6 +2904,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
                       onEditTier={(playerId) => setSelectedPlayerForEdit(playerId)}
                       onViewProfile={(player) => setSelectedPlayerProfile(player)}
                       onEditName={(player) => setEditingPlayer(player)}
+                      onDismissChallenge={handleAcceptChallenge}
                     />
                   )}
                 </div>
