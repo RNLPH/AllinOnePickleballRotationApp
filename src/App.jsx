@@ -1818,7 +1818,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
 
       setCourts(updatedCourts);
       const usedIds = updatedCourts.flatMap((c) => c.players || []).map((p) => p.id);
-      setPlayers(players.filter((p) => !usedIds.includes(p.id)));
+      setPlayers((prev) => prev.filter((p) => !usedIds.includes(p.id)));
     usedIds.forEach((id) => removePlayerFromDb(id));
       return;
     }
@@ -1843,7 +1843,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
 
       setCourts(updatedCourts);
       const usedIds = updatedCourts.flatMap((c) => c.players || []).map((p) => p.id);
-      setPlayers(players.filter((p) => !usedIds.includes(p.id)));
+      setPlayers((prev) => prev.filter((p) => !usedIds.includes(p.id)));
     usedIds.forEach((id) => removePlayerFromDb(id));
       return;
     }
@@ -1869,7 +1869,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
 
       setCourts(updatedCourts);
       const usedIds = updatedCourts.flatMap((c) => c.players || []).map((p) => p.id);
-      setPlayers(players.filter((p) => !usedIds.includes(p.id)));
+      setPlayers((prev) => prev.filter((p) => !usedIds.includes(p.id)));
       usedIds.forEach((id) => removePlayerFromDb(id));
       // Notify next players
       if (isNotificationEnabled()) {
@@ -1902,7 +1902,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
 
       setCourts(updatedCourts);
       const usedIds = updatedCourts.flatMap((c) => c.players || []).map((p) => p.id);
-      setPlayers(players.filter((p) => !usedIds.includes(p.id)));
+      setPlayers((prev) => prev.filter((p) => !usedIds.includes(p.id)));
       usedIds.forEach((id) => removePlayerFromDb(id));
       // Notify next players
       if (isNotificationEnabled()) {
@@ -1980,9 +1980,9 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
 
       setCourts(updatedCourts);
       const selectedIds = [...usedIds];
-      setPlayers(
+      setPlayers((prev) =>
         resetRestedPlayers(
-          players.filter((p) => !selectedIds.includes(p.id)),
+          prev.filter((p) => !selectedIds.includes(p.id)),
           selectedIds
         )
       );
