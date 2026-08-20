@@ -591,8 +591,10 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
   };
 
   // ===== SUPABASE REALTIME SYNC =====
-  // When another device makes changes, auto-refresh data
-  useRealtimeSync(club.id, handleManualRefresh);
+  // Disabled on operator dashboard to prevent state conflicts.
+  // Realtime is active on PublicLiveBoard only (read-only viewers).
+  // Operator uses manual refresh button instead.
+  // useRealtimeSync(club.id, handleManualRefresh);
 
   // Players are now saved individually (event-driven) — no bulk sync effect needed
 
