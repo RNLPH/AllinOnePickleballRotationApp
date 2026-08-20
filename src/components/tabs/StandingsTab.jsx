@@ -118,72 +118,134 @@ export default function StandingsTab({
             })}
           </div>
 
-          {/* Standings History */}
-          {standingsHistory.length > 0 && (
-            <div>
-              <h3 className="text-sm font-bold text-slate-600 mb-2">📊 Session History ({standingsHistory.length})</h3>
-              <div className="space-y-2">
-                {[...standingsHistory].sort((a, b) => b.sessionId - a.sessionId).map((history) => (
-                  <div key={history.id} className="bg-white rounded-xl border border-slate-100 overflow-hidden">
-                    <button
-                      onClick={() => setExpandedStandings(expandedStandings === history.id ? null : history.id)}
-                      className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 text-left"
-                    >
-                      <div>
-                        <span className="text-sm font-semibold text-slate-700">Session {history.sessionId}</span>
-                        <span className="text-xs text-slate-400 ml-2">{history.standings?.length || 0} players · {history.matchCount || 0} matches</span>
-                      </div>
-                      <svg className={`w-4 h-4 text-slate-400 transition-transform ${expandedStandings === history.id ? "rotate-180" : ""}`}
-                        fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
+        </>
+      )}
 
-                    {expandedStandings === history.id && (
-                      <div className="border-t border-slate-100 px-4 py-2">
-                        <div className="flex justify-end mb-2">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const sorted = [...history.standings].sort((a, b) => {
-                                const wrA = a.gamesPlayed > 0 ? a.wins / a.gamesPlayed : 0;
-                                const wrB = b.gamesPlayed > 0 ? b.wins / b.gamesPlayed : 0;
-                                return wrB !== wrA ? wrB - wrA : b.wins - a.wins;
-                              });
-                              const rows = [["Rank", "Player", "Wins", "Losses", "Win Rate"]];
-                              sorted.forEach((p, i) => {
-                                const wr = p.gamesPlayed > 0 ? Math.round((p.wins / p.gamesPlayed) * 100) : 0;
-                                rows.push([i + 1, p.playerName, p.wins, p.losses, `${wr}%`]);
-                              });
-                              downloadCSV(`session-${history.sessionId}-standings.csv`, rows);
-                            }}
-                            className="h-7 px-2.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-600 hover:bg-slate-200"
-                          >
-                            📤 Export
-                          </button>
-                        </div>
-                        {[...history.standings]
-                          .sort((a, b) => {
+      {/* All-Time Leaderboard (from standings history) */}
+      {standingsHistory.length > 0 && (
+        <div className="mt-4">
+          <h3 className="text-sm font-bold text-slate-600 mb-2">🏆 All-Time Leaderboard</h3>
+          <div className="bg-white rounded-xl border border-slate-100 overflow-hidden">
+            {(() => {
+              // Aggregate wins across all sessions
+              const allTimeStats = {};
+              standingsHistory.forEach((session) => {
+                (session.standings || []).forEach((p) => {
+                  if (!allTimeStats[p.playerName]) {
+                    allTimeStats[p.playerName] = { name: p.playerName, wins: 0, losses: 0, games: 0, sessions: 0 };
+                  }
+                  allTimeStats[p.playerName].wins += (p.wins || 0);
+                  allTimeStats[p.playerName].losses += (p.losses || 0);
+                  allTimeStats[p.playerName].games += (p.gamesPlayed || 0);
+                  allTimeStats[p.playerName].sessions += 1;
+                });
+              });
+              // Add current session stats
+              standings.forEach((p) => {
+                if (!allTimeStats[p.name]) {
+                  allTimeStats[p.name] = { name: p.name, wins: 0, losses: 0, games: 0, sessions: 0 };
+                }
+                allTimeStats[p.name].wins += (p.wins || 0);
+                allTimeStats[p.name].losses += (p.losses || 0);
+                allTimeStats[p.name].games += (p.gamesPlayed || 0);
+              });
+
+              const sorted = Object.values(allTimeStats)
+                .filter((p) => p.games > 0)
+                .sort((a, b) => {
+                  const wrA = a.games > 0 ? a.wins / a.games : 0;
+                  const wrB = b.games > 0 ? b.wins / b.games : 0;
+                  return wrB !== wrA ? wrB - wrA : b.wins - a.wins;
+                });
+
+              return sorted.map((p, i) => {
+                const wr = p.games > 0 ? Math.round((p.wins / p.games) * 100) : 0;
+                return (
+                  <div key={p.name} className="flex items-center justify-between px-3 py-2 border-b border-slate-50 last:border-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-400 w-5">
+                        {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}`}
+                      </span>
+                      <span className="text-sm font-medium text-slate-700">{p.name}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs">
+                      <span className="text-green-600 font-semibold">{p.wins}W</span>
+                      <span className="text-red-500">{p.losses}L</span>
+                      <span className="text-blue-600 font-bold">{wr}%</span>
+                      <span className="text-slate-400">{p.sessions}s</span>
+                    </div>
+                  </div>
+                );
+              });
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* Session History (always visible if there's history) */}
+      {standingsHistory.length > 0 && (
+        <div className="mt-4">
+          <h3 className="text-sm font-bold text-slate-600 mb-2">📊 Session History ({standingsHistory.length})</h3>
+          <div className="space-y-2">
+            {[...standingsHistory].sort((a, b) => b.sessionId - a.sessionId).map((history) => (
+              <div key={history.id} className="bg-white rounded-xl border border-slate-100 overflow-hidden">
+                <button
+                  onClick={() => setExpandedStandings(expandedStandings === history.id ? null : history.id)}
+                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 text-left"
+                >
+                  <div>
+                    <span className="text-sm font-semibold text-slate-700">Session {history.sessionId}</span>
+                    <span className="text-xs text-slate-400 ml-2">{history.standings?.length || 0} players · {history.matchCount || 0} matches</span>
+                  </div>
+                  <svg className={`w-4 h-4 text-slate-400 transition-transform ${expandedStandings === history.id ? "rotate-180" : ""}`}
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {expandedStandings === history.id && (
+                  <div className="border-t border-slate-100 px-4 py-2">
+                    <div className="flex justify-end mb-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const sorted = [...(history.standings || [])].sort((a, b) => {
                             const wrA = a.gamesPlayed > 0 ? a.wins / a.gamesPlayed : 0;
                             const wrB = b.gamesPlayed > 0 ? b.wins / b.gamesPlayed : 0;
                             return wrB !== wrA ? wrB - wrA : b.wins - a.wins;
-                          })
-                          .map((p, i) => (
-                            <div key={p.playerId} className="flex items-center justify-between py-1.5 text-sm border-b border-slate-50 last:border-0">
-                              <span className="text-slate-600">
-                                {i === 0 && "🥇"}{i === 1 && "🥈"}{i === 2 && "🥉"} {p.playerName}
-                              </span>
-                              <span className="text-xs text-slate-400">{p.wins}W-{p.losses}L {p.eloRating ? `· ${p.eloRating.toFixed(1)}` : ""}</span>
-                            </div>
-                          ))}
-                      </div>
-                    )}
+                          });
+                          const rows = [["Rank", "Player", "Wins", "Losses", "Win Rate"]];
+                          sorted.forEach((p, i) => {
+                            const wr = p.gamesPlayed > 0 ? Math.round((p.wins / p.gamesPlayed) * 100) : 0;
+                            rows.push([i + 1, p.playerName, p.wins, p.losses, `${wr}%`]);
+                          });
+                          downloadCSV(`session-${history.sessionId}-standings.csv`, rows);
+                        }}
+                        className="h-7 px-2.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      >
+                        📤 Export
+                      </button>
+                    </div>
+                    {[...(history.standings || [])]
+                      .sort((a, b) => {
+                        const wrA = a.gamesPlayed > 0 ? a.wins / a.gamesPlayed : 0;
+                        const wrB = b.gamesPlayed > 0 ? b.wins / b.gamesPlayed : 0;
+                        return wrB !== wrA ? wrB - wrA : b.wins - a.wins;
+                      })
+                      .map((p, i) => (
+                        <div key={p.playerId} className="flex items-center justify-between py-1.5 text-sm border-b border-slate-50 last:border-0">
+                          <span className="text-slate-600">
+                            {i === 0 && "🥇"}{i === 1 && "🥈"}{i === 2 && "🥉"} {p.playerName}
+                          </span>
+                          <span className="text-xs text-slate-400">{p.wins}W-{p.losses}L {p.eloRating ? `· ${p.eloRating.toFixed(1)}` : ""}</span>
+                        </div>
+                      ))}
                   </div>
-                ))}
+                )}
               </div>
-            </div>
-          )}
-        </>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );
