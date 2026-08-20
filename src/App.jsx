@@ -329,25 +329,49 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
       return (b.wins || 0) - (a.wins || 0);
     });
 
-    const tiers = targetMode === SESSION_MODES.EXTENDED_LADDER
-      ? ["king", "general", "knight", "squire"]
-      : ["king", "knight", "squire"];
+    const limits = targetMode === SESSION_MODES.EXTENDED_LADDER
+      ? { king: 8, general: 10, knight: 10, squire: 10 }
+      : { king: 8, knight: 10, squire: 10 };
 
+    const tiers = Object.keys(limits);
     const tierCount = tiers.length;
     const totalPlayers = sorted.length;
-    const perTier = Math.floor(totalPlayers / tierCount);
-    const remainder = totalPlayers % tierCount;
 
-    // Distribute evenly: top tiers get the extra players if remainder exists
+    // Calculate even distribution, respecting caps
+    const perTier = Math.floor(totalPlayers / tierCount);
+    const tierSizes = {};
+    let remaining = totalPlayers;
+
+    // First pass: assign min(perTier, limit) to each tier
+    for (const tier of tiers) {
+      tierSizes[tier] = Math.min(perTier, limits[tier]);
+      remaining -= tierSizes[tier];
+    }
+
+    // Second pass: distribute remainder to tiers that have room (bottom tiers first for overflow)
+    for (let i = tiers.length - 1; i >= 0 && remaining > 0; i--) {
+      const tier = tiers[i];
+      const canAdd = limits[tier] - tierSizes[tier];
+      const toAdd = Math.min(canAdd, remaining);
+      tierSizes[tier] += toAdd;
+      remaining -= toAdd;
+    }
+
+    // Build assignments
     const assignments = [];
     let playerIndex = 0;
 
-    for (let i = 0; i < tierCount; i++) {
-      const slotSize = perTier + (i < remainder ? 1 : 0);
-      for (let j = 0; j < slotSize && playerIndex < sorted.length; j++) {
-        assignments.push({ player: sorted[playerIndex], tier: tiers[i] });
+    for (const tier of tiers) {
+      for (let j = 0; j < tierSizes[tier] && playerIndex < sorted.length; j++) {
+        assignments.push({ player: sorted[playerIndex], tier });
         playerIndex++;
       }
+    }
+
+    // Any overflow beyond all limits → squire
+    while (playerIndex < sorted.length) {
+      assignments.push({ player: sorted[playerIndex], tier: "squire" });
+      playerIndex++;
     }
 
     return assignments;
