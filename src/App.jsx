@@ -1930,8 +1930,9 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
 
         if (isSinglesC) {
           const eligible = eligiblePlayers(pool);
-          if (eligible.length < needed) return court;
-          const selected = eligible
+          const singlesPool = eligible.length >= needed ? eligible : pool;
+          if (singlesPool.length < needed) return court;
+          const selected = singlesPool
             .slice(0, needed)
             .map((p) => ({ ...p, consecutiveGames: (p.consecutiveGames || 0) + 1 }));
           selected.forEach((p) => usedIds.add(p.id));
@@ -1942,8 +1943,9 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
         if (needed < 4 && court.players.length > 0) {
           // Partially filled doubles court — pull remaining needed players
           const eligible = eligiblePlayers(pool);
-          if (eligible.length < needed) return court;
-          const selected = eligible
+          const partialPool = eligible.length >= needed ? eligible : pool;
+          if (partialPool.length < needed) return court;
+          const selected = partialPool
             .slice(0, needed)
             .map((p) => ({ ...p, consecutiveGames: (p.consecutiveGames || 0) + 1 }));
           selected.forEach((p) => usedIds.add(p.id));
@@ -1951,7 +1953,9 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
           return { ...court, players: allPlayers, startedAt: allPlayers.length >= 4 ? (court.startedAt || Date.now()) : court.startedAt };
         }
 
-        const selected = buildRotationGroup(eligiblePlayers(pool));
+        const eligible = eligiblePlayers(pool);
+        const doublesPool = eligible.length >= 4 ? eligible : pool;
+        const selected = buildRotationGroup(doublesPool);
         if (selected.length < 4) return court;
 
         const teams = createBalancedTeams(
