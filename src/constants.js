@@ -37,17 +37,17 @@ export const SESSION_MODES = {
 
 // ===== LADDER MODE (3-tier) =====
 export const TIER_LIMITS = {
-  king:   8,
-  knight: 10,
-  squire: 10,
+  king:   Infinity,
+  knight: Infinity,
+  squire: Infinity,
 };
 
 // ===== EXTENDED LADDER MODE (4-tier) =====
 export const EXTENDED_TIER_LIMITS = {
-  king:    8,
-  general: 10,
-  knight:  10,
-  squire:  8,
+  king:    Infinity,
+  general: Infinity,
+  knight:  Infinity,
+  squire:  Infinity,
 };
 
 // Promotion/demotion for Extended Ladder

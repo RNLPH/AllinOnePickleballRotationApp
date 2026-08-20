@@ -329,36 +329,25 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
       return (b.wins || 0) - (a.wins || 0);
     });
 
-    const slots = targetMode === SESSION_MODES.EXTENDED_LADDER
-      ? [
-          { tier: "king",    limit: 8  },
-          { tier: "general", limit: 10 },
-          { tier: "knight",  limit: 10 },
-          { tier: "squire",  limit: 8  },
-        ]
-      : [
-          { tier: "king",   limit: 8  },
-          { tier: "knight", limit: 10 },
-          { tier: "squire", limit: 10 },
-        ];
+    const tiers = targetMode === SESSION_MODES.EXTENDED_LADDER
+      ? ["king", "general", "knight", "squire"]
+      : ["king", "knight", "squire"];
 
+    const tierCount = tiers.length;
+    const totalPlayers = sorted.length;
+    const perTier = Math.floor(totalPlayers / tierCount);
+    const remainder = totalPlayers % tierCount;
+
+    // Distribute evenly: top tiers get the extra players if remainder exists
     const assignments = [];
     let playerIndex = 0;
 
-    for (const { tier, limit } of slots) {
-      let filled = 0;
-      while (filled < limit && playerIndex < sorted.length) {
-        assignments.push({ player: sorted[playerIndex], tier });
+    for (let i = 0; i < tierCount; i++) {
+      const slotSize = perTier + (i < remainder ? 1 : 0);
+      for (let j = 0; j < slotSize && playerIndex < sorted.length; j++) {
+        assignments.push({ player: sorted[playerIndex], tier: tiers[i] });
         playerIndex++;
-        filled++;
       }
-      if (playerIndex >= sorted.length) break;
-    }
-
-    // Any remaining players beyond the defined slots → Squire
-    while (playerIndex < sorted.length) {
-      assignments.push({ player: sorted[playerIndex], tier: "squire" });
-      playerIndex++;
     }
 
     return assignments;
