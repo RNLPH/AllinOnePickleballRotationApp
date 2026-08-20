@@ -49,7 +49,7 @@ import { useI18n, LANGUAGES } from "./i18n/index.jsx";
 import { swissPairing, roundRobinNextMatch } from "./utils/pairingUtils";
 import { requestNotificationPermission, getNotificationStatus, isNotificationEnabled, setNotificationEnabled, notifyPlayerTurn } from "./utils/notifications";
 import { updateClubSlug } from "./db/clubResolver";
-import { useRealtimeSync } from "./db/useRealtimeSync";
+import { useRealtimeSync, suppressRealtime } from "./db/useRealtimeSync";
 
 // ===== AUTH WRAPPER =====
 // Handles auth state and club selection. Renders the main App or auth/picker screens.
@@ -1411,6 +1411,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
     const player = court.players.find((p) => p.id === playerId);
     if (!player) return;
     if (!window.confirm(`Remove ${player.name} from the court?`)) return;
+    suppressRealtime();
 
     const returningPlayer = {
       ...player,
@@ -1438,6 +1439,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
     const court = courts.find((c) => c.id === courtId);
     if (!court || court.players.length === 0) return;
     if (!window.confirm(`Return all ${court.players.length} players from this court to the queue?`)) return;
+    suppressRealtime();
 
     const returningPlayers = court.players.map((p) => ({
       ...p,
@@ -1855,6 +1857,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
   };
 
   const assignPlayersToAllCourts = () => {
+    suppressRealtime(); // Suppress Realtime during local writes
     const availableCourts = courts.filter((c) => {
       const maxP = c.format === "singles" ? 2 : 4;
       return c.players.length < maxP;
@@ -2279,6 +2282,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
     // Prevent duplicate calls (spam-clicking)
     if (endingGameRef.current.has(courtId)) return;
     endingGameRef.current.add(courtId);
+    suppressRealtime(); // Suppress Realtime during local writes
 
     const court = courts.find((c) => c.id === courtId);
     if (!court) { endingGameRef.current.delete(courtId); return; }

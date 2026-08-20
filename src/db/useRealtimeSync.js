@@ -2,17 +2,25 @@ import { useEffect, useRef } from "react";
 import { supabase } from "./supabase";
 
 /**
+ * Flag to suppress Realtime refreshes during local writes.
+ * Set this to true before a local write operation, and false after.
+ * While true, Realtime events are ignored (they're our own writes echoing back).
+ */
+let suppressUntil = 0;
+
+/**
+ * Call this before any local write operation to suppress Realtime for a period.
+ * @param {number} ms - milliseconds to suppress (default 3000)
+ */
+export function suppressRealtime(ms = 3000) {
+  suppressUntil = Date.now() + ms;
+}
+
+/**
  * Supabase Realtime sync hook.
  * Subscribes to changes on specified tables for a club.
- * Calls onSync() when any change is detected so the component can refresh.
- *
- * Usage:
- *   useRealtimeSync(clubId, onSync)
- *
- * Tables subscribed: players, courts, matches
- * Events: INSERT, UPDATE, DELETE
- *
- * If Realtime isn't enabled on the tables, this silently does nothing.
+ * Calls onSync() when any change is detected FROM ANOTHER DEVICE.
+ * Self-triggered events are suppressed.
  */
 export function useRealtimeSync(clubId, onSync) {
   const channelRef = useRef(null);
@@ -23,10 +31,15 @@ export function useRealtimeSync(clubId, onSync) {
 
     // Debounce: batch rapid changes into a single refresh
     const debouncedSync = () => {
+      // Skip if we're in a suppression window (our own writes)
+      if (Date.now() < suppressUntil) return;
+
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => {
+        // Double-check suppression hasn't been set during the debounce wait
+        if (Date.now() < suppressUntil) return;
         onSync();
-      }, 500); // Wait 500ms after last change before refreshing
+      }, 2000); // Wait 2s after last change before refreshing (gives time for all writes to complete)
     };
 
     // Create a channel for this club
