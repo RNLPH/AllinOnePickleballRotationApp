@@ -22,6 +22,7 @@ export default function CourtCard({
   partnerWarning,
   onEndGame,
   onRemoveCourtPlayer,
+  onClearCourt,
   onSetCourtForEdit,
   onGeneratePreview,
   onRegeneratePreview,
@@ -565,6 +566,16 @@ export default function CourtCard({
               ✅ Confirm Match
             </button>
           </div>
+        )}
+
+        {/* Clear Court */}
+        {court.players.length > 0 && (
+          <button
+            onClick={() => onClearCourt(court.id)}
+            className="w-full mt-2 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700"
+          >
+            🧹 Clear Court
+          </button>
         )}
 
         {/* End Game */}

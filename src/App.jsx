@@ -1360,6 +1360,25 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
     );
   };
 
+  const clearCourt = (courtId) => {
+    const court = courts.find((c) => c.id === courtId);
+    if (!court || court.players.length === 0) return;
+    if (!window.confirm(`Return all ${court.players.length} players from this court to the queue?`)) return;
+
+    const returningPlayers = court.players.map((p) => ({
+      ...p,
+      consecutiveGames: Math.max(0, (p.consecutiveGames || 0) - 1),
+      cooldownUntil: null,
+      waitingSince: Date.now(),
+    }));
+
+    setPlayers((prev) => sortPlayers([...prev, ...returningPlayers]));
+    returningPlayers.forEach((p) => savePlayer(p, club.id));
+    setCourts((prev) =>
+      prev.map((c) => c.id === courtId ? { ...c, players: [], startedAt: null } : c)
+    );
+  };
+
   const addPlayerToCourt = (playerId, courtId) => {
     const player = players.find((p) => p.id === playerId);
     if (!player) return;
@@ -2882,6 +2901,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
                         partnerWarning={partnerWarnings[court.id] || null}
                         onEndGame={endGame}
                         onRemoveCourtPlayer={removeCourtPlayer}
+                        onClearCourt={clearCourt}
                         onSetCourtForEdit={setSelectedCourtForEdit}
                         onGeneratePreview={handleGeneratePreview}
                         onRegeneratePreview={regeneratePreview}
