@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { resilientOp } from "./syncQueue";
 
 export async function saveMatch(match, clubId) {
   const row = {
@@ -7,12 +8,18 @@ export async function saveMatch(match, clubId) {
     club_id:    clubId,
     data:       match,
   };
+  // Try direct insert first (we need the returned ID)
   const { data, error } = await supabase
     .from("matches")
     .insert(row)
     .select("id")
     .single();
-  if (error) { console.error("saveMatch:", error); return null; }
+  if (error) {
+    // Queue for retry — use a temp ID locally
+    console.error("saveMatch:", error);
+    resilientOp(supabase, "insert", "matches", row);
+    return `local_${Date.now()}`;
+  }
   return data.id;
 }
 
@@ -27,28 +34,13 @@ export async function getMatches(clubId) {
 }
 
 export async function updateMatch(match) {
-  const { error } = await supabase
-    .from("matches")
-    .update({ data: match })
-    .eq("id", match.id);
-  if (error) console.error("updateMatch:", error);
+  await resilientOp(supabase, "update", "matches", { data: match }, { id: match.id });
 }
 
 export async function deleteMatchesBySession(sessionId, clubId) {
-  const { error } = await supabase
-    .from("matches")
-    .delete()
-    .eq("session_id", sessionId)
-    .eq("club_id", clubId);
-  if (error) console.error("deleteMatchesBySession:", error);
+  await resilientOp(supabase, "delete", "matches", null, { session_id: sessionId, club_id: clubId });
 }
 
 export async function clearAllMatches(clubId) {
-  const { error } = await supabase
-    .from("matches")
-    .delete()
-    .eq("club_id", clubId);
-  if (error) console.error("clearAllMatches:", error);
+  await resilientOp(supabase, "delete", "matches", null, { club_id: clubId });
 }
-
-

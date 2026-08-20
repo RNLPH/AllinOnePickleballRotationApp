@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { resilientOp } from "./syncQueue";
 
 export async function getPlayers(clubId) {
   const { data, error } = await supabase
@@ -9,27 +10,19 @@ export async function getPlayers(clubId) {
   return data.map((row) => ({ id: row.id, name: row.name, ...row.data }));
 }
 
-// Save a single player (add or update)
+// Save a single player (add or update) — resilient
 export async function savePlayer(player, clubId) {
   const { id, name, ...rest } = player;
-  const { error } = await supabase
-    .from("players")
-    .upsert({ id, name, club_id: clubId, data: rest }, { onConflict: "id" });
-  if (error) console.error("savePlayer:", error);
+  await resilientOp(supabase, "upsert", "players", { id, name, club_id: clubId, data: rest });
 }
 
-// Remove a single player from the queue
+// Remove a single player from the queue — resilient
 export async function removePlayer(playerId) {
-  const { error } = await supabase
-    .from("players")
-    .delete()
-    .eq("id", playerId);
-  if (error) console.error("removePlayer:", error);
+  await resilientOp(supabase, "delete", "players", null, { id: playerId });
 }
 
-// Save all players (full sync — used only on initial load or bulk operations)
+// Save all players (full sync — used only on bulk operations)
 export async function savePlayers(players, clubId) {
-  // Clear all for this club then re-insert
   await supabase.from("players").delete().eq("club_id", clubId);
   if (players.length === 0) return;
 
@@ -43,11 +36,7 @@ export async function savePlayers(players, clubId) {
 }
 
 export async function clearPlayers(clubId) {
-  const { error } = await supabase
-    .from("players")
-    .delete()
-    .eq("club_id", clubId);
-  if (error) console.error("clearPlayers:", error);
+  await resilientOp(supabase, "delete", "players", null, { club_id: clubId });
 }
 
 export async function clearSessionPlayers(clubId) {

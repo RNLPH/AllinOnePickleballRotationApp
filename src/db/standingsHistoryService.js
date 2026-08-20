@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { resilientOp } from "./syncQueue";
 
 export async function getStandingsHistory(clubId) {
   const { data, error } = await supabase
@@ -12,23 +13,14 @@ export async function getStandingsHistory(clubId) {
 
 export async function saveStandingsHistory(record, clubId) {
   const { id, sessionId } = record;
-  const { error } = await supabase
-    .from("standings_history")
-    .upsert({
-      id,
-      session_id: sessionId,
-      club_id:    clubId,
-      data:       record,
-    });
-  if (error) console.error("saveStandingsHistory:", error);
+  await resilientOp(supabase, "upsert", "standings_history", {
+    id,
+    session_id: sessionId,
+    club_id: clubId,
+    data: record,
+  });
 }
 
 export async function clearStandingsHistory(clubId) {
-  const { error } = await supabase
-    .from("standings_history")
-    .delete()
-    .eq("club_id", clubId);
-  if (error) console.error("clearStandingsHistory:", error);
+  await resilientOp(supabase, "delete", "standings_history", null, { club_id: clubId });
 }
-
-

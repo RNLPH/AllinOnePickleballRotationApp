@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { resilientOp } from "./syncQueue";
 
 export async function getDirectory(clubId) {
   const { data, error } = await supabase
@@ -11,18 +12,9 @@ export async function getDirectory(clubId) {
 
 export async function saveDirectoryPlayer(player, clubId) {
   const { id, name, ...rest } = player;
-  const { error } = await supabase
-    .from("directory")
-    .upsert({ id, name, club_id: clubId, data: rest });
-  if (error) console.error("saveDirectoryPlayer:", error);
+  await resilientOp(supabase, "upsert", "directory", { id, name, club_id: clubId, data: rest });
 }
 
 export async function deleteDirectoryPlayer(id) {
-  const { error } = await supabase
-    .from("directory")
-    .delete()
-    .eq("id", id);
-  if (error) console.error("deleteDirectoryPlayer:", error);
+  await resilientOp(supabase, "delete", "directory", null, { id });
 }
-
-

@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { resilientOp } from "./syncQueue";
 
 export async function getAttendance(clubId) {
   const { data, error } = await supabase
@@ -6,38 +7,23 @@ export async function getAttendance(clubId) {
     .select("*")
     .eq("club_id", clubId);
   if (error) { console.error("getAttendance:", error); return []; }
-  return data.map((row) => ({ id: row.id, playerId: row.player_id, sessionId: row.session_id, ...row.data }));
+  return data.map((row) => ({ ...row.data, id: row.id }));
 }
 
 export async function saveAttendance(record, clubId) {
-  const { id, playerId, sessionId, ...rest } = record;
-  const { error } = await supabase
-    .from("attendance")
-    .upsert({
-      id,
-      player_id:  playerId,
-      session_id: sessionId,
-      club_id:    clubId,
-      data:       record,
-    });
-  if (error) console.error("saveAttendance:", error);
+  await resilientOp(supabase, "upsert", "attendance", {
+    id: record.id,
+    player_id: record.playerId,
+    session_id: record.sessionId,
+    club_id: clubId,
+    data: record,
+  });
 }
 
 export async function clearAttendance(clubId) {
-  const { error } = await supabase
-    .from("attendance")
-    .delete()
-    .eq("club_id", clubId);
-  if (error) console.error("clearAttendance:", error);
+  await resilientOp(supabase, "delete", "attendance", null, { club_id: clubId });
 }
 
 export async function deleteAttendanceBySession(sessionId, clubId) {
-  const { error } = await supabase
-    .from("attendance")
-    .delete()
-    .eq("session_id", sessionId)
-    .eq("club_id", clubId);
-  if (error) console.error("deleteAttendanceBySession:", error);
+  await resilientOp(supabase, "delete", "attendance", null, { session_id: sessionId, club_id: clubId });
 }
-
-
