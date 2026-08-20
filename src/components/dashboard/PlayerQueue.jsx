@@ -48,7 +48,7 @@ export default function PlayerQueue({
           <TierColumn title="🎖️ General" colorClass="text-purple-600" count={generalQueue.length} limit={10} players={generalQueue} {...sharedProps} />
         )}
         <TierColumn title="⚔️ Knight" colorClass="text-indigo-600" count={knightQueue.length} limit={10} players={knightQueue} {...sharedProps} />
-        <TierColumn title="🛡️ Squire" colorClass="text-green-600" count={squireQueue.length} limit={isExtendedMode ? 8 : 10} players={squireQueue} {...sharedProps} />
+        <TierColumn title="🛡️ Squire" colorClass="text-green-600" count={squireQueue.length} limit={10} players={squireQueue} {...sharedProps} />
       </div>
     </DroppableQueue>
   );
