@@ -3194,7 +3194,10 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
                   setSessionMode(restored);
                   localStorage.setItem(STORAGE_KEYS.SESSION_MODE, restored);
                 }
-              : null
+              : () => {
+                  // First time: default to Open Mode so user can dismiss
+                  handleSelectSessionMode("open");
+                }
           }
         />
       )}
