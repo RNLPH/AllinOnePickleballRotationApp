@@ -2674,19 +2674,22 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
 
       {/* Slim sticky header */}
       <header className="sticky top-0 z-40 bg-[#003369] shadow-sm">
-        <div className="max-w-7xl mx-auto px-3 py-2.5 flex items-center justify-between gap-2">
+        <div className="max-w-7xl mx-auto px-3 py-2 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
-            <img src="/logo.png" alt="KNGS Stack" className="w-7 h-7 shrink-0" />
-            <div className="min-w-0">
+            <img src="/logo.png" alt="KNGS Stack" className="w-6 h-6 sm:w-7 sm:h-7 shrink-0" />
+            <div className="min-w-0 hidden sm:block">
               <h1 className="text-base font-bold text-white leading-tight truncate">KNGS Stack</h1>
               {club && <p className="text-[10px] text-[#7ABFED] leading-tight truncate">{club.name}</p>}
               {club?.slug && <p className="text-[9px] text-[#7ABFED]/60 leading-tight truncate">/{club.slug}</p>}
             </div>
-            <button onClick={() => setShowSlugEditor(true)} className="h-6 w-6 rounded bg-white/10 text-[10px] text-white hover:bg-white/20 flex items-center justify-center" title="Edit club URL">
+            <div className="min-w-0 sm:hidden">
+              <h1 className="text-sm font-bold text-white leading-tight truncate">{club?.name || "KNGS Stack"}</h1>
+            </div>
+            <button onClick={() => setShowSlugEditor(true)} className="h-6 w-6 rounded bg-white/10 text-[10px] text-white hover:bg-white/20 items-center justify-center hidden sm:flex" title="Edit club URL">
               🔗
             </button>
-            <button onClick={onSwitchClub} className="h-6 px-2 rounded bg-white/10 text-[10px] text-white hover:bg-white/20 ml-1">
-              {clubs.length > 1 ? "Switch Club" : "+ Club"}
+            <button onClick={onSwitchClub} className="h-6 px-2 rounded bg-white/10 text-[10px] text-white hover:bg-white/20">
+              {clubs.length > 1 ? "Switch" : "+"}
             </button>
           </div>
 
@@ -2699,7 +2702,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
                   setSessionMode(null);
                   localStorage.removeItem(STORAGE_KEYS.SESSION_MODE);
                 }}
-                className="h-7 px-1.5 rounded text-[10px] text-[#7ABFED] hover:bg-white/10"
+                className="h-7 px-1.5 rounded text-[10px] text-[#7ABFED] hover:bg-white/10 hidden sm:block"
               >
                 Switch Mode
               </button>
@@ -2711,17 +2714,17 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
               🔄
             </button>
             <button onClick={() => setShowLiveBoard(true)}
-              className="h-7 w-7 rounded bg-white/10 text-white flex items-center justify-center hover:bg-white/20 text-xs">
+              className="h-7 w-7 rounded bg-white/10 text-white items-center justify-center hover:bg-white/20 text-xs hidden sm:flex">
               📺
             </button>
             <button
               onClick={() => { const url = `${window.location.origin}/live/${club.slug || club.id}`; navigator.clipboard.writeText(url); alert("Live board link copied!\n" + url); }}
-              className="h-7 w-7 rounded bg-white/10 text-white flex items-center justify-center hover:bg-white/20 text-xs">
+              className="h-7 w-7 rounded bg-white/10 text-white items-center justify-center hover:bg-white/20 text-xs hidden sm:flex">
               🔗
             </button>
             <button
               onClick={() => { const url = `${window.location.origin}/checkin/${club.slug || club.id}`; navigator.clipboard.writeText(url); alert("Check-in link copied!\n" + url); }}
-              className="h-7 w-7 rounded bg-white/10 text-white flex items-center justify-center hover:bg-white/20 text-xs"
+              className="h-7 w-7 rounded bg-white/10 text-white items-center justify-center hover:bg-white/20 text-xs hidden sm:flex"
               title="Copy check-in link">
               📋
             </button>
@@ -2729,6 +2732,24 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
               className={`h-7 px-1.5 rounded text-[10px] font-medium ${viewMode ? "bg-[#7ABFED] text-[#003369]" : "bg-white/10 text-white hover:bg-white/20"}`}>
               {viewMode ? "✓" : "👁"}
             </button>
+            {/* Mobile: dark mode + mode switch */}
+            <button onClick={toggleDark}
+              className="h-7 w-7 rounded bg-white/10 text-white flex items-center justify-center hover:bg-white/20 text-xs sm:hidden">
+              {dark ? "☀️" : "🌙"}
+            </button>
+            {sessionMode && !viewMode && (
+              <button
+                onClick={() => {
+                  if (hasActiveGames()) { alert("Finish all active games before switching modes."); return; }
+                  setIsSwitchingMode(true);
+                  setSessionMode(null);
+                  localStorage.removeItem(STORAGE_KEYS.SESSION_MODE);
+                }}
+                className="h-7 w-7 rounded bg-white/10 text-[#7ABFED] flex items-center justify-center hover:bg-white/20 text-xs sm:hidden"
+              >
+                ⚙️
+              </button>
+            )}
             <button onClick={onLogout}
               className="h-7 w-7 rounded bg-white/10 text-white flex items-center justify-center hover:bg-white/20 text-xs"
               title="Log out">
@@ -2738,8 +2759,8 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
         </div>
       </header>
 
-      {/* Settings bar: Dark Mode + Language */}
-      <div className="bg-white dark:bg-slate-800 border-b border-slate-100 px-4 py-1.5 flex items-center justify-end gap-3">
+      {/* Settings bar: Dark Mode + Language (desktop only, mobile has it in header) */}
+      <div className="hidden sm:flex bg-white dark:bg-slate-800 border-b border-slate-100 px-4 py-1.5 items-center justify-end gap-3">
         <button
           onClick={toggleDark}
           className="h-7 px-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs text-slate-600 flex items-center gap-1"
@@ -2995,8 +3016,8 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
                 </div>
 
                 <div className="mt-4">
-                  <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-3">Active Courts</h2>
-                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+                  <h2 className="text-sm font-bold text-slate-600 uppercase tracking-wider mb-2">Active Courts</h2>
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-2 sm:gap-3">
                     {courts.map((court) => (
                       <CourtCard
                         key={court.id}
@@ -3101,7 +3122,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
                 {tab === "attendance" && "👥"}
                 {tab === "history" && "📜"}
               </span>
-              <span className="text-[10px] font-medium leading-tight">
+              <span className="text-[10px] font-semibold leading-tight">
                 {tab === "dashboard" && t("tab_dashboard")}
                 {tab === "standings" && t("tab_standings")}
                 {tab === "attendance" && t("tab_attendance")}

@@ -1,18 +1,28 @@
 import DroppableQueue from "../dnd/DroppableQueue";
 import PlayerRow from "./PlayerRow";
 
-function QueueSection({ title, colorClass, players, courts, selectedCourt, setSelectedCourt, onAddToCourt, onRemovePlayer, onTogglePriority, onToggleNoPriority, onEditTier, onViewProfile, onEditName }) {
+function QueueSection({ title, colorClass, players, courts, selectedCourt, setSelectedCourt, onAddToCourt, onRemovePlayer, onTogglePriority, onToggleNoPriority, onEditTier, onViewProfile, onEditName, onDismissChallenge }) {
+  // Hide empty sections on mobile
+  if (players.length === 0) {
+    return (
+      <div className="hidden sm:block bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
+        <div className="px-3 py-2 border-b border-slate-100 flex items-center justify-between">
+          <span className={`text-sm font-bold ${colorClass}`}>{title}</span>
+          <span className="text-xs text-slate-400">0</span>
+        </div>
+        <p className="text-xs text-slate-300 text-center py-4">Empty</p>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
       <div className="px-3 py-2 border-b border-slate-100 flex items-center justify-between">
         <span className={`text-sm font-bold ${colorClass}`}>{title}</span>
-        <span className="text-xs text-slate-400">{players.length}</span>
+        <span className="text-xs font-semibold text-slate-500">{players.length}</span>
       </div>
       <div className="max-h-[50vh] overflow-y-auto p-2 space-y-1.5">
-        {players.length === 0 ? (
-          <p className="text-xs text-slate-300 text-center py-6">Empty</p>
-        ) : (
-          players.map((player, index) => (
+        {players.map((player, index) => (
             <PlayerRow
               key={player.id}
               player={player}
@@ -27,10 +37,10 @@ function QueueSection({ title, colorClass, players, courts, selectedCourt, setSe
               onEditTier={onEditTier}
               onViewProfile={onViewProfile}
               onEditName={onEditName}
+              onDismissChallenge={onDismissChallenge}
               openMode
             />
-          ))
-        )}
+          ))}
       </div>
     </div>
   );

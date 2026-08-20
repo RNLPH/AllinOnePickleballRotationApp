@@ -75,10 +75,10 @@ export default function PlayerRow({
             <span className="font-semibold text-sm text-slate-800 truncate">{player.name}</span>
             <span className={`text-xs font-medium ${courtLabel.color}`}>{courtLabel.label}</span>
           </div>
-          <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
-            <span>{player.gamesPlayed}GP</span>
-            <span className="text-green-600">{player.wins || 0}W</span>
-            <span className="text-red-500">{player.losses || 0}L</span>
+          <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
+            <span className="font-medium">{player.gamesPlayed}GP</span>
+            <span className="text-green-700 font-medium">{player.wins || 0}W</span>
+            <span className="text-red-600 font-medium">{player.losses || 0}L</span>
             {player.lastResult === "win" && <span className="text-green-600">✓</span>}
             {player.lastResult === "loss" && <span className="text-red-500">✗</span>}
             {player.priority && <span className="text-yellow-500">⭐</span>}

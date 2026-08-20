@@ -44,29 +44,29 @@ export default function SessionControls({
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4 overflow-hidden">
       {/* Stats bar */}
-      <div className="flex items-center justify-around px-4 py-2.5 bg-slate-50 border-b border-slate-100">
+      <div className="flex items-center justify-around px-4 py-2 bg-slate-50 border-b border-slate-100">
         <div className="text-center">
-          <div className="text-lg font-bold text-blue-600">{players.length}</div>
-          <div className="text-[10px] text-slate-400 uppercase">{t("queue")}</div>
+          <div className="text-lg font-bold text-blue-700">{players.length}</div>
+          <div className="text-[10px] font-semibold text-slate-500 uppercase">{t("queue")}</div>
         </div>
         <div className="text-center">
-          <div className="text-lg font-bold text-green-600">{activePlayers}</div>
-          <div className="text-[10px] text-slate-400 uppercase">{t("playing")}</div>
+          <div className="text-lg font-bold text-green-700">{activePlayers}</div>
+          <div className="text-[10px] font-semibold text-slate-500 uppercase">{t("playing")}</div>
         </div>
         <div className="text-center">
-          <div className="text-lg font-bold text-purple-600">{courts.length}</div>
-          <div className="text-[10px] text-slate-400 uppercase">{t("courts")}</div>
+          <div className="text-lg font-bold text-purple-700">{courts.length}</div>
+          <div className="text-[10px] font-semibold text-slate-500 uppercase">{t("courts")}</div>
         </div>
         <div className="text-center">
-          <div className="text-lg font-bold text-amber-600">{totalGamesPlayed}</div>
-          <div className="text-[10px] text-slate-400 uppercase">{t("matches")}</div>
+          <div className="text-lg font-bold text-amber-700">{totalGamesPlayed}</div>
+          <div className="text-[10px] font-semibold text-slate-500 uppercase">{t("matches")}</div>
         </div>
       </div>
 
       {/* Mode badge */}
       {sessionMode && (
         <div className="px-3 py-1.5 border-b border-slate-100 flex items-center justify-center">
-          <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
+          <span className="text-[11px] font-semibold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full">
             {sessionMode === "open" && t("mode_open")}
             {sessionMode === "ladder" && t("mode_ladder")}
             {sessionMode === "extended_ladder" && t("mode_extended")}
