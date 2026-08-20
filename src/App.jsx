@@ -1338,16 +1338,15 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
     if (!player) return;
     if (!window.confirm(`Remove ${player.name} from the court?`)) return;
 
-    setPlayers((prev) =>
-      sortPlayers([
-        ...prev,
-        {
-          ...player,
-          consecutiveGames: Math.max(0, (player.consecutiveGames || 0) - 1),
-          waitingSince: Date.now(),
-        },
-      ])
-    );
+    const returningPlayer = {
+      ...player,
+      consecutiveGames: Math.max(0, (player.consecutiveGames || 0) - 1),
+      cooldownUntil: null,
+      waitingSince: Date.now(),
+    };
+
+    setPlayers((prev) => sortPlayers([...prev, returningPlayer]));
+    savePlayer(returningPlayer, club.id); // persist back to DB
     setCourts((prev) =>
       prev.map((c) => {
         if (c.id !== courtId) return c;
