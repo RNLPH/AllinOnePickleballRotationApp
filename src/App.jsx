@@ -7,7 +7,6 @@ import { getPlayers, savePlayers, savePlayer, removePlayer as removePlayerFromDb
 import { saveMatch, getMatches, updateMatch, deleteMatchesBySession, clearAllMatches } from "./db/matchService";
 import { getAttendance, saveAttendance, clearAttendance, deleteAttendanceBySession } from "./db/attendanceService";
 import { getStandingsHistory, saveStandingsHistory, clearStandingsHistory } from "./db/standingsHistoryService";
-import { cacheSet, cacheGet, resolveData, cacheClearClub, CACHE_TYPES } from "./db/localCache";
 import { resilientOp, processQueue, getPendingCount, clearQueue } from "./db/syncQueue";
 
 import AuthScreen from "./components/auth/AuthScreen";
@@ -506,21 +505,6 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
   useEffect(() => {
     async function loadAll() {
       try {
-        // Load from cache first (instant)
-        const cachedPlayers = cacheGet(CACHE_TYPES.PLAYERS, club.id);
-        const cachedMatches = cacheGet(CACHE_TYPES.MATCHES, club.id);
-        const cachedHistory = cacheGet(CACHE_TYPES.STANDINGS_HISTORY, club.id);
-        const cachedAttendance = cacheGet(CACHE_TYPES.ATTENDANCE, club.id);
-        const cachedDirectory = cacheGet(CACHE_TYPES.DIRECTORY, club.id);
-
-        // Set cached data immediately for instant UI
-        if (cachedPlayers?.data) { setPlayers(cachedPlayers.data); setPlayersLoaded(true); }
-        if (cachedMatches?.data) setMatches(cachedMatches.data);
-        if (cachedHistory?.data) setStandingsHistory(cachedHistory.data);
-        if (cachedAttendance?.data) setAttendance(cachedAttendance.data);
-        if (cachedDirectory?.data) setDirectory(cachedDirectory.data);
-
-        // Then fetch fresh from Supabase
         const [storedPlayers, savedMatches, history, records, dir] =
           await Promise.all([
             getPlayers(club.id),
@@ -529,33 +513,14 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
             getAttendance(club.id),
             getDirectory(club.id),
           ]);
-
-        // Resolve: use fresh data unless it looks like data loss
-        const finalPlayers = resolveData(cachedPlayers, storedPlayers, "players");
-        const finalMatches = resolveData(cachedMatches, savedMatches, "matches");
-        const finalHistory = resolveData(cachedHistory, history, "standings_history");
-        const finalAttendance = resolveData(cachedAttendance, records, "attendance");
-        const finalDirectory = resolveData(cachedDirectory, dir, "directory");
-
-        setPlayers(finalPlayers);
+        setPlayers(storedPlayers);
         setPlayersLoaded(true);
-        setMatches(finalMatches);
-        setStandingsHistory(finalHistory);
-        setAttendance(finalAttendance);
-        setDirectory(finalDirectory);
-
-        // Update cache with fresh data
-        cacheSet(CACHE_TYPES.PLAYERS, club.id, finalPlayers);
-        cacheSet(CACHE_TYPES.MATCHES, club.id, finalMatches);
-        cacheSet(CACHE_TYPES.STANDINGS_HISTORY, club.id, finalHistory);
-        cacheSet(CACHE_TYPES.ATTENDANCE, club.id, finalAttendance);
-        cacheSet(CACHE_TYPES.DIRECTORY, club.id, finalDirectory);
-
-        // Process any pending sync queue items
-        processQueue(supabase).catch(() => {});
+        setMatches(savedMatches);
+        setStandingsHistory(history);
+        setAttendance(records);
+        setDirectory(dir);
       } catch (err) {
         console.error("Failed to load data:", err);
-        // On complete failure, cached data (set above) remains in state
       }
     }
     loadAll();
@@ -576,15 +541,6 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
       setMatches(freshMatches);
       setAttendance(freshAttendance);
       if (freshCourts.data?.data) setCourts(freshCourts.data.data);
-
-      // Update cache
-      cacheSet(CACHE_TYPES.PLAYERS, club.id, freshPlayers);
-      cacheSet(CACHE_TYPES.DIRECTORY, club.id, freshDir);
-      cacheSet(CACHE_TYPES.MATCHES, club.id, freshMatches);
-      cacheSet(CACHE_TYPES.ATTENDANCE, club.id, freshAttendance);
-
-      // Process pending sync queue
-      processQueue(supabase).catch(() => {});
     } catch (err) {
       console.error("Manual refresh failed:", err);
     }
@@ -597,27 +553,6 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
   // useRealtimeSync(club.id, handleManualRefresh);
 
   // Players are now saved individually (event-driven) — no bulk sync effect needed
-
-  // ===== KEEP LOCAL CACHE IN SYNC WITH STATE =====
-  useEffect(() => {
-    if (playersLoaded) cacheSet(CACHE_TYPES.PLAYERS, club.id, players);
-  }, [players, playersLoaded, club.id]);
-
-  useEffect(() => {
-    if (matches.length > 0) cacheSet(CACHE_TYPES.MATCHES, club.id, matches);
-  }, [matches, club.id]);
-
-  useEffect(() => {
-    if (directory.length > 0) cacheSet(CACHE_TYPES.DIRECTORY, club.id, directory);
-  }, [directory, club.id]);
-
-  useEffect(() => {
-    cacheSet(CACHE_TYPES.ATTENDANCE, club.id, attendance);
-  }, [attendance, club.id]);
-
-  useEffect(() => {
-    cacheSet(CACHE_TYPES.STANDINGS_HISTORY, club.id, standingsHistory);
-  }, [standingsHistory, club.id]);
 
   // ===== SAVE COURTS TO SUPABASE =====
   useEffect(() => {
@@ -2628,8 +2563,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
     localStorage.removeItem(STORAGE_KEYS.COURTS);
     localStorage.removeItem(STORAGE_KEYS.SESSION_MODE);
 
-    // Clear local cache and sync queue
-    cacheClearClub(club.id);
+    // Clear sync queue
     clearQueue();
 
     setCourts(getDefaultCourts(null));
@@ -2808,14 +2742,6 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
         >
           {isNotificationEnabled() ? "🔔" : "🔕"}
         </button>
-        {getPendingCount() > 0 && (
-          <span
-            className="h-7 px-2 rounded-lg bg-amber-100 text-amber-700 text-xs flex items-center gap-1"
-            title={`${getPendingCount()} operations pending sync`}
-          >
-            ⏳ {getPendingCount()}
-          </span>
-        )}
       </div>
 
       {/* Main content */}
