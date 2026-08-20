@@ -135,11 +135,11 @@ export default function SessionModeModal({ sessionId, onSelect, onCancel }) {
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
       <div className="force-light bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto relative">
 
-        {/* Close button */}
+        {/* Close button — sticky so it stays visible while scrolling */}
         {onCancel && (
           <button
             onClick={onCancel}
-            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-bold z-10"
+            className="sticky top-3 float-right mr-3 mt-3 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-bold z-10"
           >
             ✕
           </button>
