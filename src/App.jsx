@@ -49,6 +49,7 @@ import { useI18n, LANGUAGES } from "./i18n/index.jsx";
 import { swissPairing, roundRobinNextMatch } from "./utils/pairingUtils";
 import { requestNotificationPermission, getNotificationStatus, isNotificationEnabled, setNotificationEnabled, notifyPlayerTurn } from "./utils/notifications";
 import { updateClubSlug } from "./db/clubResolver";
+import { useRealtimeSync } from "./db/useRealtimeSync";
 
 // ===== AUTH WRAPPER =====
 // Handles auth state and club selection. Renders the main App or auth/picker screens.
@@ -586,6 +587,10 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
       console.error("Manual refresh failed:", err);
     }
   };
+
+  // ===== SUPABASE REALTIME SYNC =====
+  // When another device makes changes, auto-refresh data
+  useRealtimeSync(club.id, handleManualRefresh);
 
   // Players are now saved individually (event-driven) — no bulk sync effect needed
 

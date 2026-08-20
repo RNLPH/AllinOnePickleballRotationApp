@@ -4,6 +4,7 @@ import { supabase } from "../db/supabase";
 import { sortPlayers } from "../utils/playerUtils";
 import PlayerAvatar from "./ui/PlayerAvatar";
 import { resolveClub } from "../db/clubResolver";
+import { useRealtimeSync } from "../db/useRealtimeSync";
 
 function getCourtLabel(type) {
   if (type === "king")    return "👑 King's";
@@ -76,6 +77,25 @@ export default function PublicLiveBoard() {
   }, [identifier]);
 
   const [showAllStandings, setShowAllStandings] = useState(false);
+
+  // Realtime: instant updates when operator makes changes
+  useRealtimeSync(clubId, async () => {
+    if (!clubId) return;
+    try {
+      const [playersRes, matchesRes, courtsRes, directoryRes] = await Promise.all([
+        supabase.from("players").select("*").eq("club_id", clubId),
+        supabase.from("matches").select("*").eq("club_id", clubId).order("id", { ascending: false }).limit(10),
+        supabase.from("courts").select("data").eq("club_id", clubId).single(),
+        supabase.from("directory").select("*").eq("club_id", clubId),
+      ]);
+      if (playersRes.data) setPlayers(playersRes.data.map((r) => ({ id: r.id, name: r.name, ...r.data })));
+      if (matchesRes.data) setMatches(matchesRes.data.map((r) => ({ ...r.data, id: r.id })));
+      if (courtsRes.data) setCourts(courtsRes.data.data || []);
+      if (directoryRes.data) setDirectory(directoryRes.data.map((r) => ({ id: r.id, name: r.name, ...r.data })));
+    } catch (err) {
+      console.error("Realtime refresh failed:", err);
+    }
+  });
 
   if (notFound) {
     return (
