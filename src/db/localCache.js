@@ -87,28 +87,21 @@ function clearOldEntries() {
 
 /**
  * Smart data loader: loads from cache first (instant), then from Supabase (fresh).
- * If Supabase returns fewer items than cache (possible data loss), uses cache.
- * Returns the best available data.
+ * Fresh data from Supabase always wins when available.
+ * Cache is only used as fallback when Supabase fails completely.
  */
 export function resolveData(cached, fresh, type) {
-  // No cache — use fresh (even if empty)
-  if (!cached || !cached.data) return fresh;
+  // Fresh data available — always use it (Supabase is source of truth)
+  if (fresh && fresh.length >= 0) return fresh;
 
-  // No fresh data (Supabase failed or empty) — use cache
-  if (!fresh || fresh.length === 0) {
-    console.warn(`localCache: using cached ${type} (Supabase returned empty)`);
+  // No fresh data (Supabase failed) — use cache as fallback
+  if (cached?.data) {
+    console.warn(`localCache: using cached ${type} (Supabase unavailable)`);
     return cached.data;
   }
 
-  // Fresh data has significantly fewer items than cache — possible data loss
-  // Only flag this for players (most critical), not for matches/attendance which grow over time
-  if (type === "players" && cached.data.length > 0 && fresh.length < cached.data.length * 0.5) {
-    console.warn(`localCache: possible data loss for ${type} — cache has ${cached.data.length}, Supabase has ${fresh.length}. Using cache.`);
-    return cached.data;
-  }
-
-  // Fresh data is good — use it
-  return fresh;
+  // Nothing available
+  return [];
 }
 
 /**
