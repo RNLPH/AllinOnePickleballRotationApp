@@ -1996,8 +1996,9 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
 
       if (isSingles) {
         const eligible = eligiblePlayers(courtQueue);
-        if (eligible.length < needed) return court;
-        const selected = eligible
+        const pool = eligible.length >= needed ? eligible : courtQueue;
+        if (pool.length < needed) return court;
+        const selected = pool
           .slice(0, needed)
           .map((p) => ({ ...p, consecutiveGames: (p.consecutiveGames || 0) + 1 }));
         selected.forEach((p) => ladderUsedIds.add(p.id));
@@ -2008,8 +2009,9 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
       if (court.players.length > 0 && needed < 4) {
         // Partially filled doubles — pull remaining
         const eligible = eligiblePlayers(courtQueue);
-        if (eligible.length < needed) return court;
-        const selected = eligible
+        const pool = eligible.length >= needed ? eligible : courtQueue;
+        if (pool.length < needed) return court;
+        const selected = pool
           .slice(0, needed)
           .map((p) => ({ ...p, consecutiveGames: (p.consecutiveGames || 0) + 1 }));
         selected.forEach((p) => ladderUsedIds.add(p.id));
@@ -2017,7 +2019,10 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
         return { ...court, players: allPlayers, startedAt: allPlayers.length >= 4 ? (court.startedAt || Date.now()) : court.startedAt };
       }
 
-      const selectedPlayers = buildRotationGroup(eligiblePlayers(courtQueue));
+      // Try eligible (rested) players first; fall back to full queue if not enough
+      const eligible = eligiblePlayers(courtQueue);
+      const pool = eligible.length >= 4 ? eligible : courtQueue;
+      const selectedPlayers = buildRotationGroup(pool);
       if (selectedPlayers.length < 4) return court;
 
       const teams = createBalancedTeams(
