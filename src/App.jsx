@@ -300,19 +300,26 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
     }
 
     // Set courts to the correct default type for this mode
-    setCourts((prev) =>
-      prev.map((c) => {
-        if (c.players.length > 0) return c; // don't touch active courts
-        return {
-          ...c,
-          type:
-            mode === "open"            ? "any"  :
-            mode === "ladder"          ? "king" :
-            mode === "extended_ladder" ? "king" :
-            null, // new modes use generic courts
-        };
-      })
-    );
+    setCourts((prev) => {
+      if (mode === "extended_ladder") {
+        const tierTypes = ["king", "general", "knight", "squire"];
+        return prev.map((c, i) => {
+          if (c.players.length > 0) return c;
+          return { ...c, type: tierTypes[i % tierTypes.length] };
+        });
+      }
+      if (mode === "ladder") {
+        const tierTypes = ["king", "knight", "squire"];
+        return prev.map((c, i) => {
+          if (c.players.length > 0) return c;
+          return { ...c, type: tierTypes[i % tierTypes.length] };
+        });
+      }
+      return prev.map((c) => {
+        if (c.players.length > 0) return c;
+        return { ...c, type: mode === "open" ? "any" : null };
+      });
+    });
 
     setSessionMode(mode);
     localStorage.setItem(STORAGE_KEYS.SESSION_MODE, mode);
@@ -386,19 +393,26 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
     setPlayers(updatedPlayers);
 
     // Update courts to the correct default type for the target mode
-    setCourts((prev) =>
-      prev.map((c) => {
+    setCourts((prev) => {
+      if (targetMode === "extended_ladder") {
+        const tierTypes = ["king", "general", "knight", "squire"];
+        return prev.map((c, i) => {
+          if (c.players.length > 0) return c;
+          return { ...c, type: tierTypes[i % tierTypes.length] };
+        });
+      }
+      if (targetMode === "ladder") {
+        const tierTypes = ["king", "knight", "squire"];
+        return prev.map((c, i) => {
+          if (c.players.length > 0) return c;
+          return { ...c, type: tierTypes[i % tierTypes.length] };
+        });
+      }
+      return prev.map((c) => {
         if (c.players.length > 0) return c;
-        return {
-          ...c,
-          type:
-            targetMode === "open"            ? "any"  :
-            targetMode === "ladder"          ? "king" :
-            targetMode === "extended_ladder" ? "king" :
-            null,
-        };
-      })
-    );
+        return { ...c, type: targetMode === "open" ? "any" : null };
+      });
+    });
 
     setSessionMode(targetMode);
     localStorage.setItem(STORAGE_KEYS.SESSION_MODE, targetMode);
