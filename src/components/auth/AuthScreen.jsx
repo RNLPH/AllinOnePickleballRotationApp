@@ -9,6 +9,8 @@ const RELEASE_NOTES = [
     "Resilient writes: failed Supabase operations auto-retry in background",
     "Data integrity check: endGame verifies court state before processing",
     "Multi-operator support: multiple devices can manage the same club",
+    "Fixed: re-check-in now places all players in 'New' queue (not Winners/Losers from last session)",
+    "Fixed: disappearing players issue resolved",
   ]},
   { version: "1.8.1", date: "2026-08-20", changes: [
     "Clear Court button — return all players to queue with one click",

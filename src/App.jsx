@@ -2123,6 +2123,9 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
         lastOpponents: [],
         priority: false,
         noPriority: false,
+        cooldownUntil: null,
+        lastResult: null,
+        queueGroup: "unmatched",
         waitingSince: Date.now(),
       };
       newPlayers.push(newPlayer);

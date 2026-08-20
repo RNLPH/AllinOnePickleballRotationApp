@@ -29,7 +29,8 @@ Court session manager for racket sports. Manage player queues, court rotation, s
 - **Delete Club** — remove a club and all its data (owner only, triple confirm)
 - **Clear Court** — return all players from a court to queue with one click
 - **All-Time Leaderboard** — aggregated standings across all sessions
-- **Local-First Resilience** — data cached locally, auto-retry on network failures, no more data loss
+- **Local-First Resilience** — resilient writes with auto-retry on network failures
+- **Supabase Realtime** — Live Board updates instantly for viewers, multi-operator support
 - **PWA** — installable on phone, works offline, auto-updates
 
 ## Tech Stack
