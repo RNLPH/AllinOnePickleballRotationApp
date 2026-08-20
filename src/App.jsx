@@ -232,6 +232,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
 
   // ===== REFS =====
   const inputRef = useRef(null);
+  const endingGameRef = useRef(new Set()); // tracks courts currently processing endGame
 
   // ===== UI STATE =====
   const [name, setName] = useState("");
@@ -2193,8 +2194,12 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
   };
 
   const endGame = async (courtId, winningTeam) => {
+    // Prevent duplicate calls (spam-clicking)
+    if (endingGameRef.current.has(courtId)) return;
+    endingGameRef.current.add(courtId);
+
     const court = courts.find((c) => c.id === courtId);
-    if (!court) return;
+    if (!court) { endingGameRef.current.delete(courtId); return; }
 
     const isSingles = court.format === "singles";
 
@@ -2342,6 +2347,9 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
       delete updated[courtId];
       return updated;
     });
+
+    // Release the lock
+    endingGameRef.current.delete(courtId);
   };
 
   // ===== SESSION ACTIONS =====
