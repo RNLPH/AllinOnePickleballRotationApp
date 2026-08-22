@@ -40,6 +40,40 @@ html.dark .border-slate-200 { border-color: #475569 !important; }
 html.dark .border-orange-200 { border-color: rgba(249, 115, 22, 0.3) !important; }
 html.dark .hover\:bg-slate-300:hover { background-color: #475569 !important; }
 
+/* Dark mode: additional coverage for components that were broken */
+html.dark .bg-white.rounded-2xl, html.dark .bg-white.rounded-xl { background-color: #1e293b !important; }
+html.dark .text-gray-500 { color: #94a3b8 !important; }
+html.dark .text-gray-600 { color: #cbd5e1 !important; }
+html.dark .bg-slate-50.border-b { background-color: #1e293b !important; }
+html.dark .bg-gradient-to-r { background-image: none !important; }
+html.dark .from-blue-500 { background-color: #3b82f6 !important; }
+html.dark .from-purple-500 { background-color: #a855f7 !important; }
+
+/* Podium cards in standings */
+html.dark .bg-yellow-50.border-yellow-200 { background-color: rgba(234, 179, 8, 0.15) !important; color: #fef3c7 !important; }
+html.dark .bg-slate-50.border-slate-200 { background-color: rgba(148, 163, 184, 0.1) !important; color: #e2e8f0 !important; }
+html.dark .bg-orange-50.border-orange-200 { background-color: rgba(249, 115, 22, 0.15) !important; color: #fed7aa !important; }
+
+/* Court card specifics */
+html.dark .border-dashed { border-color: #475569 !important; }
+html.dark .text-slate-300 { color: #64748b !important; }
+
+/* Button text visibility */
+html.dark .bg-slate-100 { background-color: #334155 !important; color: #e2e8f0 !important; }
+html.dark .bg-slate-200 { background-color: #3f4f63 !important; color: #f1f5f9 !important; }
+html.dark .hover\:bg-slate-100:hover { background-color: #3f4f63 !important; }
+html.dark .hover\:bg-slate-200:hover { background-color: #4b5e73 !important; }
+
+/* Queue section headers */
+html.dark .text-blue-600 { color: #60a5fa !important; }
+html.dark .text-green-600, html.dark .text-green-700 { color: #4ade80 !important; }
+html.dark .text-purple-600, html.dark .text-purple-700 { color: #c084fc !important; }
+html.dark .text-amber-600, html.dark .text-amber-700 { color: #fbbf24 !important; }
+html.dark .text-red-500, html.dark .text-red-600 { color: #f87171 !important; }
+html.dark .text-orange-600 { color: #fb923c !important; }
+html.dark .text-indigo-600 { color: #818cf8 !important; }
+html.dark .text-blue-700 { color: #93c5fd !important; }
+
 /* Force light mode on modals in dark mode */
 html.dark .force-light { background-color: #ffffff !important; color: #1e293b !important; }
 html.dark .force-light .text-slate-800 { color: #1e293b !important; }
