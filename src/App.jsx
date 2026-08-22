@@ -1870,9 +1870,9 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
       });
 
       setCourts(updatedCourts);
-      const usedIds = updatedCourts.flatMap((c) => c.players || []).map((p) => p.id);
-      setPlayers(players.filter((p) => !usedIds.includes(p.id)));
-    usedIds.forEach((id) => removePlayerFromDb(id));
+      const newlyAssignedIds = shuffled.slice(0, idx).map((p) => p.id);
+      setPlayers((prev) => prev.filter((p) => !newlyAssignedIds.includes(p.id)));
+      newlyAssignedIds.forEach((id) => removePlayerFromDb(id));
       return;
     }
 
@@ -1895,9 +1895,9 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
       });
 
       setCourts(updatedCourts);
-      const usedIds = updatedCourts.flatMap((c) => c.players || []).map((p) => p.id);
-      setPlayers(players.filter((p) => !usedIds.includes(p.id)));
-    usedIds.forEach((id) => removePlayerFromDb(id));
+      const newlyAssigned = [...usedInThisRound];
+      setPlayers((prev) => prev.filter((p) => !newlyAssigned.includes(p.id)));
+      newlyAssigned.forEach((id) => removePlayerFromDb(id));
       return;
     }
 
@@ -1921,9 +1921,9 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
       });
 
       setCourts(updatedCourts);
-      const usedIds = updatedCourts.flatMap((c) => c.players || []).map((p) => p.id);
-      setPlayers(players.filter((p) => !usedIds.includes(p.id)));
-      usedIds.forEach((id) => removePlayerFromDb(id));
+      const newlyAssigned = [...usedInThisRound];
+      setPlayers((prev) => prev.filter((p) => !newlyAssigned.includes(p.id)));
+      newlyAssigned.forEach((id) => removePlayerFromDb(id));
       // Notify next players
       if (isNotificationEnabled()) {
         updatedCourts.forEach((c, i) => {
@@ -1954,9 +1954,9 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
       });
 
       setCourts(updatedCourts);
-      const usedIds = updatedCourts.flatMap((c) => c.players || []).map((p) => p.id);
-      setPlayers(players.filter((p) => !usedIds.includes(p.id)));
-      usedIds.forEach((id) => removePlayerFromDb(id));
+      const newlyAssigned = [...usedInThisRound];
+      setPlayers((prev) => prev.filter((p) => !newlyAssigned.includes(p.id)));
+      newlyAssigned.forEach((id) => removePlayerFromDb(id));
       // Notify next players
       if (isNotificationEnabled()) {
         updatedCourts.forEach((c, i) => {
@@ -2107,10 +2107,10 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
 
     setCourts(updatedCourts);
 
-    const selectedIds = updatedCourts.flatMap((c) => c.players || []).map((p) => p.id);
-    setPlayers(
+    const selectedIds = [...ladderUsedIds];
+    setPlayers((prev) =>
       resetRestedPlayers(
-        players.filter((p) => !selectedIds.includes(p.id)),
+        prev.filter((p) => !selectedIds.includes(p.id)),
         selectedIds
       )
     );
