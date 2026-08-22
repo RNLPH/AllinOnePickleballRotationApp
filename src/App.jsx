@@ -46,6 +46,7 @@ import QrCodeModal from "./components/modals/QrCodeModal";
 import SlugEditorModal from "./components/modals/SlugEditorModal";
 import { useTheme } from "./contexts/ThemeContext";
 import { useI18n, LANGUAGES } from "./i18n/index.jsx";
+import { useToast } from "./components/ui/Toast";
 import { swissPairing, roundRobinNextMatch } from "./utils/pairingUtils";
 import { requestNotificationPermission, getNotificationStatus, isNotificationEnabled, setNotificationEnabled, notifyPlayerTurn } from "./utils/notifications";
 import { updateClubSlug } from "./db/clubResolver";
@@ -232,6 +233,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
   // ===== THEME & I18N =====
   const { dark, toggle: toggleDark } = useTheme();
   const { lang, setLang, t } = useI18n();
+  const { addToast } = useToast();
 
   // ===== REFS =====
   const inputRef = useRef(null);
@@ -1264,7 +1266,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
       players.some((p) => p.id === player.id) ||
       courts.some((court) => court.players.some((p) => p.id === player.id));
     if (isActive) {
-      alert("Cannot delete a player currently in the queue or on a court.");
+      addToast("Cannot delete � player is active.", "error");
       return;
     }
     await deleteDirectoryPlayer(player.id);
@@ -1844,7 +1846,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
       const maxP = c.format === "singles" ? 2 : 4;
       return c.players.length < maxP;
     });
-    if (availableCourts.length === 0) { alert("No court available to fill."); return; }
+    if (availableCourts.length === 0) { addToast("No court available to fill.", "warning"); return; }
 
     // ===== RANDOM DRAW MODE =====
     if (isRandomDraw) {
@@ -2118,10 +2120,10 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
   const handleReCheckin = async () => {
     // Find the last session's attendance (sessionId - 1)
     const prevSessionId = sessionId - 1;
-    if (prevSessionId < 1) { alert("No previous session to re-check-in from."); return; }
+    if (prevSessionId < 1) { addToast("No previous session to re-check-in from.", "warning"); return; }
 
     const prevAttendance = attendance.filter((r) => r.sessionId === prevSessionId);
-    if (prevAttendance.length === 0) { alert("No players found in the previous session."); return; }
+    if (prevAttendance.length === 0) { addToast("No players found in the previous session.", "warning"); return; }
 
     // Get unique player IDs from last session
     const prevPlayerIds = [...new Set(prevAttendance.map((r) => r.playerId))];
@@ -2137,7 +2139,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
       .map((id) => directory.find((d) => d.id === id))
       .filter(Boolean);
 
-    if (toAdd.length === 0) { alert("All players from last session are already checked in."); return; }
+    if (toAdd.length === 0) { addToast("All already checked in.", "info"); return; }
 
     const confirmed = window.confirm(
       `Re-check-in ${toAdd.length} players from Session ${prevSessionId}?`
@@ -2182,12 +2184,12 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
 
     setPlayers((prev) => [...prev, ...newPlayers]);
     setAttendance((prev) => [...prev, ...newAttendance]);
-    alert(`${toAdd.length} players re-checked in from Session ${prevSessionId}.`);
+    addToast(`${toAdd.length} players re-checked in!`, "success");
   };
 
   // ===== MATCH UNDO =====
   const undoLastMatch = async () => {
-    if (matches.length === 0) { alert("No matches to undo."); return; }
+    if (matches.length === 0) { addToast("No matches to undo.", "info"); return; }
 
     const lastMatch = matches[0]; // matches are sorted newest first
     const confirmed = window.confirm(
@@ -2410,7 +2412,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
 
   const startNewSession = async () => {
     if (hasActiveGames()) {
-      alert("Finish or clear all active games before starting a new session.");
+      addToast("Finish all active games first.", "warning");
       return;
     }
     const confirmed = window.confirm(
@@ -2460,12 +2462,12 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
     // Reset mode so the picker shows at the start of the next session
     setSessionMode(null);
     localStorage.removeItem(STORAGE_KEYS.SESSION_MODE);
-    alert(`Session ${sessionId + 1} started.`);
+    addToast(`Session ${sessionId + 1} started.`, "success");
   };
 
   const resetSession = async () => {
     if (hasActiveGames()) {
-      alert("Finish or clear all active games before resetting the session.");
+      addToast("Finish all active games first.", "warning");
       return;
     }
     const confirmed = window.confirm(`Reset Session ${sessionId}?`);
@@ -2596,7 +2598,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
 
     localStorage.setItem(`${STORAGE_KEYS.SESSION}_${club.id}`, "1");
 
-    alert("Factory Reset completed.");
+    addToast("Factory Reset completed.", "success");
   };
 
   const recalculateStandings = async (updatedMatches) => {
@@ -2668,7 +2670,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
             {sessionMode && !viewMode && (
               <button
                 onClick={() => {
-                  if (hasActiveGames()) { alert("Finish all active games before switching modes."); return; }
+                  if (hasActiveGames()) { addToast("Finish all active games first.", "warning"); return; }
                   setIsSwitchingMode(true);
                   setSessionMode(null);
                   localStorage.removeItem(STORAGE_KEYS.SESSION_MODE);
@@ -2689,12 +2691,12 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
               📺
             </button>
             <button
-              onClick={() => { const url = `${window.location.origin}/live/${club.slug || club.id}`; navigator.clipboard.writeText(url); alert("Live board link copied!\n" + url); }}
+              onClick={() => { const url = `${window.location.origin}/live/${club.slug || club.id}`; navigator.clipboard.writeText(url); addToast("Live board link copied!", "success"); }}
               className="h-7 w-7 rounded bg-white/10 text-white items-center justify-center hover:bg-white/20 text-xs hidden sm:flex">
               🔗
             </button>
             <button
-              onClick={() => { const url = `${window.location.origin}/checkin/${club.slug || club.id}`; navigator.clipboard.writeText(url); alert("Check-in link copied!\n" + url); }}
+              onClick={() => { const url = `${window.location.origin}/checkin/${club.slug || club.id}`; navigator.clipboard.writeText(url); addToast("Check-in link copied!", "success"); }}
               className="h-7 w-7 rounded bg-white/10 text-white items-center justify-center hover:bg-white/20 text-xs hidden sm:flex"
               title="Copy check-in link">
               📋
@@ -2711,7 +2713,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
             {sessionMode && !viewMode && (
               <button
                 onClick={() => {
-                  if (hasActiveGames()) { alert("Finish all active games before switching modes."); return; }
+                  if (hasActiveGames()) { addToast("Finish all active games first.", "warning"); return; }
                   setIsSwitchingMode(true);
                   setSessionMode(null);
                   localStorage.removeItem(STORAGE_KEYS.SESSION_MODE);
@@ -3292,7 +3294,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
             club.slug = result.slug;
             forceUpdate((v) => v + 1);
             setShowSlugEditor(false);
-            alert(`Slug updated! Your links now use: ${window.location.origin}/live/${result.slug}`);
+            addToast(`Slug updated to /${result.slug}`, "success");
           }}
           onClose={() => setShowSlugEditor(false)}
         />
