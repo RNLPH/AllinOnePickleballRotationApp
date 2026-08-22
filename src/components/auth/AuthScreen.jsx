@@ -1,9 +1,18 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../db/supabase";
 
-const APP_VERSION = "1.8.2";
+const APP_VERSION = "1.8.3";
 
 const RELEASE_NOTES = [
+  { version: "1.8.3", date: "2026-08-21", changes: [
+    "Optional match score: enter score (e.g. 11-7) after recording a win",
+    "Score displayed in Match History tab",
+    "Fixed: session counter now persists correctly per club",
+    "Fixed: re-check-in places all players in 'New' queue (not Winners/Losers)",
+    "Fixed: players no longer disappear when assigned to courts",
+    "Fixed: dark mode - court buttons, standings names now readable",
+    "Mode picker: X button always visible + Escape key to close",
+  ]},
   { version: "1.8.2", date: "2026-08-20", changes: [
     "Mobile UI: compact header, better text contrast, hide empty queues",
     "Dark mode: all modals force light text for readability",
