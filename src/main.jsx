@@ -5,6 +5,7 @@ import "./index.css";
 import App from "./App.jsx";
 import { ThemeProvider } from "./contexts/ThemeContext.jsx";
 import { I18nProvider } from "./i18n/index.jsx";
+import { ToastProvider } from "./components/ui/Toast.jsx";
 import { registerSW } from "virtual:pwa-register";
 
 // Lazy-load public pages (not needed on initial operator load)
@@ -33,18 +34,20 @@ createRoot(document.getElementById("root")).render(
   <StrictMode>
     <ThemeProvider>
       <I18nProvider>
-        <BrowserRouter>
-          <Suspense fallback={<LoadingFallback />}>
-            <Routes>
-              <Route path="/live/:clubId" element={<PublicLiveBoard />} />
-              <Route path="/checkin/:clubId" element={<PublicCheckin />} />
-              <Route path="/challenge/:clubId" element={<PublicChallenge />} />
-              <Route path="/player/:clubId/:playerName" element={<PlayerDashboard />} />
-              <Route path="/invite/:inviteCode" element={<PublicInvite />} />
-              <Route path="*" element={<App />} />
-            </Routes>
-          </Suspense>
-        </BrowserRouter>
+        <ToastProvider>
+          <BrowserRouter>
+            <Suspense fallback={<LoadingFallback />}>
+              <Routes>
+                <Route path="/live/:clubId" element={<PublicLiveBoard />} />
+                <Route path="/checkin/:clubId" element={<PublicCheckin />} />
+                <Route path="/challenge/:clubId" element={<PublicChallenge />} />
+                <Route path="/player/:clubId/:playerName" element={<PlayerDashboard />} />
+                <Route path="/invite/:inviteCode" element={<PublicInvite />} />
+                <Route path="*" element={<App />} />
+              </Routes>
+            </Suspense>
+          </BrowserRouter>
+        </ToastProvider>
       </I18nProvider>
     </ThemeProvider>
   </StrictMode>
