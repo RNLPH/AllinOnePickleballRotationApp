@@ -49,6 +49,7 @@ import { useI18n, LANGUAGES } from "./i18n/index.jsx";
 import { swissPairing, roundRobinNextMatch } from "./utils/pairingUtils";
 import { requestNotificationPermission, getNotificationStatus, isNotificationEnabled, setNotificationEnabled, notifyPlayerTurn } from "./utils/notifications";
 import { updateClubSlug } from "./db/clubResolver";
+import { useAtomicGameOps } from "./hooks/useAtomicGameOps";
 
 // ===== AUTH WRAPPER =====
 // Handles auth state and club selection. Renders the main App or auth/picker screens.
@@ -589,6 +590,10 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
   };
 
   // Players are now saved individually (event-driven) — no bulk sync effect needed
+
+  // ===== ATOMIC GAME OPERATIONS (prevents stale closures) =====
+  const { atomicAssignToCourts, atomicEndGame, atomicClearCourt, atomicRemoveCourtPlayer } =
+    useAtomicGameOps({ players, courts, setPlayers, setCourts });
 
   // ===== KEEP LOCAL CACHE IN SYNC WITH STATE =====
   useEffect(() => {
@@ -1413,19 +1418,8 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
       waitingSince: Date.now(),
     };
 
-    setPlayers((prev) => sortPlayers([...prev, returningPlayer]));
-    savePlayer(returningPlayer, club.id); // persist back to DB
-    setCourts((prev) =>
-      prev.map((c) => {
-        if (c.id !== courtId) return c;
-        const updatedPlayers = c.players.filter((p) => p.id !== playerId);
-        return {
-          ...c,
-          players: updatedPlayers,
-          startedAt: updatedPlayers.length < (c.format === "singles" ? 2 : 4) ? null : c.startedAt,
-        };
-      })
-    );
+    atomicRemoveCourtPlayer(courtId, playerId, returningPlayer);
+    savePlayer(returningPlayer, club.id);
   };
 
   const clearCourt = (courtId) => {
@@ -1440,11 +1434,8 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
       waitingSince: Date.now(),
     }));
 
-    setPlayers((prev) => sortPlayers([...prev, ...returningPlayers]));
+    atomicClearCourt(courtId, returningPlayers);
     returningPlayers.forEach((p) => savePlayer(p, club.id));
-    setCourts((prev) =>
-      prev.map((c) => c.id === courtId ? { ...c, players: [], startedAt: null } : c)
-    );
   };
 
   const addPlayerToCourt = (playerId, courtId) => {
