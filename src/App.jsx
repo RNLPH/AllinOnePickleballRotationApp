@@ -282,6 +282,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
   const [showCsvImport, setShowCsvImport] = useState(false);
   const [showQrModal, setShowQrModal] = useState(null); // "checkin" | "liveboard" | null
   const [showSlugEditor, setShowSlugEditor] = useState(false);
+  const [pendingEndGame, setPendingEndGame] = useState(null); // { courtId, winningTeam } — for score prompt
   // { [courtId]: { teamA: count, teamB: count } }
 
   // ===== SESSION MODE =====
@@ -451,14 +452,14 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
   });
 
   const [sessionId, setSessionId] = useState(() => {
-    return Number(localStorage.getItem(STORAGE_KEYS.SESSION) || 1);
+    return Number(localStorage.getItem(`${STORAGE_KEYS.SESSION}_${club.id}`) || 1);
   });
 
   // ===== EFFECTS =====
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.SESSION, sessionId);
-  }, [sessionId]);
+    localStorage.setItem(`${STORAGE_KEYS.SESSION}_${club.id}`, sessionId);
+  }, [sessionId, club.id]);
 
   useEffect(() => {
     const timer = setInterval(() => forceUpdate((prev) => prev + 1), 1000);
@@ -2271,7 +2272,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
     alert("Last match undone. Stats reverted.");
   };
 
-  const endGame = async (courtId, winningTeam) => {
+  const endGame = async (courtId, winningTeam, score = null) => {
     // Prevent duplicate calls (spam-clicking)
     if (endingGameRef.current.has(courtId)) return;
     endingGameRef.current.add(courtId);
@@ -2299,6 +2300,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
       teamA: isSingles ? [court.players[0]?.name] : court.players.slice(0, 2).map((p) => p.name),
       teamB: isSingles ? [court.players[1]?.name] : court.players.slice(2, 4).map((p) => p.name),
       winner: winningTeam,
+      score: score || null,
     };
 
     const matchId = await saveMatch(matchRecord, club.id);
@@ -2626,7 +2628,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
     setSessionId(1);
     setSessionMode(null);
 
-    localStorage.setItem(STORAGE_KEYS.SESSION, "1");
+    localStorage.setItem(`${STORAGE_KEYS.SESSION}_${club.id}`, "1");
 
     alert("Factory Reset completed.");
   };
@@ -3028,7 +3030,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
                         courtPreviews={courtPreviews}
                         selectedPreviewPlayer={selectedPreviewPlayer}
                         partnerWarning={partnerWarnings[court.id] || null}
-                        onEndGame={endGame}
+                        onEndGame={(courtId, winningTeam) => setPendingEndGame({ courtId, winningTeam })}
                         onRemoveCourtPlayer={removeCourtPlayer}
                         onClearCourt={clearCourt}
                         onSetCourtForEdit={setSelectedCourtForEdit}
@@ -3328,6 +3330,61 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
           }}
           onClose={() => setShowSlugEditor(false)}
         />
+      )}
+
+      {/* Score Prompt Modal */}
+      {pendingEndGame && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="force-light bg-white rounded-2xl shadow-xl w-full max-w-xs p-5">
+            <h3 className="text-lg font-bold text-slate-800 text-center mb-1">
+              {pendingEndGame.winningTeam === "A" ? "Team A Wins!" : "Team B Wins!"}
+            </h3>
+            <p className="text-xs text-gray-500 text-center mb-4">Enter score (optional)</p>
+            <div className="flex items-center justify-center gap-3 mb-4">
+              <input
+                id="scoreA"
+                type="number"
+                min="0"
+                max="99"
+                placeholder="0"
+                className="w-16 h-12 text-center text-xl font-bold border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400"
+                autoFocus
+              />
+              <span className="text-slate-400 font-bold text-lg">-</span>
+              <input
+                id="scoreB"
+                type="number"
+                min="0"
+                max="99"
+                placeholder="0"
+                className="w-16 h-12 text-center text-xl font-bold border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  const scoreA = Number(document.getElementById("scoreA")?.value) || null;
+                  const scoreB = Number(document.getElementById("scoreB")?.value) || null;
+                  const score = (scoreA || scoreB) ? { a: scoreA || 0, b: scoreB || 0 } : null;
+                  endGame(pendingEndGame.courtId, pendingEndGame.winningTeam, score);
+                  setPendingEndGame(null);
+                }}
+                className="flex-1 h-10 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-medium"
+              >
+                ✓ Confirm
+              </button>
+              <button
+                onClick={() => {
+                  endGame(pendingEndGame.courtId, pendingEndGame.winningTeam, null);
+                  setPendingEndGame(null);
+                }}
+                className="flex-1 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium"
+              >
+                Skip Score
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>
