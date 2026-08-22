@@ -109,6 +109,11 @@ export default function HistoryTab({
                                 <span className="text-blue-600 font-medium truncate">{match.teamA?.join(" & ")}</span>
                                 <span className="text-slate-300 text-xs">vs</span>
                                 <span className="text-purple-600 font-medium truncate">{match.teamB?.join(" & ")}</span>
+                                {match.score && (
+                                  <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded ml-1">
+                                    {match.score.a}-{match.score.b}
+                                  </span>
+                                )}
                               </div>
                               <div className="text-[10px] text-slate-400 mt-0.5">
                                 {match.startedAt && match.endedAt && formatMatchDuration(match.startedAt, match.endedAt)}
