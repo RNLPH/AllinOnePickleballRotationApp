@@ -1863,7 +1863,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
 
       setCourts(updatedCourts);
       const newlyAssignedIds = shuffled.slice(0, idx).map((p) => p.id);
-      setPlayers((prev) => prev.filter((p) => !newlyAssignedIds.includes(p.id)));
+      atomicAssignToCourts(updatedCourts, newlyAssignedIds);
       newlyAssignedIds.forEach((id) => removePlayerFromDb(id));
       return;
     }
@@ -1888,7 +1888,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
 
       setCourts(updatedCourts);
       const newlyAssigned = [...usedInThisRound];
-      setPlayers((prev) => prev.filter((p) => !newlyAssigned.includes(p.id)));
+      atomicAssignToCourts(updatedCourts, newlyAssigned);
       newlyAssigned.forEach((id) => removePlayerFromDb(id));
       return;
     }
@@ -1914,7 +1914,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
 
       setCourts(updatedCourts);
       const newlyAssigned = [...usedInThisRound];
-      setPlayers((prev) => prev.filter((p) => !newlyAssigned.includes(p.id)));
+      atomicAssignToCourts(updatedCourts, newlyAssigned);
       newlyAssigned.forEach((id) => removePlayerFromDb(id));
       // Notify next players
       if (isNotificationEnabled()) {
@@ -1947,7 +1947,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
 
       setCourts(updatedCourts);
       const newlyAssigned = [...usedInThisRound];
-      setPlayers((prev) => prev.filter((p) => !newlyAssigned.includes(p.id)));
+      atomicAssignToCourts(updatedCourts, newlyAssigned);
       newlyAssigned.forEach((id) => removePlayerFromDb(id));
       // Notify next players
       if (isNotificationEnabled()) {
@@ -2023,14 +2023,8 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
         return { ...court, players: teams, startedAt: Date.now() };
       });
 
-      setCourts(updatedCourts);
       const selectedIds = [...usedIds];
-      setPlayers(
-        resetRestedPlayers(
-          players.filter((p) => !selectedIds.includes(p.id)),
-          selectedIds
-        )
-      );
+      atomicAssignToCourts(updatedCourts, selectedIds, true);
       // Remove assigned players from Supabase
       selectedIds.forEach((id) => removePlayerFromDb(id));
 
@@ -2100,12 +2094,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
     setCourts(updatedCourts);
 
     const selectedIds = [...ladderUsedIds];
-    setPlayers((prev) =>
-      resetRestedPlayers(
-        prev.filter((p) => !selectedIds.includes(p.id)),
-        selectedIds
-      )
-    );
+    atomicAssignToCourts(updatedCourts, selectedIds, true);
     // Remove assigned players from Supabase
     selectedIds.forEach((id) => removePlayerFromDb(id));
 
@@ -2386,38 +2375,24 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
     // Only persist the players that actually changed (not the entire directory)
     await Promise.all(returningPlayers.map((p) => saveDirectoryPlayer(p, club.id)));
 
-    setPlayers((prev) => sortPlayers([...prev, ...returningPlayers.map((p) => ({
+    const playersWithCooldown = returningPlayers.map((p) => ({
       ...p,
       cooldownUntil: cooldownMinutes > 0 ? Date.now() + cooldownMinutes * 60000 : null,
-    }))]));
+    }));
+
     // Persist returning players
-    returningPlayers.forEach((p) => savePlayer({
-      ...p,
-      cooldownUntil: cooldownMinutes > 0 ? Date.now() + cooldownMinutes * 60000 : null,
-    }, club.id));
+    playersWithCooldown.forEach((p) => savePlayer(p, club.id));
 
     // ===== KING OF THE COURT: Winners stay on court =====
     if (isKingOfCourt) {
-      const winners = returningPlayers.filter((p) => p.lastResult === "win");
-
-      // Clear court and immediately place winners back (single state update to avoid race)
-      setCourts((prev) =>
-        prev.map((c) => c.id === courtId ? { ...c, players: winners, startedAt: null } : c)
-      );
-
-      // Remove winners from queue (they were just added above)
-      setPlayers((prev) => {
-        const withoutWinners = prev.filter((p) => !winners.some((w) => w.id === p.id));
-        return sortPlayers(withoutWinners);
-      });
-
+      const winners = playersWithCooldown.filter((p) => p.lastResult === "win");
+      const losers = playersWithCooldown.filter((p) => p.lastResult !== "win");
+      atomicEndGame(courtId, losers, winners);
       // Remove winners from players DB (they're on court, not in queue)
       winners.forEach((w) => removePlayerFromDb(w.id));
     } else {
-      // Normal: clear the court
-      setCourts((prev) =>
-        prev.map((c) => (c.id === courtId ? { ...c, players: [], startedAt: null } : c))
-      );
+      // Normal: all players return to queue, clear court
+      atomicEndGame(courtId, playersWithCooldown, null);
     }
 
     // Clear warning for this court once game ends
