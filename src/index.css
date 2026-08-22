@@ -32,6 +32,18 @@ html.dark .bg-purple-50 { background-color: rgba(168, 85, 247, 0.1) !important; 
 html.dark input, html.dark select { background-color: #1e293b; color: #e2e8f0; border-color: #475569; }
 html.dark .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0,0,0,0.3) !important; }
 
+/* Force light mode on modals in dark mode */
+html.dark .force-light { background-color: #ffffff !important; color: #1e293b !important; }
+html.dark .force-light .text-slate-800 { color: #1e293b !important; }
+html.dark .force-light .text-slate-700 { color: #334155 !important; }
+html.dark .force-light .text-slate-600 { color: #475569 !important; }
+html.dark .force-light .text-slate-500 { color: #64748b !important; }
+html.dark .force-light .text-slate-400 { color: #94a3b8 !important; }
+html.dark .force-light .text-gray-500 { color: #6b7280 !important; }
+html.dark .force-light .text-gray-600 { color: #4b5563 !important; }
+html.dark .force-light input { background-color: #ffffff !important; color: #1e293b !important; border-color: #e2e8f0 !important; }
+html.dark .force-light select { background-color: #ffffff !important; color: #1e293b !important; border-color: #e2e8f0 !important; }
+
 #root {
   overflow-x: hidden;
 }

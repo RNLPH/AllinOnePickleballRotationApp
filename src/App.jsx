@@ -3190,7 +3190,10 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
                   setSessionMode(restored);
                   localStorage.setItem(STORAGE_KEYS.SESSION_MODE, restored);
                 }
-              : null
+              : () => {
+                  // First login: default to Open Mode
+                  handleSelectSessionMode("open");
+                }
           }
         />
       )}

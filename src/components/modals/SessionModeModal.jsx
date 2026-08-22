@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { SESSION_MODES } from "../../constants";
 
 const MODES = [
@@ -131,28 +132,43 @@ const MODES = [
 ];
 
 export default function SessionModeModal({ sessionId, onSelect, onCancel }) {
+  // Escape key to close
+  useEffect(() => {
+    const handleKey = (e) => {
+      if (e.key === "Escape") {
+        if (onCancel) onCancel();
+        else onSelect("open");
+      }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [onCancel, onSelect]);
+
+  const handleClose = () => {
+    if (onCancel) onCancel();
+    else onSelect("open");
+  };
+
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto relative">
+      <div className="force-light bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col">
 
-        {/* Close button */}
-        {onCancel && (
+        {/* Fixed header with X button */}
+        <div className="flex items-center justify-between px-5 pt-4 pb-2 shrink-0 border-b border-slate-100">
+          <div>
+            <h2 className="text-lg font-bold text-slate-800">Session {sessionId}</h2>
+            <p className="text-gray-500 text-xs">Choose a game mode</p>
+          </div>
           <button
-            onClick={onCancel}
-            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-bold z-10"
+            onClick={handleClose}
+            className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-200 hover:bg-slate-300 text-slate-700 text-sm font-bold"
           >
             ✕
           </button>
-        )}
+        </div>
 
-        <div className="p-5 sm:p-6">
-          <h2 className="text-xl font-bold text-center text-slate-800 mb-1">
-            Session {sessionId}
-          </h2>
-          <p className="text-center text-gray-500 text-xs mb-5">
-            Choose a game mode
-          </p>
-
+        {/* Scrollable mode list */}
+        <div className="overflow-y-auto flex-1 p-5">
           <div className="space-y-5">
             {MODES.map((group) => (
               <div key={group.category}>
