@@ -2323,18 +2323,18 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
       cooldownUntil: cooldownMinutes > 0 ? Date.now() + cooldownMinutes * 60000 : null,
     }));
 
-    // Persist returning players
-    playersWithCooldown.forEach((p) => savePlayer(p, club.id));
-
     // ===== KING OF THE COURT: Winners stay on court =====
     if (isKingOfCourt) {
       const winners = playersWithCooldown.filter((p) => p.lastResult === "win");
       const losers = playersWithCooldown.filter((p) => p.lastResult !== "win");
+      // Only persist losers to DB (winners stay on court, not in queue)
+      losers.forEach((p) => savePlayer(p, club.id));
       atomicEndGame(courtId, losers, winners);
       // Remove winners from players DB (they're on court, not in queue)
       winners.forEach((w) => removePlayerFromDb(w.id));
     } else {
       // Normal: all players return to queue, clear court
+      playersWithCooldown.forEach((p) => savePlayer(p, club.id));
       atomicEndGame(courtId, playersWithCooldown, null);
     }
 
