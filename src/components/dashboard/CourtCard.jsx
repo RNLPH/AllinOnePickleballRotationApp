@@ -575,6 +575,16 @@ export default function CourtCard({
           </div>
         )}
 
+        {/* Tap-to-assign button (shows when player selected and court not full) */}
+        {tapSelectedPlayer && !isFull && court.players.length > 0 && (
+          <button
+            onClick={() => onCourtTap && onCourtTap(court.id)}
+            className="w-full mt-2 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white text-sm font-bold animate-pulse"
+          >
+            ➕ Assign {tapSelectedPlayer.name} here
+          </button>
+        )}
+
         {/* Clear Court */}
         {court.players.length > 0 && (
           <button
