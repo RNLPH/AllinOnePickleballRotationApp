@@ -43,17 +43,19 @@ export default function CourtCard({
   return (
     <DroppableCourt courtId={court.id}>
       <div
-        className="
+        className={`
           bg-white
           rounded-2xl
           shadow-lg
           p-5
+          border-l-4
           border
+          ${isFull && court.startedAt ? (getCourtMinutes(court.startedAt) > 15 ? "border-l-amber-500" : "border-l-green-500") : "border-l-slate-300"}
           border-slate-200
           hover:shadow-xl
           transition-all
           hover:-translate-y-1
-        "
+        `}
       >
         {/* Court Header */}
         <div

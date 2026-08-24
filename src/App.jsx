@@ -2822,6 +2822,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
               onBulkImport={() => setShowCsvImport(true)}
               onShowQrCheckin={() => setShowQrModal("checkin")}
               onShowQrLiveBoard={() => setShowQrModal("liveboard")}
+              onQuickAdd={(playerName) => { setName(playerName); openTierSelection(); }}
             />
 
             <DndContext
@@ -3005,6 +3006,16 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
         )}
 
       </main>
+
+      {/* Sticky Start Game FAB — mobile only, when courts need filling */}
+      {!viewMode && activeTab === "dashboard" && waitingPlayers.length >= 4 && courts.some((c) => c.players.length < (c.format === "singles" ? 2 : 4)) && (
+        <button
+          onClick={startNextGame}
+          className="fixed bottom-16 right-4 z-50 sm:hidden w-14 h-14 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-xl flex items-center justify-center text-xl active:scale-95 transition-transform"
+        >
+          ▶
+        </button>
+      )}
 
       {/* Bottom Tab Navigation — mobile native feel */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-40 sm:hidden safe-area-pb">

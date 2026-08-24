@@ -37,6 +37,7 @@ export default function SessionControls({
   onBulkImport,
   onShowQrCheckin,
   onShowQrLiveBoard,
+  onQuickAdd,
 }) {
   const [showMore, setShowMore] = useState(false);
   const { t } = useI18n();
@@ -126,6 +127,24 @@ export default function SessionControls({
             {addingPlayer ? "..." : t("add_player")}
           </button>
         </div>
+
+        {/* Quick-add chips */}
+        {directory && directory.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            {directory
+              .filter((d) => !players.some((p) => p.id === d.id) && !courts.some((c) => c.players.some((p) => p.id === d.id)))
+              .slice(0, 8)
+              .map((d) => (
+                <button
+                  key={d.id}
+                  onClick={() => onQuickAdd && onQuickAdd(d.name)}
+                  className="h-7 px-2.5 rounded-full bg-slate-100 hover:bg-blue-100 text-xs text-slate-600 hover:text-blue-700 font-medium transition-colors"
+                >
+                  + {d.name}
+                </button>
+              ))}
+          </div>
+        )}
 
         {/* Primary actions */}
         <div className="flex gap-2 mb-2">

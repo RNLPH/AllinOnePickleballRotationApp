@@ -104,10 +104,15 @@ export default function StandingsTab({
                   <span className="text-xs font-bold text-slate-400">{rank}</span>
                   <div className="min-w-0">
                     <span className="text-sm font-medium text-slate-800 truncate block">{player.name}</span>
-                    <span className="text-[10px] text-slate-400">
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-green-500 rounded-full" style={{ width: `${wr}%` }} />
+                      </div>
+                      <span className="text-[10px] text-slate-400">
                       {player.currentStreak > 0 && `🔥${player.currentStreak} `}
                       GP:{player.gamesPlayed}
                     </span>
+                    </div>
                   </div>
                   <span className="text-sm font-semibold text-green-600">{player.wins}</span>
                   <span className="text-sm font-semibold text-red-500">{player.losses}</span>
