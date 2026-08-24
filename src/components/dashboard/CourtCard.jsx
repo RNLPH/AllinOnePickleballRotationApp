@@ -196,12 +196,7 @@ export default function CourtCard({
             </div>
           </div>
         ) : (
-          <div className="space-y-4">
-            <div className="text-center mb-2">
-              <span className="font-bold text-blue-600">🔵 Team A</span>
-              <span className="mx-3 text-gray-400">VS</span>
-              <span className="font-bold text-purple-600">🟣 Team B</span>
-            </div>
+          <div className="space-y-3">
 
             <div className="grid grid-cols-2 gap-2">
               {/* Team A */}

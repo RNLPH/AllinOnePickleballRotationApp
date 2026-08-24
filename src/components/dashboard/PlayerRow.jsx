@@ -56,10 +56,11 @@ export default function PlayerRow({
     return `Court #${court.id}`;
   }
 
-  const waitingMinutes = player.waitingSince
+  const rawMinutes = player.waitingSince
     ? Math.floor((Date.now() - player.waitingSince) / 60000)
     : 0;
-  const isWaitingLong = waitingMinutes >= 15;
+  const waitingMinutes = rawMinutes;
+  const isWaitingLong = waitingMinutes >= 15 && waitingMinutes < 120; // Only flag 15-120min as "long"
 
   return (
     <div className={`rounded-xl shadow-sm overflow-hidden border ${isWaitingLong ? "border-red-300 bg-red-50" : "border-slate-100 bg-white"}`}>
@@ -99,6 +100,7 @@ export default function PlayerRow({
             </span>
           )}
           {isWaitingLong && <span className="text-[10px] text-red-500 font-bold">{waitingMinutes}m</span>}
+          {waitingMinutes >= 120 && <span className="text-[10px] text-slate-400">{Math.floor(waitingMinutes / 60)}h</span>}
           <span className="text-xs text-slate-300">#{index + 1}</span>
         </div>
 

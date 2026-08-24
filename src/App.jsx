@@ -2678,44 +2678,6 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
         )}
       </header>
 
-      {/* Settings bar: Dark Mode + Language (desktop only, mobile has it in header) */}
-      <div className="hidden sm:flex bg-white dark:bg-slate-800 border-b border-slate-100 px-4 py-1.5 items-center justify-end gap-3">
-        <button
-          onClick={toggleDark}
-          className="h-7 px-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs text-slate-600 flex items-center gap-1"
-          title="Toggle dark mode"
-        >
-          {dark ? "☀️" : "🌙"}
-        </button>
-        <select
-          value={lang}
-          onChange={(e) => setLang(e.target.value)}
-          className="h-7 px-2 rounded-lg bg-slate-100 text-xs text-slate-600 border-0 cursor-pointer"
-        >
-          {LANGUAGES.map((l) => (
-            <option key={l.code} value={l.code}>{l.flag} {l.label}</option>
-          ))}
-        </select>
-        <button
-          onClick={async () => {
-            if (getNotificationStatus() === "granted") {
-              setNotificationEnabled(!isNotificationEnabled());
-            } else {
-              const result = await requestNotificationPermission();
-              if (result === "granted") setNotificationEnabled(true);
-            }
-            // Force re-render
-            setPlayers((p) => [...p]);
-          }}
-          className={`h-7 px-2 rounded-lg text-xs flex items-center gap-1 ${
-            isNotificationEnabled() ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-          }`}
-          title="Toggle notifications"
-        >
-          {isNotificationEnabled() ? "🔔" : "🔕"}
-        </button>
-      </div>
-
       {/* Main content */}
       <main className="max-w-7xl mx-auto px-4 py-4">
 
