@@ -1,7 +1,10 @@
+import { useState } from "react";
 import DroppableQueue from "../dnd/DroppableQueue";
 import PlayerRow from "./PlayerRow";
 
 function QueueSection({ title, colorClass, players, courts, selectedCourt, setSelectedCourt, onAddToCourt, onRemovePlayer, onTogglePriority, onToggleNoPriority, onEditTier, onViewProfile, onEditName, onDismissChallenge }) {
+  const [collapsed, setCollapsed] = useState(false);
+
   // Hide empty sections on mobile
   if (players.length === 0) {
     return (
@@ -17,12 +20,21 @@ function QueueSection({ title, colorClass, players, courts, selectedCourt, setSe
 
   return (
     <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
-      <div className="px-3 py-2 border-b border-slate-100 flex items-center justify-between">
+      <div
+        className="px-3 py-2 border-b border-slate-100 flex items-center justify-between cursor-pointer hover:bg-slate-50 sm:cursor-default"
+        onClick={() => setCollapsed((prev) => !prev)}
+      >
         <span className={`text-sm font-bold ${colorClass}`}>{title}</span>
-        <span className="text-xs font-semibold text-slate-500">{players.length}</span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs font-semibold text-slate-500">{players.length}</span>
+          <svg className={`w-3.5 h-3.5 text-slate-400 transition-transform sm:hidden ${collapsed ? "" : "rotate-180"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
       </div>
-      <div className="max-h-[50vh] overflow-y-auto p-2 space-y-1.5">
-        {players.map((player, index) => (
+      {!collapsed && (
+        <div className="max-h-[50vh] overflow-y-auto p-2 space-y-1.5">
+          {players.map((player, index) => (
             <PlayerRow
               key={player.id}
               player={player}
@@ -41,7 +53,8 @@ function QueueSection({ title, colorClass, players, courts, selectedCourt, setSe
               openMode
             />
           ))}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
