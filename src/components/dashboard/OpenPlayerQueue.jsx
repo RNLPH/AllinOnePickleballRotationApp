@@ -2,7 +2,7 @@ import { useState } from "react";
 import DroppableQueue from "../dnd/DroppableQueue";
 import PlayerRow from "./PlayerRow";
 
-function QueueSection({ title, colorClass, players, courts, selectedCourt, setSelectedCourt, onAddToCourt, onRemovePlayer, onTogglePriority, onToggleNoPriority, onEditTier, onViewProfile, onEditName, onDismissChallenge, tapSelectedPlayer, onTapSelect }) {
+function QueueSection({ title, colorClass, players, courts, selectedCourt, setSelectedCourt, onAddToCourt, onRemovePlayer, onTogglePriority, onToggleNoPriority, onEditTier, onViewProfile, onEditName, onDismissChallenge, tapSelectedPlayer, onTapSelect, estimatedWait }) {
   const [collapsed, setCollapsed] = useState(false);
 
   // Hide empty sections on mobile
@@ -13,7 +13,7 @@ function QueueSection({ title, colorClass, players, courts, selectedCourt, setSe
           <span className={`text-sm font-bold ${colorClass}`}>{title}</span>
           <span className="text-xs text-slate-400">0</span>
         </div>
-        <p className="text-xs text-slate-300 text-center py-4">Empty</p>
+        <p className="text-xs text-slate-300 text-center py-4">No players yet — check in players to begin</p>
       </div>
     );
   }
@@ -23,6 +23,9 @@ function QueueSection({ title, colorClass, players, courts, selectedCourt, setSe
       <div
         className="px-3 py-2 border-b border-slate-100 flex items-center justify-between cursor-pointer hover:bg-slate-50 sm:cursor-default"
         onClick={() => setCollapsed((prev) => !prev)}
+        role="button"
+        aria-expanded={!collapsed}
+        aria-label={`${title} queue, ${players.length} players`}
       >
         <span className={`text-sm font-bold ${colorClass}`}>{title}</span>
         <div className="flex items-center gap-1.5">
@@ -33,7 +36,7 @@ function QueueSection({ title, colorClass, players, courts, selectedCourt, setSe
         </div>
       </div>
       {!collapsed && (
-        <div className="max-h-[50vh] overflow-y-auto p-2 space-y-1.5">
+        <div className="max-h-[50vh] overflow-y-auto p-2 space-y-1.5" role="list" aria-label={`${title} player list`}>
           {players.map((player, index) => (
             <PlayerRow
               key={player.id}
@@ -53,6 +56,7 @@ function QueueSection({ title, colorClass, players, courts, selectedCourt, setSe
               tapSelectedPlayer={tapSelectedPlayer}
               onTapSelect={onTapSelect}
               openMode
+              estimatedWait={estimatedWait ? Math.round(estimatedWait * (index + 1) / 4) : null}
             />
           ))}
         </div>
@@ -77,8 +81,9 @@ export default function OpenPlayerQueue({
   onDismissChallenge,
   tapSelectedPlayer,
   onTapSelect,
+  estimatedWait,
 }) {
-  const sharedProps = { courts, selectedCourt, setSelectedCourt, onAddToCourt, onRemovePlayer, onTogglePriority, onToggleNoPriority, onEditTier: () => {}, onViewProfile, onEditName, onDismissChallenge, tapSelectedPlayer, onTapSelect };
+  const sharedProps = { courts, selectedCourt, setSelectedCourt, onAddToCourt, onRemovePlayer, onTogglePriority, onToggleNoPriority, onEditTier: () => {}, onViewProfile, onEditName, onDismissChallenge, tapSelectedPlayer, onTapSelect, estimatedWait };
 
   return (
     <DroppableQueue>
@@ -90,5 +95,3 @@ export default function OpenPlayerQueue({
     </DroppableQueue>
   );
 }
-
-

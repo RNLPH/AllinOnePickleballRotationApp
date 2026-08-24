@@ -76,6 +76,8 @@ export default function PublicLiveBoard() {
   }, [identifier]);
 
   const [showAllStandings, setShowAllStandings] = useState(false);
+  const [findMeQuery, setFindMeQuery] = useState("");
+  const findMeMatch = findMeQuery.trim().toLowerCase();
 
   if (notFound) {
     return (
@@ -91,6 +93,14 @@ export default function PublicLiveBoard() {
 
   const sortedQueue = sortPlayers(players);
   const activePlaying = courts.reduce((c, court) => c + (court.players?.length || 0), 0);
+
+  // Find Me logic (must be after sortedQueue)
+  const findMeOnCourt = findMeMatch
+    ? courts.find((c) => c.players?.some((p) => p.name.toLowerCase().includes(findMeMatch)))
+    : null;
+  const findMeInQueue = findMeMatch
+    ? sortedQueue.findIndex((p) => p.name.toLowerCase().includes(findMeMatch))
+    : -1;
 
   // ===== COURT AVAILABILITY / ESTIMATED WAIT TIME =====
   // Calculate average match duration from active courts
@@ -161,6 +171,31 @@ export default function PublicLiveBoard() {
       {/* Content */}
       <main className="px-3 sm:px-6 py-4 space-y-4">
 
+        {/* Find Me — search highlight */}
+        <div className="relative">
+          <input
+            type="text"
+            value={findMeQuery}
+            onChange={(e) => setFindMeQuery(e.target.value)}
+            placeholder="🔍 Find me... (type your name)"
+            className="w-full h-10 pl-4 pr-9 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 placeholder:text-slate-400"
+          />
+          {findMeQuery && (
+            <button onClick={() => setFindMeQuery("")} className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 text-sm">✕</button>
+          )}
+          {findMeMatch && (
+            <div className="mt-2 px-3 py-2 rounded-lg bg-blue-50 border border-blue-200 text-sm">
+              {findMeOnCourt ? (
+                <span className="text-green-700 font-semibold">🏓 You're playing on {getCourtLabel(findMeOnCourt.type)} #{findMeOnCourt.id}!</span>
+              ) : findMeInQueue >= 0 ? (
+                <span className="text-blue-700 font-semibold">📋 You're #{findMeInQueue + 1} in queue{getEstimatedWait(findMeInQueue) ? ` — ~${getEstimatedWait(findMeInQueue)} min wait` : ""}</span>
+              ) : (
+                <span className="text-slate-500">Not found — check in first!</span>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Active Courts */}
         {courts.length > 0 && (
           <section>
@@ -174,7 +209,7 @@ export default function PublicLiveBoard() {
                   <div key={court.id} className="bg-white border border-slate-200 rounded-xl p-3 sm:p-4 shadow-sm">
                     <div className="flex justify-between items-center mb-2">
                       <h3 className="text-sm sm:text-base font-bold text-blue-700">
-                        {getCourtLabel(court.type)} #{court.id}
+                        {court.customName || `${getCourtLabel(court.type)} #${court.id}`}
                       </h3>
                       {court.startedAt && (
                         <span className={`text-base sm:text-lg font-mono font-bold ${timerColor}`}>
@@ -235,10 +270,12 @@ export default function PublicLiveBoard() {
               <div className="text-center py-6 text-slate-300 text-sm">No players yet</div>
             ) : (
               <div className="space-y-1">
-                {sortedQueue.map((player, index) => (
+                {sortedQueue.map((player, index) => {
+                  const isHighlighted = findMeMatch && player.name.toLowerCase().includes(findMeMatch);
+                  return (
                   <div
                     key={player.id}
-                    className={`flex items-center gap-2 px-2 py-1.5 rounded-lg ${index < 4 ? "bg-blue-50" : ""}`}
+                    className={`flex items-center gap-2 px-2 py-1.5 rounded-lg ${isHighlighted ? "bg-yellow-100 ring-2 ring-yellow-400" : index < 4 ? "bg-blue-50" : ""}`}
                   >
                     <span className="text-[10px] font-bold text-slate-300 w-4">{index + 1}</span>
                     <PlayerAvatar player={player} size="w-7 h-7" textSize="text-[9px]" />
@@ -248,6 +285,9 @@ export default function PublicLiveBoard() {
                     <span className="text-[10px] text-slate-400 shrink-0">
                       {player.wins || 0}W {player.losses || 0}L
                     </span>
+                    {(player.currentStreak || 0) >= 3 && (
+                      <span className="text-[10px] shrink-0">🔥{player.currentStreak}</span>
+                    )}
                     {index < 4 && (
                       <span className="bg-green-100 text-green-700 px-1.5 py-0.5 rounded text-[9px] font-semibold shrink-0">Next</span>
                     )}
@@ -255,7 +295,8 @@ export default function PublicLiveBoard() {
                       <span className="text-[9px] text-slate-400 shrink-0">~{getEstimatedWait(index)}m</span>
                     )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

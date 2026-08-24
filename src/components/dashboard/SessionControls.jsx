@@ -38,6 +38,9 @@ export default function SessionControls({
   onShowQrCheckin,
   onShowQrLiveBoard,
   onQuickAdd,
+  soundEnabled,
+  onToggleSound,
+  onExportSession,
 }) {
   const [showMore, setShowMore] = useState(false);
   const { t } = useI18n();
@@ -155,6 +158,12 @@ export default function SessionControls({
               return emptyCourts > 1 ? `▶ Fill ${emptyCourts} Courts` : t("start_game");
             })()}
           </button>
+          <button onClick={onUndoLastMatch}
+            className="h-10 px-3 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-700 text-sm font-medium"
+            title="Undo last match"
+            aria-label="Undo last match">
+            ↩️
+          </button>
           <button onClick={onShowCourtTypeModal}
             className="h-10 px-4 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium">
             {t("add_court")}
@@ -225,6 +234,10 @@ export default function SessionControls({
               className="h-9 rounded-lg bg-cyan-50 text-cyan-700 text-xs font-medium hover:bg-cyan-100">
               {t("qr_liveboard")}
             </button>
+            <button onClick={onExportSession}
+              className="col-span-2 h-9 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-medium hover:bg-emerald-100">
+              📤 Export Session Summary
+            </button>
             {clubId && (
               <button
                 onClick={() => {
@@ -268,6 +281,16 @@ export default function SessionControls({
                 <option value={5}>5 min</option>
                 <option value={10}>10 min</option>
               </select>
+            </div>
+            {/* Sound Toggle */}
+            <div className="col-span-2 flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2">
+              <div className="text-[10px] text-slate-500">🔔 Timer Alert Sound (at 15 min)</div>
+              <button
+                onClick={onToggleSound}
+                className={`h-7 px-3 rounded text-xs font-medium ${soundEnabled ? "bg-green-100 text-green-700" : "bg-slate-200 text-slate-500"}`}
+              >
+                {soundEnabled ? "On" : "Off"}
+              </button>
             </div>
           </div>
         )}

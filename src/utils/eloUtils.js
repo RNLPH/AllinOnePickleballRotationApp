@@ -63,6 +63,26 @@ export function getRatingTier(rating) {
   return { label: "Beginner", color: "text-slate-600", bg: "bg-slate-50" };
 }
 
+/**
+ * Reverse an ELO rating change (undo a match result)
+ * @param {number} currentRating - rating AFTER the match was played
+ * @param {number} opponentRating - opponent's rating at the time
+ * @param {boolean} hadWon - did this player win the match being undone?
+ * @returns {number} estimated rating before the match
+ */
+export function reverseRating(currentRating, opponentRating, hadWon) {
+  const rating = currentRating || DEFAULT_RATING;
+  const oppRating = opponentRating || DEFAULT_RATING;
+
+  const expected = expectedScore(rating, oppRating);
+  const actual = hadWon ? 1 : 0;
+
+  // Reverse: subtract what was added
+  const previousRating = rating - K_FACTOR * (actual - expected);
+
+  return Math.round(Math.min(MAX_RATING, Math.max(MIN_RATING, previousRating)) * 100) / 100;
+}
+
 export const DEFAULT_ELO = DEFAULT_RATING;
 
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo, useCallback, useDeferredValue } from "react";
 import { DndContext, DragOverlay } from "@dnd-kit/core";
 
 import { supabase } from "./db/supabase";
@@ -14,7 +14,7 @@ import ClubSetupScreen from "./components/auth/ClubSetupScreen";
 
 import { DEFAULT_COURTS, STORAGE_KEYS, TIER_LIMITS, EXTENDED_TIER_LIMITS, EXTENDED_TIER_TRANSITIONS, SESSION_MODES, OPEN_COURT_TYPES, getDefaultCourts } from "./constants";
 import { sortPlayers, shufflePlayers } from "./utils/playerUtils";
-import { calculateNewRating, getTeamRating } from "./utils/eloUtils";
+import { calculateNewRating, getTeamRating, reverseRating } from "./utils/eloUtils";
 import {
   buildRotationGroup,
   eligiblePlayers,
@@ -50,6 +50,11 @@ import { swissPairing, roundRobinNextMatch } from "./utils/pairingUtils";
 import { requestNotificationPermission, getNotificationStatus, isNotificationEnabled, setNotificationEnabled, notifyPlayerTurn } from "./utils/notifications";
 import { updateClubSlug } from "./db/clubResolver";
 import { useAtomicGameOps } from "./hooks/useAtomicGameOps";
+import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
+import { DashboardSkeleton } from "./components/ui/SkeletonLoader";
+import QueueSearch from "./components/dashboard/QueueSearch";
+import { isSoundEnabled, setSoundEnabled } from "./utils/timerAlert";
+import { generateSessionText } from "./utils/csvUtils";
 
 // ===== AUTH WRAPPER =====
 // Handles auth state and club selection. Renders the main App or auth/picker screens.
@@ -242,7 +247,6 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
   const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState("dashboard");
-  const [, forceUpdate] = useState(0);
 
   // ===== VIEW MODE =====
   // Per-device read-only mode. Stored in localStorage so it persists on refresh.
@@ -264,6 +268,9 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
   const [cooldownMinutes, setCooldownMinutes] = useState(() => {
     return Number(localStorage.getItem("rallystack_cooldown") || 0);
   });
+
+  // ===== SOUND TOGGLE =====
+  const [soundEnabled, setSoundEnabledState] = useState(isSoundEnabled);
 
   const [showLiveBoard, setShowLiveBoard] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
@@ -287,6 +294,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
   const [showSlugEditor, setShowSlugEditor] = useState(false);
   const [pendingEndGame, setPendingEndGame] = useState(null); // { courtId, winningTeam } — for score prompt
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [queueSearchQuery, setQueueSearchQuery] = useState("");
   // { [courtId]: { teamA: count, teamB: count } }
 
   // ===== SESSION MODE =====
@@ -400,6 +408,18 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
 
     setPlayers(updatedPlayers);
 
+    // Persist tier changes to Supabase (players table + directory)
+    updatedPlayers.forEach((p) => {
+      savePlayer(p, club.id);
+      saveDirectoryPlayer(p, club.id);
+    });
+
+    // Update directory in state as well
+    setDirectory((prev) => prev.map((dp) => {
+      const assignment = assignments.find((a) => a.player.id === dp.id);
+      return assignment ? { ...dp, tier: assignment.tier } : dp;
+    }));
+
     // Update courts to the correct default type for the target mode
     setCourts((prev) => {
       if (targetMode === "extended_ladder") {
@@ -465,13 +485,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
     localStorage.setItem(`${STORAGE_KEYS.SESSION}_${club.id}`, sessionId);
   }, [sessionId, club.id]);
 
-  useEffect(() => {
-    // Only tick every second if there are active courts with timers running
-    const hasActiveCourts = courts.some((c) => c.players.length > 0 && c.startedAt);
-    if (!hasActiveCourts) return;
-    const timer = setInterval(() => forceUpdate((prev) => prev + 1), 1000);
-    return () => clearInterval(timer);
-  }, [courts]);
+  // Timer is now handled by CourtTimer component — no need for full-app re-render
 
   // ===== VIEW MODE AUTO-REFRESH =====
   useEffect(() => {
@@ -529,6 +543,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
         setDirectory(dir);
       } catch (err) {
         console.error("Failed to load data:", err);
+        setPlayersLoaded(true); // Don't leave user stuck on skeleton
       }
     }
     loadAll();
@@ -559,43 +574,76 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
   const { atomicAssignToCourts, atomicEndGame, atomicClearCourt, atomicRemoveCourtPlayer } =
     useAtomicGameOps({ players, courts, setPlayers, setCourts });
 
+  // ===== KEYBOARD SHORTCUTS (desktop) =====
+  const startNextGameRef = useRef(null);
+  useKeyboardShortcuts({
+    onStartGame: () => { if (!viewMode && activeTab === "dashboard") startNextGameRef.current?.(); },
+    onFocusInput: () => inputRef.current?.focus(),
+    onCloseModal: () => {
+      setShowTierModal(false);
+      setShowCourtTypeModal(false);
+      setSelectedCourtForEdit(null);
+      setSelectedPlayerForEdit(null);
+      setSelectedPlayerProfile(null);
+      setEditingPlayer(null);
+      setShowCsvImport(false);
+      setShowQrModal(null);
+      setShowSlugEditor(false);
+      setShowMobileMenu(false);
+      if (!sessionMode) setSessionMode(localStorage.getItem(STORAGE_KEYS.SESSION_MODE) || "open");
+    },
+    onEndCourt: (index) => {
+      const court = courts[index];
+      if (court && court.players.length >= (court.format === "singles" ? 2 : 4)) {
+        setPendingEndGame({ courtId: court.id, winningTeam: null });
+      }
+    },
+    enabled: !viewMode,
+  });
+
   // ===== SAVE COURTS TO SUPABASE =====
   useEffect(() => {
     async function persistCourts() {
       // Save to localStorage for fast local reads
       localStorage.setItem(STORAGE_KEYS.COURTS, JSON.stringify(courts));
       // Save to Supabase for public board access
-      await supabase
+      const { error } = await supabase
         .from("courts")
         .upsert({ club_id: club.id, data: courts }, { onConflict: "club_id" });
+      if (error) {
+        console.error("Failed to persist courts to Supabase:", error);
+        addToast("⚠️ Court data couldn't be saved. Check your connection.", "warning");
+      }
     }
     persistCourts();
   }, [courts, club.id]);
 
-  // ===== DERIVED DATA =====
+  // ===== DERIVED DATA (memoized for performance) =====
 
-  const sortedPlayers = sortPlayers(players);
+  const sortedPlayers = useMemo(() => sortPlayers(players), [players]);
   // Filter out any players that are currently on courts (safety check)
-  const courtPlayerIds = new Set(courts.flatMap((c) => c.players || []).map((p) => p.id));
+  const courtPlayerIds = useMemo(() => new Set(courts.flatMap((c) => c.players || []).map((p) => p.id)), [courts]);
   // Deduplicate players by ID (prevents duplicate rendering)
-  const seenIds = new Set();
-  const waitingPlayers = sortedPlayers.filter((p) => {
-    if (courtPlayerIds.has(p.id) || seenIds.has(p.id)) return false;
-    seenIds.add(p.id);
-    return true;
-  });
+  const waitingPlayers = useMemo(() => {
+    const seenIds = new Set();
+    return sortedPlayers.filter((p) => {
+      if (courtPlayerIds.has(p.id) || seenIds.has(p.id)) return false;
+      seenIds.add(p.id);
+      return true;
+    });
+  }, [sortedPlayers, courtPlayerIds]);
 
   // Players available for auto-fill (not on cooldown)
-  const readyPlayers = waitingPlayers.filter((p) => !p.cooldownUntil || Date.now() >= p.cooldownUntil);
+  const readyPlayers = useMemo(() => waitingPlayers.filter((p) => !p.cooldownUntil || Date.now() >= p.cooldownUntil), [waitingPlayers]);
 
-  const kingQueue = waitingPlayers.filter((p) => p.tier === "king");
-  const knightQueue = waitingPlayers.filter((p) => p.tier === "knight");
-  const squireQueue = waitingPlayers.filter((p) => p.tier === "squire");
+  const kingQueue = useMemo(() => waitingPlayers.filter((p) => p.tier === "king"), [waitingPlayers]);
+  const knightQueue = useMemo(() => waitingPlayers.filter((p) => p.tier === "knight"), [waitingPlayers]);
+  const squireQueue = useMemo(() => waitingPlayers.filter((p) => p.tier === "squire"), [waitingPlayers]);
 
   // Open Mode queues — split by last result regardless of tier
-  const winnerQueue = waitingPlayers.filter((p) => p.lastResult === "win");
-  const loserQueue  = waitingPlayers.filter((p) => p.lastResult === "loss");
-  const newQueue    = waitingPlayers.filter((p) => !p.lastResult);
+  const winnerQueue = useMemo(() => waitingPlayers.filter((p) => p.lastResult === "win"), [waitingPlayers]);
+  const loserQueue  = useMemo(() => waitingPlayers.filter((p) => p.lastResult === "loss"), [waitingPlayers]);
+  const newQueue    = useMemo(() => waitingPlayers.filter((p) => !p.lastResult), [waitingPlayers]);
 
   const isOpenMode     = sessionMode === SESSION_MODES.OPEN;
   const isExtendedMode = sessionMode === SESSION_MODES.EXTENDED_LADDER;
@@ -611,7 +659,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
   const isTierless = isOpenMode || isKingOfCourt || isRandomDraw || isRoundRobin || isSwiss || isFixedTeams || isChallenge;
 
   // Extended Ladder queues (4-tier)
-  const generalQueue = waitingPlayers.filter((p) => p.tier === "general");
+  const generalQueue = useMemo(() => waitingPlayers.filter((p) => p.tier === "general"), [waitingPlayers]);
 
   const getQueueByCourtType = (courtType) => {
     // Open Mode court types
@@ -656,67 +704,71 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
     return nextTier;
   };
 
-  const activePlayers = courts.reduce((count, court) => count + court.players.length, 0);
+  const activePlayers = useMemo(() => courts.reduce((count, court) => count + court.players.length, 0), [courts]);
   const totalPlayers = players.length + activePlayers;
   const totalGamesPlayed = matches.length;
 
-  const matchingPlayers =
-    name.trim().length > 0
+  // Debounced matching players with deferred value
+  const deferredName = useDeferredValue(name);
+  const matchingPlayers = useMemo(() =>
+    deferredName.trim().length > 0
       ? directory
           .filter((player) => {
             const playerName = player.name.toLowerCase();
-            const searchName = name.toLowerCase();
+            const searchName = deferredName.toLowerCase();
             return playerName.includes(searchName) && playerName !== searchName;
           })
           .sort((a, b) => a.name.localeCompare(b.name))
           .slice(0, 5)
-      : [];
+      : []
+  , [deferredName, directory]);
 
-  const currentAttendance = attendance.filter((r) => r.sessionId === sessionId);
+  const currentAttendance = useMemo(() => attendance.filter((r) => r.sessionId === sessionId), [attendance, sessionId]);
 
   // Count unique sessions attended per player (across all sessions)
-  const attendanceMap = {};
-  attendance.forEach((record) => {
-    if (!attendanceMap[record.playerId]) {
-      attendanceMap[record.playerId] = {
-        playerId: record.playerId,
-        playerName: record.playerName,
-        sessions: new Set(),
-      };
-    }
-    attendanceMap[record.playerId].sessions.add(record.sessionId);
-  });
+  const attendanceLeaders = useMemo(() => {
+    const attendanceMap = {};
+    attendance.forEach((record) => {
+      if (!attendanceMap[record.playerId]) {
+        attendanceMap[record.playerId] = {
+          playerId: record.playerId,
+          playerName: record.playerName,
+          sessions: new Set(),
+        };
+      }
+      attendanceMap[record.playerId].sessions.add(record.sessionId);
+    });
+    return Object.values(attendanceMap)
+      .map((entry) => ({
+        playerId: entry.playerId,
+        playerName: entry.playerName,
+        count: entry.sessions.size,
+      }))
+      .sort((a, b) => b.count - a.count);
+  }, [attendance]);
 
-  const attendanceLeaders = Object.values(attendanceMap)
-    .map((entry) => ({
-      playerId: entry.playerId,
-      playerName: entry.playerName,
-      count: entry.sessions.size,
-    }))
-    .sort((a, b) => b.count - a.count);
-
-  const totalSessions = Math.max(
+  const totalSessions = useMemo(() => Math.max(
     new Set(attendance.map((r) => r.sessionId)).size,
     1
-  );
+  ), [attendance]);
 
-  const groupedAttendance = attendance.reduce((groups, record) => {
+  const groupedAttendance = useMemo(() => attendance.reduce((groups, record) => {
     const key = record.sessionId;
     if (!groups[key]) groups[key] = [];
     groups[key].push(record);
     return groups;
-  }, {});
+  }, {}), [attendance]);
 
-  const currentMatches = matches.filter((m) => m.sessionId === sessionId);
+  const currentMatches = useMemo(() => matches.filter((m) => m.sessionId === sessionId), [matches, sessionId]);
 
-  const groupedMatches = matches.reduce((groups, match) => {
+  const groupedMatches = useMemo(() => matches.reduce((groups, match) => {
     const key = match.sessionId || 1;
     if (!groups[key]) groups[key] = [];
     groups[key].push(match);
     return groups;
-  }, {});
+  }, {}), [matches]);
 
-  const standings = directory
+  const standings = useMemo(() => directory
     .filter((player) => (player.gamesPlayed || 0) > 0)
     .sort((a, b) => {
       const winRateA =
@@ -729,7 +781,18 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
           : 0;
       if (winRateB !== winRateA) return winRateB - winRateA;
       return (b.wins || 0) - (a.wins || 0);
-    });
+    }), [directory]);
+
+  // Estimated wait time calculation (based on avg match duration and queue position)
+  const estimatedWaitPerPlayer = useMemo(() => {
+    const recentMatches = matches.filter((m) => m.startedAt && m.endedAt).slice(0, 20);
+    if (recentMatches.length === 0) return null;
+    const avgDuration = recentMatches.reduce((sum, m) => sum + (m.endedAt - m.startedAt), 0) / recentMatches.length / 60000;
+    const activeCourts = courts.filter((c) => c.players.length >= (c.format === "singles" ? 2 : 4)).length;
+    if (activeCourts === 0) return null;
+    const playersPerRound = activeCourts * 4;
+    return Math.round(avgDuration); // minutes per round
+  }, [matches, courts]);
 
   const editingCourt = courts.find((c) => c.id === selectedCourtForEdit);
 
@@ -776,17 +839,11 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
   };
 
   const recordPartners = (playerA, playerB) => {
-    // NOTE: these mutations happen on court.players objects BEFORE returningPlayers is built
-    // This is technically safe because returningPlayers spreads them, but ideally
-    // this should be refactored to pure functions. For now, ensure the mutations persist.
-    playerA.partnerHistory = {
-      ...(playerA.partnerHistory || {}),
-      [playerB.id]: (playerA.partnerHistory?.[playerB.id] || 0) + 1,
-    };
-    playerB.partnerHistory = {
-      ...(playerB.partnerHistory || {}),
-      [playerA.id]: (playerB.partnerHistory?.[playerA.id] || 0) + 1,
-    };
+    // Safe immutable partner tracking — mutations applied to the spread copies in returningPlayers
+    const histA = { ...(playerA.partnerHistory || {}), [playerB.id]: (playerA.partnerHistory?.[playerB.id] || 0) + 1 };
+    const histB = { ...(playerB.partnerHistory || {}), [playerA.id]: (playerB.partnerHistory?.[playerA.id] || 0) + 1 };
+    playerA.partnerHistory = histA;
+    playerB.partnerHistory = histB;
     playerA.lastPartnerId = playerB.id;
     playerB.lastPartnerId = playerA.id;
   };
@@ -930,9 +987,9 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
     if (trimmedName.length < 2) { setError("Player name must be at least 2 characters."); return; }
     if (trimmedName.length > 20) { setError("Player name cannot exceed 20 characters."); return; }
 
-    const validName = /^[a-zA-Z0-9\s]+$/;
+    const validName = /^[\p{L}\p{N}\s'.-]+$/u;
     if (!validName.test(trimmedName)) {
-      setError("Only letters, numbers and spaces are allowed.");
+      setError("Only letters, numbers, spaces, hyphens and apostrophes are allowed.");
       return;
     }
 
@@ -1195,32 +1252,31 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
 
         const teamANames = courtPlayers.slice(0, needed / 2).map((p) => p.name).join(" & ");
         const teamBNames = courtPlayers.slice(needed / 2).map((p) => p.name).join(" & ");
-        alert(`⚔️ ${teamANames} vs ${teamBNames} — matched on Court #${emptyCourt.id}!`);
+        addToast(`⚔️ ${teamANames} vs ${teamBNames} — matched on Court #${emptyCourt.id}!`, "success", 5000);
       } else {
         const names = matchPlayers.map((p) => p.name).join(", ");
-        alert(`Challenge accepted! No empty court available. Assign manually: ${names}`);
+        addToast(`Challenge accepted! No empty court available. Assign manually: ${names}`, "warning", 5000);
       }
     } else {
       const names = matchPlayers.map((p) => p.name).join(", ");
-      alert(`Challenge accepted but not all players found in queue. Found: ${names}. Assign manually.`);
+      addToast(`Challenge accepted but not all players found. Found: ${names}. Assign manually.`, "warning", 5000);
     }
   };
 
   const handleDeleteDirectoryPlayer = async (e, player) => {
     e.stopPropagation();
-    const confirmed = window.confirm(`Delete ${player.name} permanently?`);
-    if (!confirmed) return;
 
     const isActive =
       players.some((p) => p.id === player.id) ||
       courts.some((court) => court.players.some((p) => p.id === player.id));
     if (isActive) {
-      addToast("Cannot delete � player is active.", "error");
+      addToast("Cannot delete — player is active.", "error");
       return;
     }
     await deleteDirectoryPlayer(player.id);
     setDirectory((prev) => prev.filter((p) => p.id !== player.id));
     if (name.toLowerCase() === player.name.toLowerCase()) setName("");
+    addToast(`${player.name} deleted from directory`, "info");
   };
 
   const handleEditPlayerName = async (player, newName) => {
@@ -1302,6 +1358,13 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
     setSelectedPlayerProfile(updated);
   };
 
+  const handleSaveNotes = async (player, notes) => {
+    const updated = { ...player, notes };
+    setDirectory((prev) => prev.map((p) => p.id === player.id ? updated : p));
+    await saveDirectoryPlayer(updated, club.id);
+    setSelectedPlayerProfile(updated);
+  };
+
   // ===== COURT ACTIONS =====
 
   const addCourt = (courtType) => {
@@ -1343,7 +1406,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
     const currentPlayer = players.find((p) => p.id === playerId);
     if (!currentPlayer) return;
     if (currentPlayer.tier !== newTier && tierCounts[newTier] >= (limits[newTier] || Infinity)) {
-      alert(`${newTier.toUpperCase()} queue is already full (${limits[newTier]}/${limits[newTier]}).`);
+      addToast(`${newTier.toUpperCase()} queue is already full (${limits[newTier]}/${limits[newTier]}).`, "warning");
       return;
     }
     const updatedPlayers = players.map((p) =>
@@ -1351,7 +1414,10 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
     );
     setPlayers(updatedPlayers);
     const targetPlayer = updatedPlayers.find((p) => p.id === playerId);
-    if (targetPlayer) await saveDirectoryPlayer(targetPlayer, club.id);
+    if (targetPlayer) {
+      await savePlayer(targetPlayer, club.id);
+      await saveDirectoryPlayer(targetPlayer, club.id);
+    }
     setSelectedPlayerForEdit(null);
   };
 
@@ -1360,7 +1426,6 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
     if (!court) return;
     const player = court.players.find((p) => p.id === playerId);
     if (!player) return;
-    if (!window.confirm(`Remove ${player.name} from the court?`)) return;
 
     const returningPlayer = {
       ...player,
@@ -1371,12 +1436,12 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
 
     atomicRemoveCourtPlayer(courtId, playerId, returningPlayer);
     savePlayer(returningPlayer, club.id);
+    addToast(`${player.name} returned to queue`, "info");
   };
 
   const clearCourt = (courtId) => {
     const court = courts.find((c) => c.id === courtId);
     if (!court || court.players.length === 0) return;
-    if (!window.confirm(`Return all ${court.players.length} players from this court to the queue?`)) return;
 
     const returningPlayers = court.players.map((p) => ({
       ...p,
@@ -1387,6 +1452,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
 
     atomicClearCourt(courtId, returningPlayers);
     returningPlayers.forEach((p) => savePlayer(p, club.id));
+    addToast(`Court #${courtId} cleared — ${returningPlayers.length} players returned to queue`, "info");
   };
 
   const addPlayerToCourt = (playerId, courtId) => {
@@ -1397,26 +1463,24 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
 
     // In Ladder Mode enforce tier matching; in tierless modes skip this check
     if (!isTierless && court.type && player.tier !== court.type) {
-      alert(
-        `${player.name} belongs to the ${player.tier.toUpperCase()} queue and cannot be assigned to a ${court.type.toUpperCase()} court.`
-      );
+      addToast(`${player.name} belongs to ${player.tier.toUpperCase()} queue — cannot assign to ${court.type.toUpperCase()} court.`, "warning");
       return;
     }
 
     if (isOpenMode && court.type !== "any") {
-      const playerResult = player.lastResult; // "win", "loss", or null
+      const playerResult = player.lastResult;
       if (court.type === "winner" && playerResult !== "win") {
-        alert(`${player.name} is not a winner yet. Only winners can be assigned to a Winner Court.`);
+        addToast(`${player.name} is not a winner yet. Only winners can be assigned to a Winner Court.`, "warning");
         return;
       }
       if (court.type === "loser" && playerResult !== "loss") {
-        alert(`${player.name} has not lost a game yet. Only losers can be assigned to a Loser Court.`);
+        addToast(`${player.name} has not lost a game yet. Only losers can be assigned to a Loser Court.`, "warning");
         return;
       }
     }
     if (court.players.length >= (court.format === "singles" ? 2 : 4)) { addToast("Court is full.", "warning"); return; }
-    if (!window.confirm(`Add ${player.name} to Court ${court.id}?`)) return;
 
+    // Assign immediately (no blocking confirm)
     setCourts((prev) =>
       prev.map((c) => {
         if (c.id !== Number(courtId)) return c;
@@ -1430,6 +1494,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
     );
     setPlayers((prev) => prev.filter((p) => p.id !== playerId));
     removePlayerFromDb(playerId);
+    addToast(`${player.name} → Court #${court.id}`, "success", 3000);
   };
 
   const removeCourt = () => {
@@ -1449,14 +1514,8 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
   const deleteSpecificCourt = (courtId) => {
     const targetCourt = courts.find((c) => c.id === courtId);
     if (!targetCourt) return;
-    const confirmed = window.confirm(
-      `Delete ${targetCourt.type ? targetCourt.type.toUpperCase() : "COURT"} #${targetCourt.id}?`
-    );
-    if (!confirmed) return;
     if (courts.length <= 1) { addToast("At least one court must remain.", "warning"); return; }
     if (targetCourt.players.length > 0) {
-      const confirmed2 = window.confirm("Delete this court and return all players to the queue?");
-      if (!confirmed2) return;
       setPlayers((prev) =>
         sortPlayers([
           ...prev,
@@ -1464,15 +1523,50 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
         ])
       );
     }
-    setCourts((prev) => prev.filter((c) => c.id !== courtId));
+    setCourts((prev) => {
+      const remaining = prev.filter((c) => c.id !== courtId);
+      // Auto-renumber courts sequentially (1, 2, 3, ...) to avoid gaps
+      return remaining.map((c, i) => ({ ...c, id: i + 1 }));
+    });
+    // Clear stale data keyed by old court IDs
+    setCourtPreviews({});
+    setPartnerWarnings({});
     setSelectedCourtForEdit(null);
+    addToast(`Court #${courtId} deleted`, "info");
+  };
+
+  const renameCourt = (courtId, newNumber) => {
+    // Check if the new number is already taken
+    const exists = courts.find((c) => c.id === newNumber && c.id !== courtId);
+    if (exists) {
+      addToast(`Court #${newNumber} already exists. Pick a different number.`, "warning");
+      return;
+    }
+    setCourts((prev) =>
+      prev.map((c) => c.id === courtId ? { ...c, id: newNumber } : c)
+    );
+    setSelectedCourtForEdit(null);
+    addToast(`Court renamed to #${newNumber}`, "success");
+  };
+
+  const toggleCourtLock = (courtId) => {
+    setCourts((prev) =>
+      prev.map((c) => c.id === courtId ? { ...c, locked: !c.locked } : c)
+    );
+  };
+
+  const setCourtCustomName = (courtId, name) => {
+    setCourts((prev) =>
+      prev.map((c) => c.id === courtId ? { ...c, customName: name } : c)
+    );
+    addToast(name ? `Court #${courtId} named "${name}"` : `Court #${courtId} name cleared`, "success");
   };
 
   // ===== DRAG & DROP ACTIONS =====
 
   const swapCourtPlayers = (sourcePlayerId, targetPlayerId) => {
     setCourts((prevCourts) => {
-      const updatedCourts = JSON.parse(JSON.stringify(prevCourts));
+      const updatedCourts = prevCourts.map((c) => ({ ...c, players: [...c.players] }));
       let sourceLocation = null;
       let targetLocation = null;
 
@@ -1491,9 +1585,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
       const targetPlayer = targetCourt.players[targetLocation.playerIndex];
 
       if (sourceCourt.type !== targetCourt.type) {
-        alert(
-          `Cannot swap players between ${sourceCourt.type?.toUpperCase()} and ${targetCourt.type?.toUpperCase()} courts.`
-        );
+        addToast(`Cannot swap players between ${sourceCourt.type?.toUpperCase()} and ${targetCourt.type?.toUpperCase()} courts.`, "warning");
         return prevCourts;
       }
 
@@ -1518,11 +1610,11 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
     if (isOpenMode && targetCourt && targetCourt.type !== "any") {
       const playerResult = queuePlayer.lastResult;
       if (targetCourt.type === "winner" && playerResult !== "win") {
-        alert(`${queuePlayer.name} is not a winner yet. Only winners can be placed on a Winner Court.`);
+        addToast(`${queuePlayer.name} is not a winner yet. Only winners can be placed on a Winner Court.`, "warning");
         return;
       }
       if (targetCourt.type === "loser" && playerResult !== "loss") {
-        alert(`${queuePlayer.name} has not lost a game yet. Only losers can be placed on a Loser Court.`);
+        addToast(`${queuePlayer.name} has not lost a game yet. Only losers can be placed on a Loser Court.`, "warning");
         return;
       }
     }
@@ -1580,7 +1672,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
 
     const playerToCheck = sourceCourt?.players.find((p) => p.id === playerId);
     if (playerToCheck && targetCourt.type && playerToCheck.tier !== targetCourt.type) {
-      alert(`Cannot move ${playerToCheck.name} from ${playerToCheck.tier.toUpperCase()} to ${targetCourt.type.toUpperCase()} court.`);
+      addToast(`Cannot move ${playerToCheck.name} from ${playerToCheck.tier.toUpperCase()} to ${targetCourt.type.toUpperCase()} court.`, "warning");
       return;
     }
     if (sourceCourt && sourceCourt.players.length === (sourceCourt.format === "singles" ? 2 : 4)) {
@@ -1802,6 +1894,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
 
   const assignPlayersToAllCourts = () => {
     const availableCourts = courts.filter((c) => {
+      if (c.locked) return false; // Skip locked courts
       const maxP = c.format === "singles" ? 2 : 4;
       return c.players.length < maxP;
     });
@@ -1814,7 +1907,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
 
       const updatedCourts = courts.map((court) => {
         const maxP = court.format === "singles" ? 2 : 4;
-        if (court.players.length >= maxP) return court;
+        if (court.locked || court.players.length >= maxP) return court;
         const needed = maxP - court.players.length;
         if (idx + needed > shuffled.length) return court;
         const selected = shuffled.slice(idx, idx + needed).map((p) => ({ ...p, consecutiveGames: (p.consecutiveGames || 0) + 1 }));
@@ -1835,7 +1928,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
       let usedInThisRound = new Set();
       const updatedCourts = courts.map((court) => {
         const maxP = court.format === "singles" ? 2 : 4;
-        if (court.players.length >= maxP) return court;
+        if (court.locked || court.players.length >= maxP) return court;
         const needed = maxP - court.players.length;
         const eligible = getEligibleForCourt(
           waitingPlayers.filter((p) => !usedInThisRound.has(p.id)), needed
@@ -1860,7 +1953,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
       let usedInThisRound = new Set();
       const updatedCourts = courts.map((court) => {
         const maxP = court.format === "singles" ? 2 : 4;
-        if (court.players.length >= maxP) return court;
+        if (court.locked || court.players.length >= maxP) return court;
         const needed = maxP - court.players.length;
         const eligible = getEligibleForCourt(
           waitingPlayers.filter((p) => !usedInThisRound.has(p.id)), needed
@@ -1892,7 +1985,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
       let usedInThisRound = new Set();
       const updatedCourts = courts.map((court) => {
         const maxP = court.format === "singles" ? 2 : 4;
-        if (court.players.length >= maxP) return court;
+        if (court.locked || court.players.length >= maxP) return court;
         const needed = maxP - court.players.length;
         const eligible = getEligibleForCourt(
           waitingPlayers.filter((p) => !usedInThisRound.has(p.id)), needed
@@ -1929,8 +2022,8 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
       const updatedCourts = courts.map((court) => {
         const isSingles = court.format === "singles";
         const maxPlayers = isSingles ? 2 : 4;
-        // Skip courts that are already full
-        if (court.players.length >= maxPlayers) return court;
+        // Skip locked courts and courts that are already full
+        if (court.locked || court.players.length >= maxPlayers) return court;
 
         let pool;
         if (court.type === OPEN_COURT_TYPES.WINNER) {
@@ -2007,7 +2100,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
     const updatedCourts = courts.map((court) => {
       const isSingles = court.format === "singles";
       const maxPlayers = isSingles ? 2 : 4;
-      if (court.players.length >= maxPlayers) return court;
+      if (court.locked || court.players.length >= maxPlayers) return court;
       const courtQueue = getQueueByCourtType(court.type).filter((p) => !ladderUsedIds.has(p.id));
       const needed = maxPlayers - court.players.length;
 
@@ -2075,6 +2168,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
     if (navigator.vibrate) navigator.vibrate(50);
     assignPlayersToAllCourts();
   };
+  startNextGameRef.current = startNextGame;
 
   // ===== QUICK RE-CHECK-IN =====
   const handleReCheckin = async () => {
@@ -2148,44 +2242,59 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
   };
 
   // ===== MATCH UNDO =====
+  const [showUndoPicker, setShowUndoPicker] = useState(false);
+
   const undoLastMatch = async () => {
     if (matches.length === 0) { addToast("No matches to undo.", "info"); return; }
+    setShowUndoPicker(true);
+  };
 
-    const lastMatch = matches[0]; // matches are sorted newest first
-    const confirmed = window.confirm(
-      `Undo last match?\n\n${lastMatch.teamA?.join(" & ")} vs ${lastMatch.teamB?.join(" & ")}\nWinner: Team ${lastMatch.winner}`
-    );
-    if (!confirmed) return;
+  const undoSpecificMatch = async (matchToUndo) => {
+    if (!matchToUndo) return;
+    setShowUndoPicker(false);
 
     // Delete from Supabase
     const { error } = await supabase
       .from("matches")
       .delete()
-      .eq("id", lastMatch.id);
-    if (error) { console.error("undoLastMatch:", error); addToast("Failed to undo.", "error"); return; }
+      .eq("id", matchToUndo.id);
+    if (error) { console.error("undoMatch:", error); addToast("Failed to undo.", "error"); return; }
 
     // Remove from state
-    setMatches((prev) => prev.filter((m) => m.id !== lastMatch.id));
+    setMatches((prev) => prev.filter((m) => m.id !== matchToUndo.id));
 
     // Find the players involved and revert their stats
-    const allMatchPlayers = [...(lastMatch.teamA || []), ...(lastMatch.teamB || [])];
-    const winningNames = lastMatch.winner === "A" ? lastMatch.teamA : lastMatch.teamB;
-    const losingNames = lastMatch.winner === "A" ? lastMatch.teamB : lastMatch.teamA;
+    const allMatchPlayers = [...(matchToUndo.teamA || []), ...(matchToUndo.teamB || [])];
+    const winningNames = matchToUndo.winner === "A" ? matchToUndo.teamA : matchToUndo.teamB;
+    const losingNames = matchToUndo.winner === "A" ? matchToUndo.teamB : matchToUndo.teamA;
 
-    // Revert directory stats
+    // Revert directory stats (including ELO and streak)
     const revertedDirectory = directory.map((p) => {
       if (winningNames?.includes(p.name)) {
+        // This player had won — reverse the ELO gain
+        const oppRating = losingNames?.length > 0
+          ? directory.filter((d) => losingNames.includes(d.name)).reduce((s, d) => s + (d.eloRating || 2.0), 0) / losingNames.length
+          : 2.0;
+        const previousElo = reverseRating(p.eloRating, oppRating, true);
         return {
           ...p,
           gamesPlayed: Math.max(0, (p.gamesPlayed || 0) - 1),
           wins: Math.max(0, (p.wins || 0) - 1),
+          eloRating: previousElo,
+          currentStreak: Math.max(0, (p.currentStreak || 0) - 1),
         };
       }
       if (losingNames?.includes(p.name)) {
+        // This player had lost — reverse the ELO loss
+        const oppRating = winningNames?.length > 0
+          ? directory.filter((d) => winningNames.includes(d.name)).reduce((s, d) => s + (d.eloRating || 2.0), 0) / winningNames.length
+          : 2.0;
+        const previousElo = reverseRating(p.eloRating, oppRating, false);
         return {
           ...p,
           gamesPlayed: Math.max(0, (p.gamesPlayed || 0) - 1),
           losses: Math.max(0, (p.losses || 0) - 1),
+          eloRating: previousElo,
         };
       }
       return p;
@@ -2202,16 +2311,24 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
     setPlayers((prev) =>
       prev.map((p) => {
         if (winningNames?.includes(p.name)) {
-          return { ...p, gamesPlayed: Math.max(0, (p.gamesPlayed || 0) - 1), wins: Math.max(0, (p.wins || 0) - 1), lastResult: null };
+          const oppRating = losingNames?.length > 0
+            ? directory.filter((d) => losingNames.includes(d.name)).reduce((s, d) => s + (d.eloRating || 2.0), 0) / losingNames.length
+            : 2.0;
+          const previousElo = reverseRating(p.eloRating, oppRating, true);
+          return { ...p, gamesPlayed: Math.max(0, (p.gamesPlayed || 0) - 1), wins: Math.max(0, (p.wins || 0) - 1), lastResult: null, eloRating: previousElo, currentStreak: Math.max(0, (p.currentStreak || 0) - 1) };
         }
         if (losingNames?.includes(p.name)) {
-          return { ...p, gamesPlayed: Math.max(0, (p.gamesPlayed || 0) - 1), losses: Math.max(0, (p.losses || 0) - 1), lastResult: null };
+          const oppRating = winningNames?.length > 0
+            ? directory.filter((d) => winningNames.includes(d.name)).reduce((s, d) => s + (d.eloRating || 2.0), 0) / winningNames.length
+            : 2.0;
+          const previousElo = reverseRating(p.eloRating, oppRating, false);
+          return { ...p, gamesPlayed: Math.max(0, (p.gamesPlayed || 0) - 1), losses: Math.max(0, (p.losses || 0) - 1), lastResult: null, eloRating: previousElo };
         }
         return p;
       })
     );
 
-    addToast("Last match undone.", "success");
+    addToast(`Match undone: ${(matchToUndo.teamA || []).join(" & ")} vs ${(matchToUndo.teamB || []).join(" & ")}`, "success");
   };
 
   const endGame = async (courtId, winningTeam, score = null) => {
@@ -2228,10 +2345,10 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
     const minPlayers = isSingles ? 2 : 4;
     if (court.players.length < minPlayers) {
       endingGameRef.current.delete(courtId);
-      alert(`Court needs ${minPlayers} players to end a game. Currently has ${court.players.length}.`);
+      addToast(`Court needs ${minPlayers} players to end a game. Currently has ${court.players.length}.`, "warning");
       return;
     }
-
+    try {
     const matchRecord = {
       sessionId,
       startedAt: court.startedAt,
@@ -2365,8 +2482,13 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
       return updated;
     });
 
-    // Release the lock
-    endingGameRef.current.delete(courtId);
+    } catch (err) {
+      console.error("endGame error:", err);
+      addToast("Error ending game. Please try again.", "error");
+    } finally {
+      // Always release the lock
+      endingGameRef.current.delete(courtId);
+    }
   };
 
   // ===== SESSION ACTIONS =====
@@ -2376,11 +2498,8 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
       addToast("Finish all active games first.", "warning");
       return;
     }
-    const confirmed = window.confirm(
-      `End Session ${sessionId} and start Session ${sessionId + 1}?`
-    );
-    if (!confirmed) return;
 
+    // Start new session immediately (no blocking confirm)
     setPlayers([]);
     await clearPlayers(club.id);
     setCourts(getDefaultCourts(sessionMode));
@@ -2452,7 +2571,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
     setCourts(getDefaultCourts(sessionMode));
     setName("");
     setError("");
-    alert(`Session ${sessionId} has been reset.`);
+    addToast(`Session ${sessionId} has been reset.`, "success");
   };
 
   const deleteSession = async (sessionToDelete) => {
@@ -2465,8 +2584,6 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
   };
 
   const editMatchWinner = async (matchId, newWinner) => {
-    const confirmed = window.confirm(`Change winner to Team ${newWinner}?`);
-    if (!confirmed) return;
     const updatedMatches = matches.map((m) =>
       m.id === matchId ? { ...m, winner: newWinner } : m
     );
@@ -2475,7 +2592,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
     await updateMatch(targetMatch);
     setMatches(updatedMatches);
     await recalculateStandings(updatedMatches);
-    addToast("Match updated.", "success");
+    addToast(`Winner changed to Team ${newWinner}. Stats recalculated.`, "success");
   };
 
   const clearHistory = async () => {
@@ -2585,22 +2702,46 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
         losses: 0,
         currentStreak: 0,
         bestStreak: 0,
+        eloRating: 2.0, // Reset ELO and replay all matches
         queueGroup: "unmatched",
       };
     });
-    updatedMatches.forEach((match) => {
-      const winningPlayers = match.winner === "A" ? match.teamA : match.teamB;
-      const losingPlayers = match.winner === "A" ? match.teamB : match.teamA;
+
+    // Replay all matches in chronological order to rebuild stats + ELO + streaks
+    const chronological = [...updatedMatches].sort((a, b) => (a.endedAt || a.date || 0) - (b.endedAt || b.date || 0));
+
+    chronological.forEach((match) => {
+      const winningNames = match.winner === "A" ? match.teamA : match.teamB;
+      const losingNames = match.winner === "A" ? match.teamB : match.teamA;
+
+      // Calculate team ratings before this match
+      const winnerIds = directory.filter((p) => winningNames?.includes(p.name)).map((p) => p.id);
+      const loserIds = directory.filter((p) => losingNames?.includes(p.name)).map((p) => p.id);
+      const winnerAvgRating = winnerIds.length > 0
+        ? winnerIds.reduce((s, id) => s + (playerStats[id]?.eloRating || 2.0), 0) / winnerIds.length
+        : 2.0;
+      const loserAvgRating = loserIds.length > 0
+        ? loserIds.reduce((s, id) => s + (playerStats[id]?.eloRating || 2.0), 0) / loserIds.length
+        : 2.0;
+
       directory.forEach((p) => {
-        if (winningPlayers.includes(p.name)) {
+        if (winningNames?.includes(p.name)) {
           playerStats[p.id].gamesPlayed++;
           playerStats[p.id].wins++;
-        } else if (losingPlayers.includes(p.name)) {
+          playerStats[p.id].currentStreak = (playerStats[p.id].currentStreak || 0) + 1;
+          playerStats[p.id].bestStreak = Math.max(playerStats[p.id].bestStreak || 0, playerStats[p.id].currentStreak);
+          playerStats[p.id].eloRating = calculateNewRating(playerStats[p.id].eloRating, loserAvgRating, true);
+          playerStats[p.id].lastResult = "win";
+        } else if (losingNames?.includes(p.name)) {
           playerStats[p.id].gamesPlayed++;
           playerStats[p.id].losses++;
+          playerStats[p.id].currentStreak = 0;
+          playerStats[p.id].eloRating = calculateNewRating(playerStats[p.id].eloRating, winnerAvgRating, false);
+          playerStats[p.id].lastResult = "loss";
         }
       });
     });
+
     const updatedDirectory = Object.values(playerStats);
     await Promise.all(updatedDirectory.map((p) => saveDirectoryPlayer(p, club.id)));
     setDirectory(updatedDirectory);
@@ -2608,7 +2749,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
       prev.map((p) => {
         const updated = updatedDirectory.find((d) => d.id === p.id);
         return updated
-          ? { ...p, gamesPlayed: updated.gamesPlayed, wins: updated.wins, losses: updated.losses }
+          ? { ...p, gamesPlayed: updated.gamesPlayed, wins: updated.wins, losses: updated.losses, eloRating: updated.eloRating, currentStreak: updated.currentStreak, bestStreak: updated.bestStreak, lastResult: updated.lastResult }
           : p;
       })
     );
@@ -2658,7 +2799,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
           {/* Right: Mobile — just refresh + hamburger */}
           <div className="flex sm:hidden items-center gap-1">
             <button onClick={handleManualRefresh} className="h-7 w-7 rounded bg-white/10 text-white flex items-center justify-center hover:bg-white/20 text-xs">🔄</button>
-            <button onClick={() => setShowMobileMenu(!showMobileMenu)} className="h-7 w-7 rounded bg-white/10 text-white flex items-center justify-center hover:bg-white/20 text-sm">
+            <button onClick={() => setShowMobileMenu(!showMobileMenu)} className="h-7 w-7 rounded bg-white/10 text-white flex items-center justify-center hover:bg-white/20 text-sm" aria-expanded={showMobileMenu} aria-label={showMobileMenu ? "Close menu" : "Open menu"}>
               {showMobileMenu ? "✕" : "☰"}
             </button>
           </div>
@@ -2785,6 +2926,10 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
         {/* Dashboard Tab — operator only */}
         {!viewMode && activeTab === "dashboard" && (
           <>
+            {!playersLoaded ? (
+              <DashboardSkeleton />
+            ) : (
+            <>
             <SessionControls
               name={name}
               setName={setName}
@@ -2829,6 +2974,13 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
               onShowQrCheckin={() => setShowQrModal("checkin")}
               onShowQrLiveBoard={() => setShowQrModal("liveboard")}
               onQuickAdd={(playerName) => { setName(playerName); openTierSelection(); }}
+              soundEnabled={soundEnabled}
+              onToggleSound={() => { const next = !soundEnabled; setSoundEnabledState(next); setSoundEnabled(next); }}
+              onExportSession={() => {
+                const text = generateSessionText(sessionId, matches, standings, club?.name);
+                navigator.clipboard.writeText(text);
+                addToast("Session summary copied to clipboard!", "success");
+              }}
             />
 
             <DndContext
@@ -2876,12 +3028,15 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
               )}
 
               <div className="space-y-6">
+                {/* Queue Search Filter */}
+                <QueueSearch onSearch={setQueueSearchQuery} playerCount={waitingPlayers.length} />
+
                 <div>
                   {isTierless ? (
                     <OpenPlayerQueue
-                      winnerQueue={winnerQueue}
-                      loserQueue={loserQueue}
-                      newQueue={newQueue}
+                      winnerQueue={queueSearchQuery ? winnerQueue.filter(p => p.name.toLowerCase().includes(queueSearchQuery)) : winnerQueue}
+                      loserQueue={queueSearchQuery ? loserQueue.filter(p => p.name.toLowerCase().includes(queueSearchQuery)) : loserQueue}
+                      newQueue={queueSearchQuery ? newQueue.filter(p => p.name.toLowerCase().includes(queueSearchQuery)) : newQueue}
                       courts={courts}
                       selectedCourt={selectedCourt}
                       setSelectedCourt={setSelectedCourt}
@@ -2894,13 +3049,14 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
                       onDismissChallenge={handleAcceptChallenge}
                       tapSelectedPlayer={tapSelectedPlayer}
                       onTapSelect={setTapSelectedPlayer}
+                      estimatedWait={estimatedWaitPerPlayer}
                     />
                   ) : (
                     <PlayerQueue
-                      kingQueue={kingQueue}
-                      knightQueue={knightQueue}
-                      squireQueue={squireQueue}
-                      generalQueue={generalQueue}
+                      kingQueue={queueSearchQuery ? kingQueue.filter(p => p.name.toLowerCase().includes(queueSearchQuery)) : kingQueue}
+                      knightQueue={queueSearchQuery ? knightQueue.filter(p => p.name.toLowerCase().includes(queueSearchQuery)) : knightQueue}
+                      squireQueue={queueSearchQuery ? squireQueue.filter(p => p.name.toLowerCase().includes(queueSearchQuery)) : squireQueue}
+                      generalQueue={queueSearchQuery ? generalQueue.filter(p => p.name.toLowerCase().includes(queueSearchQuery)) : generalQueue}
                       isExtendedMode={isExtendedMode}
                       courts={courts}
                       selectedCourt={selectedCourt}
@@ -2915,6 +3071,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
                       onDismissChallenge={handleAcceptChallenge}
                       tapSelectedPlayer={tapSelectedPlayer}
                       onTapSelect={setTapSelectedPlayer}
+                      estimatedWait={estimatedWaitPerPlayer}
                     />
                   )}
                 </div>
@@ -2947,6 +3104,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
                             setTapSelectedPlayer(null);
                           }
                         }}
+                        onToggleLock={toggleCourtLock}
                       />
                     ))}
                   </div>
@@ -2968,6 +3126,8 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
                 ) : null}
               </DragOverlay>
             </DndContext>
+          </>
+            )}
           </>
         )}
 
@@ -3024,8 +3184,8 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
       )}
 
       {/* Bottom Tab Navigation — mobile native feel */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-40 sm:hidden safe-area-pb">
-        <div className="flex justify-around py-1.5 pb-[env(safe-area-inset-bottom)]">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-40 sm:hidden safe-area-pb" aria-label="Main navigation">
+        <div className="flex justify-around py-1.5 pb-[env(safe-area-inset-bottom)]" role="tablist">
           {(viewMode
             ? ["standings", "attendance", "history"]
             : ["dashboard", "standings", "attendance", "history"]
@@ -3033,23 +3193,26 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
+              role="tab"
+              aria-selected={activeTab === tab}
+              aria-label={tab.charAt(0).toUpperCase() + tab.slice(1)}
               className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all ${
                 activeTab === tab ? "text-blue-600 bg-blue-50 scale-105" : "text-slate-400"
               }`}
             >
-              <span className="text-xl">
+              <span className="text-xl" aria-hidden="true">
                 {tab === "dashboard" && "🏠"}
                 {tab === "standings" && "🏆"}
                 {tab === "attendance" && "👥"}
                 {tab === "history" && "📜"}
               </span>
-              <span className={`text-[9px] font-bold leading-tight ${activeTab === tab ? "text-blue-600" : "text-slate-400"}`}>
+              <span className={`text-[11px] font-bold leading-tight ${activeTab === tab ? "text-blue-600" : "text-slate-400"}`}>
                 {tab === "dashboard" && t("tab_dashboard")}
                 {tab === "standings" && t("tab_standings")}
                 {tab === "attendance" && t("tab_attendance")}
                 {tab === "history" && t("tab_history")}
               </span>
-              {activeTab === tab && <div className="w-4 h-0.5 bg-blue-600 rounded-full mt-0.5" />}
+              {activeTab === tab && <div className="w-4 h-0.5 bg-blue-600 rounded-full mt-0.5" aria-hidden="true" />}
             </button>
           ))}
         </div>
@@ -3165,6 +3328,8 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
           onUpdateType={updateCourtType}
           onUpdateFormat={updateCourtFormat}
           onDeleteCourt={deleteSpecificCourt}
+          onRenameCourt={renameCourt}
+          onSetCustomName={setCourtCustomName}
           onCancel={() => setSelectedCourtForEdit(null)}
         />
       )}
@@ -3184,6 +3349,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
           getAttendanceCount={getAttendanceCount}
           getPlayerNameById={getPlayerNameById}
           onSaveAvatar={handleSaveAvatar}
+          onSaveNotes={handleSaveNotes}
           onClose={() => setSelectedPlayerProfile(null)}
         />
       )}
@@ -3238,7 +3404,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
           clubId={club.id}
           onSave={async (newSlug) => {
             const result = await updateClubSlug(club.id, newSlug);
-            if (result.error) { alert(result.error); return; }
+            if (result.error) { addToast(result.error, "error"); return; }
             // Update local club state (mutation + force re-render)
             club.slug = result.slug;
             forceUpdate((v) => v + 1);
@@ -3247,6 +3413,47 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
           }}
           onClose={() => setShowSlugEditor(false)}
         />
+      )}
+
+      {/* Undo Match Picker Modal */}
+      {showUndoPicker && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowUndoPicker(false)}>
+          <div className="force-light bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-lg font-bold text-slate-800 mb-3">↩️ Undo Match</h2>
+            <p className="text-xs text-slate-500 mb-3">Select a match to undo. Player stats will be reverted.</p>
+            {currentMatches.length === 0 ? (
+              <p className="text-sm text-slate-400 text-center py-4">No matches this session</p>
+            ) : (
+              <div className="space-y-2">
+                {currentMatches.slice(0, 10).map((match, i) => {
+                  const teamA = (match.teamA || []).join(" & ");
+                  const teamB = (match.teamB || []).join(" & ");
+                  const winnerLabel = match.winner === "A" ? teamA : teamB;
+                  return (
+                    <button
+                      key={match.id || i}
+                      onClick={() => undoSpecificMatch(match)}
+                      className="w-full text-left px-3 py-2.5 rounded-xl border border-slate-200 hover:border-red-300 hover:bg-red-50 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm text-slate-700">
+                          <span className="text-blue-600 font-medium">{teamA}</span>
+                          <span className="text-slate-400 mx-1.5">vs</span>
+                          <span className="text-purple-600 font-medium">{teamB}</span>
+                        </div>
+                        {i === 0 && <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold">Latest</span>}
+                      </div>
+                      <div className="text-[10px] text-slate-400 mt-0.5">Winner: {winnerLabel}{match.score ? ` (${match.score})` : ""}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <button onClick={() => setShowUndoPicker(false)} className="w-full mt-4 h-9 rounded-xl bg-slate-100 text-slate-600 text-sm font-medium hover:bg-slate-200">
+              Cancel
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Score Prompt Modal */}

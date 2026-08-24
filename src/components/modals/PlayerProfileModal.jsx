@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { getRelativeTime } from "../../utils/playerUtils";
 import { resizeImageToBase64 } from "../../utils/avatarUtils";
 import PlayerAvatar from "../ui/PlayerAvatar";
@@ -8,15 +8,24 @@ export default function PlayerProfileModal({
   getAttendanceCount,
   getPlayerNameById,
   onSaveAvatar,
+  onSaveNotes,
   onClose,
 }) {
   const fileInputRef = useRef(null);
+  const [notes, setNotes] = useState(player.notes || "");
+  const [notesSaved, setNotesSaved] = useState(false);
 
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const base64 = await resizeImageToBase64(file, 64);
     onSaveAvatar(player, base64);
+  };
+
+  const handleSaveNotes = () => {
+    onSaveNotes(player, notes.trim());
+    setNotesSaved(true);
+    setTimeout(() => setNotesSaved(false), 2000);
   };
 
   return (
@@ -141,6 +150,23 @@ export default function PlayerProfileModal({
                   </div>
                 ))
             )}
+          </div>
+
+          {/* Player Notes */}
+          <div className="mt-4">
+            <div className="font-semibold mb-2">📝 Notes</div>
+            <textarea
+              value={notes}
+              onChange={(e) => { setNotes(e.target.value); setNotesSaved(false); }}
+              placeholder="E.g. left-handed, beginner, prefers doubles..."
+              className="w-full h-20 px-3 py-2 rounded-lg border border-slate-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+            <button
+              onClick={handleSaveNotes}
+              className={`mt-1 h-8 px-3 rounded-lg text-xs font-medium ${notesSaved ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700 hover:bg-blue-200"}`}
+            >
+              {notesSaved ? "✓ Saved" : "Save Notes"}
+            </button>
           </div>
         </div>
 
