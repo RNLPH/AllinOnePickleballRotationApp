@@ -2783,19 +2783,10 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
       {/* Main content */}
       <main className="max-w-7xl mx-auto px-4 py-4">
 
-        {/* Session badge (mobile) */}
-        <div className="sm:hidden text-center mb-3">
-          <span className={`
-            inline-flex px-3 py-1 rounded-full text-xs font-semibold
-            ${sessionMode === SESSION_MODES.LADDER ? "bg-yellow-100 text-yellow-800"
-              : sessionMode === SESSION_MODES.EXTENDED_LADDER ? "bg-purple-100 text-purple-800"
-              : sessionMode === SESSION_MODES.OPEN ? "bg-blue-100 text-blue-800"
-              : "bg-slate-100 text-slate-600"}
-          `}>
-            Session {sessionId}
-            {sessionMode === SESSION_MODES.LADDER && " · Ladder"}
-            {sessionMode === SESSION_MODES.EXTENDED_LADDER && " · Extended"}
-            {sessionMode === SESSION_MODES.OPEN && " · Open"}
+        {/* Session badge (mobile) — compact */}
+        <div className="sm:hidden text-center mb-2">
+          <span className="inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600">
+            S{sessionId} · {sessionMode === "open" ? "Open" : sessionMode === "ladder" ? "Ladder" : sessionMode === "extended_ladder" ? "Extended" : sessionMode || "—"}
           </span>
         </div>
 
@@ -2991,7 +2982,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
                 </div>
 
                 <div className="mt-4">
-                  <h2 className="text-sm font-bold text-slate-600 uppercase tracking-wider mb-2">Active Courts</h2>
+                  <h2 className="text-sm font-bold text-slate-600 uppercase tracking-wider mb-2 hidden sm:block">Active Courts</h2>
                   <div className="grid grid-cols-1 xl:grid-cols-2 gap-2 sm:gap-3">
                     {courts.map((court) => (
                       <CourtCard
