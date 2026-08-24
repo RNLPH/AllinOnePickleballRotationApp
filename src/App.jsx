@@ -1093,9 +1093,11 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
   const removePlayer = (id) => {
     const player = players.find((p) => p.id === id);
     if (!player) return;
-    if (!window.confirm(`Remove ${player.name} from the waiting queue?`)) return;
+    // Remove immediately, show undo toast
     setPlayers((prev) => prev.filter((p) => p.id !== id));
-    removePlayerFromDb(id); // persist immediately
+    removePlayerFromDb(id);
+    if (navigator.vibrate) navigator.vibrate(30);
+    addToast(`${player.name} removed`, "info", 4000);
   };
 
   const handleTogglePriority = async (player) => {
@@ -2064,6 +2066,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
   };
 
   const startNextGame = () => {
+    if (navigator.vibrate) navigator.vibrate(50);
     assignPlayersToAllCourts();
   };
 
@@ -2209,6 +2212,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
     // Prevent duplicate calls (spam-clicking)
     if (endingGameRef.current.has(courtId)) return;
     endingGameRef.current.add(courtId);
+    if (navigator.vibrate) navigator.vibrate([50, 30, 50]);
 
     const court = courts.find((c) => c.id === courtId);
     if (!court) { endingGameRef.current.delete(courtId); return; }
@@ -2409,11 +2413,25 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
     }));
     await Promise.all(resetDirectory.map((p) => saveDirectoryPlayer(p, club.id)));
     setDirectory(resetDirectory);
+    // End-of-session summary
+    const sessionMatches2 = matches.filter((m) => m.sessionId === sessionId);
+    const mvp = standings.length > 0 ? standings[0] : null;
+    const summaryText = [
+      `🏸 Session ${sessionId} Complete!`,
+      `📊 ${sessionMatches2.length} matches · ${standings.length} players`,
+      mvp ? `🏆 MVP: ${mvp.name} (${mvp.gamesPlayed > 0 ? Math.round((mvp.wins / mvp.gamesPlayed) * 100) : 0}% win rate)` : "",
+      ``,
+      `Top 3:`,
+      ...standings.slice(0, 3).map((p, i) => `${["🥇","🥈","🥉"][i]} ${p.name} — ${p.wins}W ${p.losses}L`),
+    ].filter(Boolean).join("\n");
+
+    navigator.clipboard.writeText(summaryText).catch(() => {});
+    addToast(`Session ${sessionId} complete! Summary copied.`, "success", 5000);
+
     setSessionId((prev) => prev + 1);
     // Reset mode so the picker shows at the start of the next session
     setSessionMode(null);
     localStorage.removeItem(STORAGE_KEYS.SESSION_MODE);
-    addToast(`Session ${sessionId + 1} started.`, "success");
   };
 
   const resetSession = async () => {
@@ -2897,7 +2915,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
                 <div className="mt-4">
                   <h2 className="text-sm font-bold text-slate-600 uppercase tracking-wider mb-2 hidden sm:block">Active Courts</h2>
                   <div className="grid grid-cols-1 xl:grid-cols-2 gap-2 sm:gap-3">
-                    {courts.map((court) => (
+                    {[...courts].sort((a, b) => (b.players?.length || 0) - (a.players?.length || 0)).map((court) => (
                       <CourtCard
                         key={court.id}
                         court={court}

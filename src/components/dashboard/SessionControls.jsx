@@ -131,7 +131,10 @@ export default function SessionControls({
         <div className="flex gap-2 mb-2">
           <button onClick={onStartNextGame}
             className="flex-1 h-10 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-medium">
-            {t("start_game")}
+            {(() => {
+              const emptyCourts = courts.filter((c) => c.players.length < (c.format === "singles" ? 2 : 4)).length;
+              return emptyCourts > 1 ? `▶ Fill ${emptyCourts} Courts` : t("start_game");
+            })()}
           </button>
           <button onClick={onShowCourtTypeModal}
             className="h-10 px-4 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium">

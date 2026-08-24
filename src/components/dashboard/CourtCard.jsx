@@ -136,6 +136,9 @@ export default function CourtCard({
             >
               ⏱ {getCourtDuration(court.startedAt)}
             </div>
+            {getCourtMinutes(court.startedAt) > 15 && (
+              <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-bold mb-2 inline-block">⚡ Long match</span>
+            )}
 
             {/* Partner repeat warning */}
             {partnerWarning && (partnerWarning.teamA > 0 || partnerWarning.teamB > 0) && (
