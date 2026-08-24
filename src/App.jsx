@@ -1648,19 +1648,23 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
     );
     const availableQueue = courtQueue.filter((p) => !otherPreviewIds.has(p.id));
     const isSingles = court.format === "singles";
-    const needed = isSingles ? 2 : 4;
+    const maxPlayers = isSingles ? 2 : 4;
+    const needed = maxPlayers - (court.players?.length || 0);
+
+    if (needed <= 0) return [];
 
     // Try eligible players first; fall back to full pool if fewer than needed
     const eligible = eligiblePlayers(availableQueue);
     const pool = eligible.length >= needed ? eligible : availableQueue;
 
-    if (isSingles) {
-      if (pool.length < 2) return [];
-      return pool.slice(0, 2);
+    if (pool.length < needed) return [];
+
+    if (needed <= 2 || isSingles) {
+      return pool.slice(0, needed);
     }
 
     const selectedPlayers = buildRotationGroup(pool);
-    if (selectedPlayers.length < 4) return [];
+    if (selectedPlayers.length < needed) return [];
     return createBalancedTeams(selectedPlayers);
   };
 
