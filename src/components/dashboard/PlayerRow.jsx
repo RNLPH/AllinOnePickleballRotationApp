@@ -122,7 +122,6 @@ export default function PlayerRow({
           {isWaitingLong && <span className="text-[10px] text-red-500 font-bold">{waitingMinutes}m</span>}
           {waitingMinutes >= 120 && <span className="text-[10px] text-slate-400">{Math.floor(waitingMinutes / 60)}h</span>}
           <span className="text-xs text-slate-300">#{index + 1}</span>
-          {index === 0 && !player.noPriority && <span className="text-[9px] bg-green-500 text-white px-1 py-0.5 rounded font-bold">NEXT</span>}
           <svg
             className={`w-4 h-4 text-slate-400 transition-transform ${expanded ? "rotate-180" : ""}`}
             fill="none" viewBox="0 0 24 24" stroke="currentColor"
