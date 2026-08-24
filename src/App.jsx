@@ -465,9 +465,12 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
   }, [sessionId, club.id]);
 
   useEffect(() => {
+    // Only tick every second if there are active courts with timers running
+    const hasActiveCourts = courts.some((c) => c.players.length > 0 && c.startedAt);
+    if (!hasActiveCourts) return;
     const timer = setInterval(() => forceUpdate((prev) => prev + 1), 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [courts]);
 
   // ===== VIEW MODE AUTO-REFRESH =====
   useEffect(() => {
