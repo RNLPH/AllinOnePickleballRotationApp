@@ -74,24 +74,28 @@ export default function PlayerRow({
       {/* Compact row — always visible */}
       <div
         className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors ${isWaitingLong ? "hover:bg-red-100" : "hover:bg-slate-50"}`}
-        onClick={() => {
-          if (onTapSelect && !expanded) {
-            onTapSelect(isSelected ? null : player);
-          } else {
-            setExpanded(!expanded);
-          }
-        }}
       >
-        <DraggablePlayer player={player} />
-        {isSelected && <span className="text-[10px] bg-blue-500 text-white px-1.5 py-0.5 rounded font-bold">TAP COURT</span>}
+        {/* Left side: tap to select for assignment */}
+        <div
+          className="flex items-center gap-3 flex-1 min-w-0"
+          onClick={() => {
+            if (onTapSelect) {
+              onTapSelect(isSelected ? null : player);
+            } else {
+              setExpanded(!expanded);
+            }
+          }}
+        >
+          <DraggablePlayer player={player} />
+          {isSelected && <span className="text-[10px] bg-blue-500 text-white px-1.5 py-0.5 rounded font-bold shrink-0">TAP COURT</span>}
 
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-sm text-slate-800 truncate">{player.name}</span>
-            <span className={`text-xs font-medium ${courtLabel.color}`}>{courtLabel.label}</span>
-          </div>
-          <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
-            <span className="font-medium">{player.gamesPlayed}GP</span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-sm text-slate-800 truncate">{player.name}</span>
+              <span className={`text-xs font-medium ${courtLabel.color}`}>{courtLabel.label}</span>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
+              <span className="font-medium">{player.gamesPlayed}GP</span>
             <span className="text-green-700 font-medium">{player.wins || 0}W</span>
             <span className="text-red-600 font-medium">{player.losses || 0}L</span>
             {player.lastResult === "win" && <span className="text-green-600">✓</span>}
@@ -101,8 +105,10 @@ export default function PlayerRow({
             {player.pendingChallenge && <span className="text-red-500">⚔️</span>}
           </div>
         </div>
+        </div>
 
-        <div className="flex items-center gap-1">
+        {/* Right side: tap to expand profile */}
+        <div className="flex items-center gap-1 shrink-0 cursor-pointer pl-2" onClick={() => setExpanded(!expanded)}>
           {player.cooldownUntil && Date.now() < player.cooldownUntil && (
             <span className="text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full font-medium">
               😴 Rest {Math.ceil((player.cooldownUntil - Date.now()) / 60000)}m
@@ -116,14 +122,13 @@ export default function PlayerRow({
           {isWaitingLong && <span className="text-[10px] text-red-500 font-bold">{waitingMinutes}m</span>}
           {waitingMinutes >= 120 && <span className="text-[10px] text-slate-400">{Math.floor(waitingMinutes / 60)}h</span>}
           <span className="text-xs text-slate-300">#{index + 1}</span>
+          <svg
+            className={`w-4 h-4 text-slate-400 transition-transform ${expanded ? "rotate-180" : ""}`}
+            fill="none" viewBox="0 0 24 24" stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
         </div>
-
-        <svg
-          className={`w-4 h-4 text-slate-400 transition-transform ${expanded ? "rotate-180" : ""}`}
-          fill="none" viewBox="0 0 24 24" stroke="currentColor"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
       </div>
 
       {/* Expanded details — shown on tap */}
