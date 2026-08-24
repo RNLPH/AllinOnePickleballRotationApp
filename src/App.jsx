@@ -1741,32 +1741,38 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
     const preview = courtPreviews[courtId];
     const court = courts.find((c) => c.id === courtId);
     const isSingles = court?.format === "singles";
-    const needed = isSingles ? 2 : 4;
+    const maxPlayers = isSingles ? 2 : 4;
+    const currentPlayers = court?.players?.length || 0;
+    const needed = maxPlayers - currentPlayers;
 
-    if (!preview || preview.length !== needed) {
-      alert(`Preview requires exactly ${needed} players.`);
+    if (!preview || preview.length === 0) {
+      addToast("No preview to confirm.", "warning");
       return;
     }
-    if (court && court.players.length > 0) {
-      addToast("Court has an active match.", "warning");
+    if (currentPlayers >= maxPlayers) {
+      addToast("Court is already full.", "warning");
       return;
     }
+
     const previewIds = preview.map((p) => p.id);
+    const previewPlayers = preview.map((p) => ({
+      ...p,
+      consecutiveGames: (p.consecutiveGames || 0) + 1,
+    }));
+
     setCourts((prev) =>
       prev.map((c) =>
         c.id === courtId
           ? {
               ...c,
-              players: preview.map((p) => ({
-                ...p,
-                consecutiveGames: (p.consecutiveGames || 0) + 1,
-              })),
-              startedAt: Date.now(),
+              players: [...c.players, ...previewPlayers],
+              startedAt: c.players.length + previewPlayers.length >= maxPlayers ? Date.now() : c.startedAt,
             }
           : c
       )
     );
     setPlayers((prev) => prev.filter((p) => !previewIds.includes(p.id)));
+    previewIds.forEach((id) => removePlayerFromDb(id));
     setCourtPreviews((prev) => {
       const updated = { ...prev };
       delete updated[courtId];
