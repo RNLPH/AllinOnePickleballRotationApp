@@ -7,8 +7,7 @@ import { getPlayers, savePlayers, savePlayer, removePlayer as removePlayerFromDb
 import { saveMatch, getMatches, updateMatch, deleteMatchesBySession, clearAllMatches } from "./db/matchService";
 import { getAttendance, saveAttendance, clearAttendance, deleteAttendanceBySession } from "./db/attendanceService";
 import { getStandingsHistory, saveStandingsHistory, clearStandingsHistory } from "./db/standingsHistoryService";
-import { cacheSet, cacheGet, resolveData, cacheClearClub, CACHE_TYPES } from "./db/localCache";
-import { resilientOp, processQueue, getPendingCount, clearQueue } from "./db/syncQueue";
+import { clearQueue } from "./db/syncQueue";
 
 import AuthScreen from "./components/auth/AuthScreen";
 import ClubSetupScreen from "./components/auth/ClubSetupScreen";
@@ -286,6 +285,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
   const [showQrModal, setShowQrModal] = useState(null); // "checkin" | "liveboard" | null
   const [showSlugEditor, setShowSlugEditor] = useState(false);
   const [pendingEndGame, setPendingEndGame] = useState(null); // { courtId, winningTeam } — for score prompt
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   // { [courtId]: { teamA: count, teamB: count } }
 
   // ===== SESSION MODE =====
@@ -2651,25 +2651,16 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
       {/* Slim sticky header */}
       <header className="sticky top-0 z-40 bg-[#003369] shadow-sm">
         <div className="max-w-7xl mx-auto px-3 py-2 flex items-center justify-between gap-2">
+          {/* Left: Logo + Club name */}
           <div className="flex items-center gap-2 min-w-0">
-            <img src="/logo.png" alt="KNGS Stack" className="w-6 h-6 sm:w-7 sm:h-7 shrink-0" />
-            <div className="min-w-0 hidden sm:block">
-              <h1 className="text-base font-bold text-white leading-tight truncate">KNGS Stack</h1>
-              {club && <p className="text-[10px] text-[#7ABFED] leading-tight truncate">{club.name}</p>}
-              {club?.slug && <p className="text-[9px] text-[#7ABFED]/60 leading-tight truncate">/{club.slug}</p>}
-            </div>
-            <div className="min-w-0 sm:hidden">
-              <h1 className="text-sm font-bold text-white leading-tight truncate">{club?.name || "KNGS Stack"}</h1>
-            </div>
-            <button onClick={() => setShowSlugEditor(true)} className="h-6 w-6 rounded bg-white/10 text-[10px] text-white hover:bg-white/20 items-center justify-center hidden sm:flex" title="Edit club URL">
-              🔗
-            </button>
-            <button onClick={onSwitchClub} className="h-6 px-2 rounded bg-white/10 text-[10px] text-white hover:bg-white/20">
-              {clubs.length > 1 ? "Switch" : "+"}
-            </button>
+            <img src="/logo.png" alt="KNGS Stack" className="w-6 h-6 shrink-0" />
+            <h1 className="text-sm sm:text-base font-bold text-white leading-tight truncate">
+              {club?.name || "KNGS Stack"}
+            </h1>
           </div>
 
-          <div className="flex items-center gap-1 shrink-0">
+          {/* Right: Desktop icons */}
+          <div className="hidden sm:flex items-center gap-1 shrink-0">
             {sessionMode && !viewMode && (
               <button
                 onClick={() => {
@@ -2678,61 +2669,77 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
                   setSessionMode(null);
                   localStorage.removeItem(STORAGE_KEYS.SESSION_MODE);
                 }}
-                className="h-7 px-1.5 rounded text-[10px] text-[#7ABFED] hover:bg-white/10 hidden sm:block"
+                className="h-7 px-1.5 rounded text-[10px] text-[#7ABFED] hover:bg-white/10"
               >
                 Switch Mode
               </button>
             )}
+            <button onClick={handleManualRefresh} className="h-7 w-7 rounded bg-white/10 text-white flex items-center justify-center hover:bg-white/20 text-xs" title="Refresh">🔄</button>
+            <button onClick={() => setShowLiveBoard(true)} className="h-7 w-7 rounded bg-white/10 text-white flex items-center justify-center hover:bg-white/20 text-xs">📺</button>
+            <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/live/${club.slug || club.id}`); addToast("Live board link copied!", "success"); }} className="h-7 w-7 rounded bg-white/10 text-white flex items-center justify-center hover:bg-white/20 text-xs">🔗</button>
+            <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/checkin/${club.slug || club.id}`); addToast("Check-in link copied!", "success"); }} className="h-7 w-7 rounded bg-white/10 text-white flex items-center justify-center hover:bg-white/20 text-xs">📋</button>
+            <button onClick={toggleViewMode} className={`h-7 px-1.5 rounded text-[10px] font-medium ${viewMode ? "bg-[#7ABFED] text-[#003369]" : "bg-white/10 text-white hover:bg-white/20"}`}>{viewMode ? "✓ View" : "👁"}</button>
+            <button onClick={toggleDark} className="h-7 w-7 rounded bg-white/10 text-white flex items-center justify-center hover:bg-white/20 text-xs">{dark ? "☀️" : "🌙"}</button>
+            <button onClick={onSwitchClub} className="h-7 px-2 rounded bg-white/10 text-[10px] text-white hover:bg-white/20">{clubs.length > 1 ? "Switch" : "+"}</button>
+            <button onClick={onLogout} className="h-7 w-7 rounded bg-white/10 text-white flex items-center justify-center hover:bg-white/20 text-xs" title="Log out">🚪</button>
+          </div>
 
-            <button onClick={handleManualRefresh}
-              className="h-7 w-7 rounded bg-white/10 text-white flex items-center justify-center hover:bg-white/20 text-xs"
-              title="Refresh data">
-              🔄
-            </button>
-            <button onClick={() => setShowLiveBoard(true)}
-              className="h-7 w-7 rounded bg-white/10 text-white items-center justify-center hover:bg-white/20 text-xs hidden sm:flex">
-              📺
-            </button>
-            <button
-              onClick={() => { const url = `${window.location.origin}/live/${club.slug || club.id}`; navigator.clipboard.writeText(url); addToast("Live board link copied!", "success"); }}
-              className="h-7 w-7 rounded bg-white/10 text-white items-center justify-center hover:bg-white/20 text-xs hidden sm:flex">
-              🔗
-            </button>
-            <button
-              onClick={() => { const url = `${window.location.origin}/checkin/${club.slug || club.id}`; navigator.clipboard.writeText(url); addToast("Check-in link copied!", "success"); }}
-              className="h-7 w-7 rounded bg-white/10 text-white items-center justify-center hover:bg-white/20 text-xs hidden sm:flex"
-              title="Copy check-in link">
-              📋
-            </button>
-            <button onClick={toggleViewMode}
-              className={`h-7 px-1.5 rounded text-[10px] font-medium ${viewMode ? "bg-[#7ABFED] text-[#003369]" : "bg-white/10 text-white hover:bg-white/20"}`}>
-              {viewMode ? "✓" : "👁"}
-            </button>
-            {/* Mobile: dark mode + mode switch */}
-            <button onClick={toggleDark}
-              className="h-7 w-7 rounded bg-white/10 text-white flex items-center justify-center hover:bg-white/20 text-xs sm:hidden">
-              {dark ? "☀️" : "🌙"}
-            </button>
-            {sessionMode && !viewMode && (
-              <button
-                onClick={() => {
-                  if (hasActiveGames()) { addToast("Finish all active games first.", "warning"); return; }
-                  setIsSwitchingMode(true);
-                  setSessionMode(null);
-                  localStorage.removeItem(STORAGE_KEYS.SESSION_MODE);
-                }}
-                className="h-7 w-7 rounded bg-white/10 text-[#7ABFED] flex items-center justify-center hover:bg-white/20 text-xs sm:hidden"
-              >
-                ⚙️
-              </button>
-            )}
-            <button onClick={onLogout}
-              className="h-7 w-7 rounded bg-white/10 text-white flex items-center justify-center hover:bg-white/20 text-xs"
-              title="Log out">
-              🚪
+          {/* Right: Mobile — just refresh + hamburger */}
+          <div className="flex sm:hidden items-center gap-1">
+            <button onClick={handleManualRefresh} className="h-7 w-7 rounded bg-white/10 text-white flex items-center justify-center hover:bg-white/20 text-xs">🔄</button>
+            <button onClick={() => setShowMobileMenu(!showMobileMenu)} className="h-7 w-7 rounded bg-white/10 text-white flex items-center justify-center hover:bg-white/20 text-sm">
+              {showMobileMenu ? "✕" : "☰"}
             </button>
           </div>
         </div>
+
+        {/* Mobile slide-down menu */}
+        {showMobileMenu && (
+          <div className="sm:hidden bg-[#002244] border-t border-white/10 px-4 py-3 space-y-2">
+            <div className="grid grid-cols-4 gap-2">
+              <button onClick={() => { setShowLiveBoard(true); setShowMobileMenu(false); }} className="flex flex-col items-center gap-1 py-2 rounded-lg bg-white/5 hover:bg-white/10">
+                <span className="text-lg">📺</span>
+                <span className="text-[9px] text-[#7ABFED]">Live</span>
+              </button>
+              <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/live/${club.slug || club.id}`); addToast("Link copied!", "success"); setShowMobileMenu(false); }} className="flex flex-col items-center gap-1 py-2 rounded-lg bg-white/5 hover:bg-white/10">
+                <span className="text-lg">🔗</span>
+                <span className="text-[9px] text-[#7ABFED]">Share</span>
+              </button>
+              <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/checkin/${club.slug || club.id}`); addToast("Link copied!", "success"); setShowMobileMenu(false); }} className="flex flex-col items-center gap-1 py-2 rounded-lg bg-white/5 hover:bg-white/10">
+                <span className="text-lg">📋</span>
+                <span className="text-[9px] text-[#7ABFED]">Check-in</span>
+              </button>
+              <button onClick={() => { toggleDark(); setShowMobileMenu(false); }} className="flex flex-col items-center gap-1 py-2 rounded-lg bg-white/5 hover:bg-white/10">
+                <span className="text-lg">{dark ? "☀️" : "🌙"}</span>
+                <span className="text-[9px] text-[#7ABFED]">Theme</span>
+              </button>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {sessionMode && !viewMode && (
+                <button onClick={() => { if (hasActiveGames()) { addToast("Finish games first.", "warning"); return; } setIsSwitchingMode(true); setSessionMode(null); localStorage.removeItem(STORAGE_KEYS.SESSION_MODE); setShowMobileMenu(false); }} className="flex flex-col items-center gap-1 py-2 rounded-lg bg-white/5 hover:bg-white/10">
+                  <span className="text-lg">⚙️</span>
+                  <span className="text-[9px] text-[#7ABFED]">Mode</span>
+                </button>
+              )}
+              <button onClick={() => { toggleViewMode(); setShowMobileMenu(false); }} className="flex flex-col items-center gap-1 py-2 rounded-lg bg-white/5 hover:bg-white/10">
+                <span className="text-lg">{viewMode ? "✓" : "👁"}</span>
+                <span className="text-[9px] text-[#7ABFED]">View</span>
+              </button>
+              <button onClick={() => { onSwitchClub(); setShowMobileMenu(false); }} className="flex flex-col items-center gap-1 py-2 rounded-lg bg-white/5 hover:bg-white/10">
+                <span className="text-lg">🏢</span>
+                <span className="text-[9px] text-[#7ABFED]">Club</span>
+              </button>
+              <button onClick={() => { onLogout(); }} className="flex flex-col items-center gap-1 py-2 rounded-lg bg-white/5 hover:bg-white/10">
+                <span className="text-lg">🚪</span>
+                <span className="text-[9px] text-[#7ABFED]">Logout</span>
+              </button>
+            </div>
+            {/* Language selector */}
+            <select value={lang} onChange={(e) => setLang(e.target.value)} className="w-full h-8 px-3 rounded-lg bg-white/10 text-xs text-white border-0">
+              {LANGUAGES.map((l) => (<option key={l.code} value={l.code}>{l.flag} {l.label}</option>))}
+            </select>
+          </div>
+        )}
       </header>
 
       {/* Settings bar: Dark Mode + Language (desktop only, mobile has it in header) */}
@@ -2771,14 +2778,6 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
         >
           {isNotificationEnabled() ? "🔔" : "🔕"}
         </button>
-        {getPendingCount() > 0 && (
-          <span
-            className="h-7 px-2 rounded-lg bg-amber-100 text-amber-700 text-xs flex items-center gap-1"
-            title={`${getPendingCount()} operations pending sync`}
-          >
-            ⏳ {getPendingCount()}
-          </span>
-        )}
       </div>
 
       {/* Main content */}
