@@ -13,6 +13,7 @@ Court session manager for racket sports. Manage player queues, court rotation, s
 - **Multi-Club** — each club gets isolated data with Supabase auth
 - **Invite Links** — share a link for others to join your club
 - **Live Board** — public URL for TV/tablet display at the venue
+- **Find Me** — players search their name on Live Board to see position/court
 - **Self Check-in** — players add themselves via a public link
 - **Challenge Mode** — players challenge others via public link (singles & doubles)
 - **Dark Mode** — toggle light/dark theme
@@ -24,12 +25,23 @@ Court session manager for racket sports. Manage player queues, court rotation, s
 - **Swiss Auto-Pairing** — pairs players by similar win rate
 - **Round Robin Pairing** — picks unplayed matchups first
 - **Player Dashboard** — public stats page per player (ELO, form, match history)
+- **Player Notes** — add notes per player (left-handed, beginner, etc.)
 - **Rest Timer** — configurable cooldown after playing (prevents court-hogging)
-- **Court Wait Time** — estimated wait shown on Live Board for queued players
+- **Court Wait Time** — estimated wait shown on Live Board and operator queue
+- **Court Lock** — prevent auto-fill on reserved/challenge courts
+- **Court Names** — custom labels (Center Court, Back Court, etc.)
+- **Queue Search** — filter 30+ players instantly by name
+- **Undo Match Picker** — select any match to undo (reverts ELO, streak, stats)
+- **Export Session** — copy formatted summary for WhatsApp/LINE/group chats
+- **Streak Badge** — fire emoji on 3+ win streak (queue, live board, standings)
+- **Keyboard Shortcuts** — S=start game, N=new player, Esc=close, Ctrl+1-9=end court
+- **Timer Alert** — sound + vibration at 15-min match threshold
+- **Sound Toggle** — enable/disable timer alert sound
 - **Delete Club** — remove a club and all its data (owner only, triple confirm)
 - **Clear Court** — return all players from a court to queue with one click
 - **All-Time Leaderboard** — aggregated standings across all sessions
 - **Match Scores** — optional score entry (e.g. 11-7) after each game, shown in history
+- **Skeleton Loading** — placeholder cards shown while data loads
 - **PWA** — installable on phone, works offline, auto-updates
 
 ## Tech Stack
@@ -224,13 +236,13 @@ src/
 ├── main.jsx                   — Entry point with routing
 ├── components/
 │   ├── auth/                  — Login, signup, club setup screens
-│   ├── dashboard/             — SessionControls, PlayerQueue, PlayerRow, CourtCard
+│   ├── dashboard/             — SessionControls, PlayerQueue, PlayerRow, CourtCard, CourtTimer, QueueSearch
 │   ├── dnd/                   — Drag-and-drop components
 │   ├── modals/                — All modal dialogs
 │   ├── tabs/                  — Standings, Attendance, History tabs
-│   ├── ui/                    — Reusable UI (PlayerAvatar)
+│   ├── ui/                    — PlayerAvatar, Toast, SkeletonLoader
 │   ├── LiveBoard.jsx          — Operator fullscreen live display
-│   ├── PublicLiveBoard.jsx    — Public live board (no auth)
+│   ├── PublicLiveBoard.jsx    — Public live board (no auth) with Find Me
 │   └── PublicCheckin.jsx      — Public self check-in page
 ├── db/
 │   ├── supabase.js            — Supabase client
@@ -238,13 +250,18 @@ src/
 │   ├── directoryService.js    — Permanent player registry
 │   ├── matchService.js        — Match history
 │   ├── attendanceService.js   — Attendance records
-│   └── standingsHistoryService.js — Historical standings
+│   ├── standingsHistoryService.js — Historical standings
+│   └── syncQueue.js           — Offline retry queue
+├── hooks/
+│   ├── useAtomicGameOps.js    — Atomic court+player state updates
+│   └── useKeyboardShortcuts.js — Desktop keyboard shortcuts
 └── utils/
     ├── playerUtils.js         — Sort, shuffle, time formatting
     ├── teamUtils.js           — Balanced teams, rotation scoring
-    ├── csvUtils.js            — CSV export
+    ├── csvUtils.js            — CSV/text export + session summary
     ├── avatarUtils.js         — Image resize for avatars
-    └── eloUtils.js            — ELO rating calculations
+    ├── eloUtils.js            — ELO rating calculations + reversal
+    └── timerAlert.js          — Audio + haptic alerts for court timers
 ```
 
 ## Scripts

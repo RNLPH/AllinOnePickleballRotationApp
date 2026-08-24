@@ -1,9 +1,35 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../db/supabase";
 
-const APP_VERSION = "1.8.3";
+const APP_VERSION = "2.1.0";
 
 const RELEASE_NOTES = [
+  { version: "2.1.0", date: "2026-08-24", changes: [
+    "Find Me on Live Board — search your name to see your position/court",
+    "Player Notes — add notes per player (e.g. left-handed, beginner)",
+    "Undo Match Picker — select which specific match to undo (reverts ELO + streak)",
+    "Court Lock — prevent auto-fill on reserved/challenge courts",
+    "Sound Toggle — on/off for 15-min timer alert",
+    "Export Session Summary — copy formatted text for WhatsApp/LINE/group chats",
+    "Streak Badge — 🔥3 shown on players with 3+ consecutive wins",
+    "Court Name Labels — custom names (Center Court, Court A, etc.)",
+    "Court Rename + auto-renumber on delete (no more gaps like #1, #3)",
+    "Queue Search — filter players by name (press / to focus)",
+    "Keyboard Shortcuts — S=start, N=new player, Esc=close, Ctrl+1-9=end court",
+    "Estimated Wait Time shown per player in queue",
+    "Skeleton Loading — placeholder cards while data loads",
+    "Timer Alert — sound + vibration at 15 minutes",
+    "Performance: CourtTimer component (no more full-app re-render every second)",
+    "Performance: useMemo on all derived data, React.memo on PlayerRow/CourtCard",
+    "Accessibility: ARIA labels, keyboard navigation, role=tablist",
+    "International names supported (accents, hyphens, apostrophes)",
+    "All blocking popups replaced with non-blocking toasts",
+    "Edit Match Winner now recalculates ELO + streaks from scratch",
+    "Fixed: Extended Ladder tier not persisting on page refresh",
+    "Fixed: Ladder Mode ignoring court lock",
+    "Fixed: Court delete leaving stale preview data",
+    "Removed dead code (3 unused files deleted)",
+  ]},
   { version: "1.8.3", date: "2026-08-21", changes: [
     "Optional match score: enter score (e.g. 11-7) after recording a win",
     "Score displayed in Match History tab",
