@@ -30,6 +30,8 @@ export default function PlayerRow({
   onViewProfile,
   onEditName,
   onDismissChallenge,
+  tapSelectedPlayer,
+  onTapSelect,
   openMode = false,
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -62,14 +64,26 @@ export default function PlayerRow({
   const waitingMinutes = rawMinutes;
   const isWaitingLong = waitingMinutes >= 15 && waitingMinutes < 120; // Only flag 15-120min as "long"
 
+  const isSelected = tapSelectedPlayer?.id === player.id;
+
   return (
-    <div className={`rounded-xl shadow-sm overflow-hidden border ${isWaitingLong ? "border-red-300 bg-red-50" : "border-slate-100 bg-white"}`}>
+    <div className={`rounded-xl shadow-sm overflow-hidden border transition-all ${
+      isSelected ? "border-blue-400 bg-blue-50 ring-2 ring-blue-300" :
+      isWaitingLong ? "border-red-300 bg-red-50" : "border-slate-100 bg-white"
+    }`}>
       {/* Compact row — always visible */}
       <div
         className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors ${isWaitingLong ? "hover:bg-red-100" : "hover:bg-slate-50"}`}
-        onClick={() => setExpanded(!expanded)}
+        onClick={() => {
+          if (onTapSelect && !expanded) {
+            onTapSelect(isSelected ? null : player);
+          } else {
+            setExpanded(!expanded);
+          }
+        }}
       >
         <DraggablePlayer player={player} />
+        {isSelected && <span className="text-[10px] bg-blue-500 text-white px-1.5 py-0.5 rounded font-bold">TAP COURT</span>}
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">

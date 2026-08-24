@@ -31,6 +31,8 @@ export default function CourtCard({
   onRemovePreviewPlayer,
   onSetSelectedPreviewCourt,
   onSetSelectedPreviewPlayer,
+  tapSelectedPlayer,
+  onCourtTap,
 }) {
   const { t } = useI18n();
   const preview = courtPreviews[court.id] || [];
@@ -149,19 +151,29 @@ export default function CourtCard({
 
         {/* Players */}
         {court.players.length === 0 ? (
-          <div
-            className="
-              text-center
-              py-8
-              border-2
-              border-dashed
-              border-gray-300
-              rounded-xl
-              text-gray-400
-            "
-          >
-            Drag players here
-          </div>
+          <>
+            <div
+              className="
+                text-center
+                py-8
+                border-2
+                border-dashed
+                border-gray-300
+                rounded-xl
+                text-gray-400
+              "
+            >
+              {tapSelectedPlayer ? "👇 Tap below to assign" : "Drag players here"}
+            </div>
+            {tapSelectedPlayer && !isFull && (
+              <button
+                onClick={() => onCourtTap && onCourtTap(court.id)}
+                className="w-full mt-2 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white text-sm font-bold animate-pulse"
+              >
+                ➕ Assign {tapSelectedPlayer.name} here
+              </button>
+            )}
+          </>
         ) : isSingles ? (
           /* Singles layout — Player A vs Player B */
           <div className="space-y-4">

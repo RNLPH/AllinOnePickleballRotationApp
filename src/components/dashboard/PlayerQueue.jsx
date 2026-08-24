@@ -38,8 +38,10 @@ export default function PlayerQueue({
   onViewProfile,
   onEditName,
   onDismissChallenge,
+  tapSelectedPlayer,
+  onTapSelect,
 }) {
-  const sharedProps = { courts, selectedCourt, setSelectedCourt, onAddToCourt, onRemovePlayer, onTogglePriority, onToggleNoPriority, onEditTier, onViewProfile, onEditName, onDismissChallenge };
+  const sharedProps = { courts, selectedCourt, setSelectedCourt, onAddToCourt, onRemovePlayer, onTogglePriority, onToggleNoPriority, onEditTier, onViewProfile, onEditName, onDismissChallenge, tapSelectedPlayer, onTapSelect };
 
   return (
     <DroppableQueue>

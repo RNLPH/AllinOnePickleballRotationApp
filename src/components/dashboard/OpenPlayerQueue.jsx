@@ -2,7 +2,7 @@ import { useState } from "react";
 import DroppableQueue from "../dnd/DroppableQueue";
 import PlayerRow from "./PlayerRow";
 
-function QueueSection({ title, colorClass, players, courts, selectedCourt, setSelectedCourt, onAddToCourt, onRemovePlayer, onTogglePriority, onToggleNoPriority, onEditTier, onViewProfile, onEditName, onDismissChallenge }) {
+function QueueSection({ title, colorClass, players, courts, selectedCourt, setSelectedCourt, onAddToCourt, onRemovePlayer, onTogglePriority, onToggleNoPriority, onEditTier, onViewProfile, onEditName, onDismissChallenge, tapSelectedPlayer, onTapSelect }) {
   const [collapsed, setCollapsed] = useState(false);
 
   // Hide empty sections on mobile
@@ -50,6 +50,8 @@ function QueueSection({ title, colorClass, players, courts, selectedCourt, setSe
               onViewProfile={onViewProfile}
               onEditName={onEditName}
               onDismissChallenge={onDismissChallenge}
+              tapSelectedPlayer={tapSelectedPlayer}
+              onTapSelect={onTapSelect}
               openMode
             />
           ))}
@@ -73,8 +75,10 @@ export default function OpenPlayerQueue({
   onViewProfile,
   onEditName,
   onDismissChallenge,
+  tapSelectedPlayer,
+  onTapSelect,
 }) {
-  const sharedProps = { courts, selectedCourt, setSelectedCourt, onAddToCourt, onRemovePlayer, onTogglePriority, onToggleNoPriority, onEditTier: () => {}, onViewProfile, onEditName, onDismissChallenge };
+  const sharedProps = { courts, selectedCourt, setSelectedCourt, onAddToCourt, onRemovePlayer, onTogglePriority, onToggleNoPriority, onEditTier: () => {}, onViewProfile, onEditName, onDismissChallenge, tapSelectedPlayer, onTapSelect };
 
   return (
     <DroppableQueue>

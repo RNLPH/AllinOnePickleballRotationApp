@@ -276,6 +276,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
   const [selectedPreviewPlayer, setSelectedPreviewPlayer] = useState(null);
   const [selectedPreviewCourt, setSelectedPreviewCourt] = useState(null);
   const [activePlayer, setActivePlayer] = useState(null);
+  const [tapSelectedPlayer, setTapSelectedPlayer] = useState(null); // tap-to-assign: selected player waiting for court tap
   const [selectedCourt, setSelectedCourt] = useState({});
   const [editingPlayer, setEditingPlayer] = useState(null);
   const [isSwitchingMode, setIsSwitchingMode] = useState(false);
@@ -2856,6 +2857,8 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
                       onViewProfile={(player) => setSelectedPlayerProfile(player)}
                       onEditName={(player) => setEditingPlayer(player)}
                       onDismissChallenge={handleAcceptChallenge}
+                      tapSelectedPlayer={tapSelectedPlayer}
+                      onTapSelect={setTapSelectedPlayer}
                     />
                   ) : (
                     <PlayerQueue
@@ -2875,6 +2878,8 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
                       onViewProfile={(player) => setSelectedPlayerProfile(player)}
                       onEditName={(player) => setEditingPlayer(player)}
                       onDismissChallenge={handleAcceptChallenge}
+                      tapSelectedPlayer={tapSelectedPlayer}
+                      onTapSelect={setTapSelectedPlayer}
                     />
                   )}
                 </div>
@@ -2900,6 +2905,13 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
                         onRemovePreviewPlayer={removePreviewPlayer}
                         onSetSelectedPreviewCourt={setSelectedPreviewCourt}
                         onSetSelectedPreviewPlayer={setSelectedPreviewPlayer}
+                        tapSelectedPlayer={tapSelectedPlayer}
+                        onCourtTap={(courtId) => {
+                          if (tapSelectedPlayer) {
+                            addPlayerToCourt(tapSelectedPlayer.id, courtId);
+                            setTapSelectedPlayer(null);
+                          }
+                        }}
                       />
                     ))}
                   </div>
