@@ -63,10 +63,10 @@ export default function SessionControls({
         </div>
       </div>
 
-      {/* Mode badge */}
+      {/* Mode badge — hidden on mobile (shown in session badge instead) */}
       {sessionMode && (
-        <div className="px-3 py-1.5 border-b border-slate-100 flex items-center justify-center">
-          <span className="text-[11px] font-semibold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full">
+        <div className="hidden sm:flex px-3 py-1 border-b border-slate-100 items-center justify-center">
+          <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
             {sessionMode === "open" && t("mode_open")}
             {sessionMode === "ladder" && t("mode_ladder")}
             {sessionMode === "extended_ladder" && t("mode_extended")}

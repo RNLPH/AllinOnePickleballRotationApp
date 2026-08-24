@@ -203,7 +203,7 @@ export default function CourtCard({
               <span className="font-bold text-purple-600">🟣 Team B</span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2">
               {/* Team A */}
               <div>
                 <span
@@ -211,11 +211,12 @@ export default function CourtCard({
                     inline-block
                     bg-blue-500
                     text-white
-                    px-3
-                    py-1
+                    px-2
+                    py-0.5
                     rounded-full
-                    text-sm
+                    text-xs
                     font-bold
+                    mb-1
                   "
                 >
                   Team A
@@ -231,13 +232,12 @@ export default function CourtCard({
                         bg-white
                         border-l-4
                         border-blue-500
-                        p-3
+                        p-2
                         rounded-lg
-                        mb-2
+                        mb-1.5
                         flex
                         items-center
                         shadow-sm
-                        min-h-[72px]
                       "
                     >
                       <div className="flex-1 min-w-0">
@@ -263,11 +263,12 @@ export default function CourtCard({
                     inline-block
                     bg-purple-500
                     text-white
-                    px-3
-                    py-1
+                    px-2
+                    py-0.5
                     rounded-full
-                    text-sm
+                    text-xs
                     font-bold
+                    mb-1
                   "
                 >
                   Team B
@@ -283,13 +284,12 @@ export default function CourtCard({
                         bg-white
                         border-l-4
                         border-purple-500
-                        p-3
+                        p-2
                         rounded-lg
-                        mb-2
+                        mb-1.5
                         flex
                         items-center
                         shadow-sm
-                        min-h-[72px]
                       "
                     >
                       <div className="flex-1 min-w-0">

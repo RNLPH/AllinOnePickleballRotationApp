@@ -3070,7 +3070,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
 
       {/* Bottom Tab Navigation — mobile native feel */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-40 sm:hidden safe-area-pb">
-        <div className="flex justify-around py-2 pb-[env(safe-area-inset-bottom)]">
+        <div className="flex justify-around py-1.5 pb-[env(safe-area-inset-bottom)]">
           {(viewMode
             ? ["standings", "attendance", "history"]
             : ["dashboard", "standings", "attendance", "history"]
@@ -3078,22 +3078,23 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition-colors ${
-                activeTab === tab ? "text-blue-600" : "text-slate-400"
+              className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all ${
+                activeTab === tab ? "text-blue-600 bg-blue-50 scale-105" : "text-slate-400"
               }`}
             >
-              <span className="text-lg">
+              <span className="text-xl">
                 {tab === "dashboard" && "🏠"}
                 {tab === "standings" && "🏆"}
                 {tab === "attendance" && "👥"}
                 {tab === "history" && "📜"}
               </span>
-              <span className="text-[10px] font-semibold leading-tight">
+              <span className={`text-[9px] font-bold leading-tight ${activeTab === tab ? "text-blue-600" : "text-slate-400"}`}>
                 {tab === "dashboard" && t("tab_dashboard")}
                 {tab === "standings" && t("tab_standings")}
                 {tab === "attendance" && t("tab_attendance")}
                 {tab === "history" && t("tab_history")}
               </span>
+              {activeTab === tab && <div className="w-4 h-0.5 bg-blue-600 rounded-full mt-0.5" />}
             </button>
           ))}
         </div>
