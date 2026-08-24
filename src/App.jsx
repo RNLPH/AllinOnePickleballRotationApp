@@ -577,7 +577,13 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
   const sortedPlayers = sortPlayers(players);
   // Filter out any players that are currently on courts (safety check)
   const courtPlayerIds = new Set(courts.flatMap((c) => c.players || []).map((p) => p.id));
-  const waitingPlayers = sortedPlayers.filter((p) => !courtPlayerIds.has(p.id));
+  // Deduplicate players by ID (prevents duplicate rendering)
+  const seenIds = new Set();
+  const waitingPlayers = sortedPlayers.filter((p) => {
+    if (courtPlayerIds.has(p.id) || seenIds.has(p.id)) return false;
+    seenIds.add(p.id);
+    return true;
+  });
 
   // Players available for auto-fill (not on cooldown)
   const readyPlayers = waitingPlayers.filter((p) => !p.cooldownUntil || Date.now() >= p.cooldownUntil);
