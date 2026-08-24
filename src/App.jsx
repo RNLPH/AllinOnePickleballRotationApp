@@ -199,7 +199,7 @@ export default function App() {
         if (!window.confirm(`Delete "${club.name}" permanently? This will delete ALL data (players, matches, history). This cannot be undone.`)) return;
         if (!window.confirm("Are you REALLY sure? Type the club name in the next prompt to confirm.")) return;
         const typed = window.prompt(`Type "${club.name}" to confirm deletion:`);
-        if (typed !== club.name) { alert("Club name didn't match. Deletion cancelled."); return; }
+        if (typed !== club.name) { addToast("Club name didn't match.", "error"); return; }
 
         // Delete all related data
         await supabase.from("players").delete().eq("club_id", club.id);
@@ -215,7 +215,7 @@ export default function App() {
         setClub(null);
         setClubs([]);
         loadMemberships(authUser.id);
-        alert("Club deleted.");
+        addToast("Club deleted.", "success");
       }}
       onLogout={async () => { 
         await supabase.auth.signOut({ scope: 'local' }); 
@@ -1367,7 +1367,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
     const targetCourt = courts.find((c) => c.id === courtId);
     if (!targetCourt) return;
     if (targetCourt.players.length > 0) {
-      alert("Cannot change court type while players are on the court.");
+      addToast("Cannot change court type while players are on court.", "warning");
       return;
     }
     setCourts((prev) =>
@@ -1380,7 +1380,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
     const targetCourt = courts.find((c) => c.id === courtId);
     if (!targetCourt) return;
     if (targetCourt.players.length > 0) {
-      alert("Cannot change court format while players are on the court.");
+      addToast("Cannot change format while players are on court.", "warning");
       return;
     }
     setCourts((prev) =>
@@ -1465,7 +1465,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
         return;
       }
     }
-    if (court.players.length >= (court.format === "singles" ? 2 : 4)) { alert("Court is already full."); return; }
+    if (court.players.length >= (court.format === "singles" ? 2 : 4)) { addToast("Court is full.", "warning"); return; }
     if (!window.confirm(`Add ${player.name} to Court ${court.id}?`)) return;
 
     setCourts((prev) =>
@@ -1504,7 +1504,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
       `Delete ${targetCourt.type ? targetCourt.type.toUpperCase() : "COURT"} #${targetCourt.id}?`
     );
     if (!confirmed) return;
-    if (courts.length <= 1) { alert("At least one court must remain."); return; }
+    if (courts.length <= 1) { addToast("At least one court must remain.", "warning"); return; }
     if (targetCourt.players.length > 0) {
       const confirmed2 = window.confirm("Delete this court and return all players to the queue?");
       if (!confirmed2) return;
@@ -1635,7 +1635,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
       return;
     }
     if (sourceCourt && sourceCourt.players.length === (sourceCourt.format === "singles" ? 2 : 4)) {
-      alert("Cannot move players while a match is active.");
+      addToast("Cannot move players while match is active.", "warning");
       return;
     }
     if (sourceCourt && sourceCourt.id === targetCourtId) return;
@@ -1649,7 +1649,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
       });
       return updated.map((court) => {
         if (court.id !== targetCourtId) return court;
-        if (court.players.length >= (court.format === "singles" ? 2 : 4)) { alert("Court is full."); return court; }
+        if (court.players.length >= (court.format === "singles" ? 2 : 4)) { addToast("Court is full.", "warning"); return court; }
         const updatedPlayers = [...court.players, playerToMove];
         return {
           ...court,
@@ -1803,7 +1803,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
       return;
     }
     if (court && court.players.length > 0) {
-      alert("Court already has an active match.");
+      addToast("Court has an active match.", "warning");
       return;
     }
     const previewIds = preview.map((p) => p.id);
@@ -2202,7 +2202,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
       .from("matches")
       .delete()
       .eq("id", lastMatch.id);
-    if (error) { console.error("undoLastMatch:", error); alert("Failed to undo."); return; }
+    if (error) { console.error("undoLastMatch:", error); addToast("Failed to undo.", "error"); return; }
 
     // Remove from state
     setMatches((prev) => prev.filter((m) => m.id !== lastMatch.id));
@@ -2251,7 +2251,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
       })
     );
 
-    alert("Last match undone. Stats reverted.");
+    addToast("Last match undone.", "success");
   };
 
   const endGame = async (courtId, winningTeam, score = null) => {
@@ -2496,11 +2496,11 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
       m.id === matchId ? { ...m, winner: newWinner } : m
     );
     const targetMatch = updatedMatches.find((m) => m.id === matchId);
-    if (!targetMatch) { alert("Match not found."); return; }
+    if (!targetMatch) { addToast("Match not found.", "error"); return; }
     await updateMatch(targetMatch);
     setMatches(updatedMatches);
     await recalculateStandings(updatedMatches);
-    alert("Match updated and standings recalculated.");
+    addToast("Match updated.", "success");
   };
 
   const clearHistory = async () => {
@@ -2508,7 +2508,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
     if (!confirmed) return;
     await clearAllMatches(club.id);
     setMatches([]);
-    alert("All match history cleared.");
+    addToast("Match history cleared.", "success");
   };
 
   const clearAttendanceRecords = async () => {
@@ -2516,7 +2516,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
     if (!confirmed) return;
     await clearAttendance(club.id);
     setAttendance([]);
-    alert("Attendance records cleared.");
+    addToast("Attendance records cleared.", "success");
   };
 
   const clearStandings = async () => {
@@ -2560,7 +2560,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
         })),
       }))
     );
-    alert("All standings have been reset.");
+    addToast("Standings reset.", "success");
   };
 
   const factoryReset = async () => {
