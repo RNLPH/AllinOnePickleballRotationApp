@@ -130,13 +130,17 @@ const RELEASE_NOTES = [
 ];
 
 const HELP_SECTIONS = [
-  { title: "Getting Started", content: "Sign up with your email and create a club. Add players by typing names and selecting a tier (or no tier in Open Mode). Create courts and start games." },
-  { title: "Game Modes", content: "Open: no tiers, winners vs winners. Ladder: 3-tier (King/Knight/Squire). Extended Ladder: 4-tier. King of Court: winners stay on court. Round Robin: everyone plays everyone. Swiss: paired by similar record. Random Draw: random teams each round. Fixed Teams: pre-set teams. Challenge: players challenge others." },
-  { title: "Courts", content: "Add courts with + Court. Each court can be Doubles (2v2) or Singles (1v1). Set the court type in ⚙️ settings. Start Game auto-fills empty courts from the queue." },
-  { title: "Live Board", content: "Share the 🔗 link with players. They can see active courts, queue position, and recent matches in real-time." },
-  { title: "Self Check-in", content: "Share the 📋 check-in link. Players can add themselves to the queue without the operator typing their name." },
-  { title: "ELO Rating", content: "Each player gets a skill rating (starts at 2.0, max 5.0). It updates after every match based on opponent strength. Visible in Standings and Player Profile." },
-  { title: "Undo Match", content: "Made a mistake? Go to More Options → Undo Last Match. It reverts stats and removes the match from history." },
+  { title: "🚀 Quick Start (Operator)", content: "1. Sign up → Create your club\n2. Choose a game mode (Open is simplest)\n3. Add players by name (or share the check-in link)\n4. Click 'Start Game' to auto-fill courts\n5. Tap 'Team A/B Wins' when a match ends\n6. Players auto-rotate back to queue" },
+  { title: "📱 For Players", content: "Open the Live Board link to see your queue position and active courts. Use the Check-in link to add yourself — you'll be waitlisted until the operator accepts you." },
+  { title: "🎮 Game Modes (10)", content: "• Open — winners vs winners, losers vs losers\n• Ladder — 3-tier (King/Knight/Squire), win to climb\n• Extended Ladder — 4-tier with General\n• King of Court — winners stay, losers rotate out\n• Round Robin — everyone plays everyone\n• Swiss — paired by similar win record\n• Random Draw — pure random teams\n• Fixed Teams — same partners all session\n• Challenge — players challenge each other\n• ELO Match — paired by closest skill rating" },
+  { title: "🏟️ Courts", content: "• Add courts with + Court button\n• Each court: Doubles (2v2) or Singles (1v1)\n• Lock 🔒 a court to prevent auto-fill (for challenges)\n• Set custom names (⚙️ → Custom Name)\n• 'Start Game' fills all unlocked empty courts" },
+  { title: "📋 Waitlist", content: "Players who self-check-in via the public link go to a waitlist. You'll see an amber banner with Accept/Reject buttons. Tap 'Accept All' to add everyone at once." },
+  { title: "📊 ELO Rating", content: "Each player starts at 2.0 (max 5.0). Rating updates after every match based on opponent strength. In ELO Match mode, courts are filled by closest rating for the most competitive games." },
+  { title: "↩️ Undo & Edit", content: "• Tap ↩️ to undo any match (picks from a list)\n• Change winner in History tab → recalculates all stats\n• Both actions fully revert ELO, streaks, and standings" },
+  { title: "⌨️ Keyboard Shortcuts", content: "• S — Start game (fill courts)\n• N — Focus player name input\n• / — Focus queue search\n• Esc — Close any modal\n• Ctrl+1-9 — End court by number" },
+  { title: "🔔 Timer & Sound", content: "Courts turn amber at 15 min, red at 20 min. An alert sound + vibration fires at 15 min (toggle on/off in More Options)." },
+  { title: "📤 Export & Share", content: "• Export Session Summary — copies formatted text for group chats\n• CSV Export — download standings, matches, attendance as CSV\n• QR Codes — scannable codes for check-in and live board" },
+  { title: "🔒 Data & Privacy", content: "All data stored in Supabase (PostgreSQL). Each club's data is fully isolated. Only the club owner can modify data. Public links show read-only views." },
 ];
 
 export default function AuthScreen() {
@@ -412,15 +416,38 @@ export default function AuthScreen() {
 
         {/* Info panel */}
         {infoTab && (
-          <div className="mt-4 bg-slate-50 border border-slate-200 rounded-xl p-4 max-h-64 overflow-y-auto">
+          <div className="mt-4 bg-slate-50 border border-slate-200 rounded-xl p-4 max-h-[50vh] overflow-y-auto">
             {infoTab === "about" && (
-              <div className="text-center space-y-2">
-                <img src="/logo.png" alt="KNGS Stack" className="w-12 h-12 mx-auto" />
-                <h3 className="font-bold text-slate-800">KNGS Stack</h3>
-                <p className="text-xs text-slate-500">Version {APP_VERSION}</p>
-                <p className="text-xs text-slate-500 leading-relaxed">
-                  Court session manager for racket sports. Manage player queues, court rotation, standings, and match history for pickleball, badminton, tennis, padel, and more.
+              <div className="space-y-4">
+                <div className="text-center space-y-2">
+                  <img src="/logo.png" alt="KNGS Stack" className="w-12 h-12 mx-auto" />
+                  <h3 className="font-bold text-slate-800">KNGS Stack / RallyStack</h3>
+                  <p className="text-xs text-slate-500">Version {APP_VERSION}</p>
+                </div>
+                <p className="text-xs text-slate-600 leading-relaxed text-center">
+                  Universal court session manager for racket sports — pickleball, badminton, tennis, padel, and more. Manage 30+ players across multiple courts with real-time rotation, ELO rankings, and live boards.
                 </p>
+                <div className="grid grid-cols-2 gap-2 text-center">
+                  <div className="bg-white rounded-lg p-2 border border-slate-100">
+                    <div className="text-lg font-bold text-blue-600">10</div>
+                    <div className="text-[9px] text-slate-500">Game Modes</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-2 border border-slate-100">
+                    <div className="text-lg font-bold text-green-600">9</div>
+                    <div className="text-[9px] text-slate-500">Languages</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-2 border border-slate-100">
+                    <div className="text-lg font-bold text-purple-600">ELO</div>
+                    <div className="text-[9px] text-slate-500">Rating System</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-2 border border-slate-100">
+                    <div className="text-lg font-bold text-amber-600">PWA</div>
+                    <div className="text-[9px] text-slate-500">Installable</div>
+                  </div>
+                </div>
+                <div className="text-[10px] text-slate-400 text-center">
+                  Built for operators running live sessions with 30+ players on mobile.
+                </div>
               </div>
             )}
 
@@ -446,10 +473,11 @@ export default function AuthScreen() {
             {infoTab === "help" && (
               <div className="space-y-3">
                 <h3 className="font-bold text-slate-800 text-sm">Help Guide</h3>
+                <p className="text-[10px] text-slate-400 mb-2">Tap a section to learn more</p>
                 {HELP_SECTIONS.map((section) => (
                   <div key={section.title} className="border-b border-slate-100 pb-2 last:border-0">
-                    <h4 className="text-xs font-bold text-slate-700 mb-0.5">{section.title}</h4>
-                    <p className="text-xs text-slate-500 leading-relaxed">{section.content}</p>
+                    <h4 className="text-xs font-bold text-slate-700 mb-1">{section.title}</h4>
+                    <p className="text-xs text-slate-500 leading-relaxed whitespace-pre-line">{section.content}</p>
                   </div>
                 ))}
               </div>

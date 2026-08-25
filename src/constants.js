@@ -33,6 +33,7 @@ export const SESSION_MODES = {
   RANDOM_DRAW:     "random_draw",
   FIXED_TEAMS:     "fixed_teams",
   CHALLENGE:       "challenge",
+  ELO_MATCH:       "elo_match",
 };
 
 // ===== LADDER MODE (3-tier) =====

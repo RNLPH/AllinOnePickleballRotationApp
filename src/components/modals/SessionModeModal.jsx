@@ -116,6 +116,18 @@ const MODES = [
         ],
       },
       {
+        id: SESSION_MODES.ELO_MATCH,
+        name: "ELO Match",
+        emoji: "📊",
+        border: "border-violet-400",
+        bg: "from-violet-50 to-fuchsia-50 hover:from-violet-100 hover:to-fuchsia-100",
+        desc: "Pair players by ELO rating. Top-rated vs top-rated, mid vs mid. Most competitive matchups.",
+        tags: [
+          { label: "By Rating", color: "bg-violet-200 text-violet-800" },
+          { label: "Competitive", color: "bg-fuchsia-200 text-fuchsia-800" },
+        ],
+      },
+      {
         id: SESSION_MODES.FIXED_TEAMS,
         name: "Fixed Teams",
         emoji: "🤝",

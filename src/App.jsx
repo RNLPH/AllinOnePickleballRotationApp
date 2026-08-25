@@ -627,10 +627,15 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
   const waitingPlayers = useMemo(() => {
     const seenIds = new Set();
     return sortedPlayers.filter((p) => {
-      if (courtPlayerIds.has(p.id) || seenIds.has(p.id)) return false;
+      if (courtPlayerIds.has(p.id) || seenIds.has(p.id) || p.waitlisted) return false;
       seenIds.add(p.id);
       return true;
     });
+  }, [sortedPlayers, courtPlayerIds]);
+
+  // Waitlisted players (checked in via public link, awaiting operator approval)
+  const waitlistedPlayers = useMemo(() => {
+    return sortedPlayers.filter((p) => p.waitlisted && !courtPlayerIds.has(p.id));
   }, [sortedPlayers, courtPlayerIds]);
 
   // Players available for auto-fill (not on cooldown)
@@ -655,8 +660,10 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
   const isFixedTeams   = sessionMode === SESSION_MODES.FIXED_TEAMS;
   const isChallenge    = sessionMode === SESSION_MODES.CHALLENGE;
 
+  const isEloMatch    = sessionMode === SESSION_MODES.ELO_MATCH;
+
   // Modes that don't use tier-based queues
-  const isTierless = isOpenMode || isKingOfCourt || isRandomDraw || isRoundRobin || isSwiss || isFixedTeams || isChallenge;
+  const isTierless = isOpenMode || isKingOfCourt || isRandomDraw || isRoundRobin || isSwiss || isFixedTeams || isChallenge || isEloMatch;
 
   // Extended Ladder queues (4-tier)
   const generalQueue = useMemo(() => waitingPlayers.filter((p) => p.tier === "general"), [waitingPlayers]);
@@ -1161,6 +1168,36 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
     removePlayerFromDb(id);
     if (navigator.vibrate) navigator.vibrate(30);
     addToast(`${player.name} removed`, "info", 4000);
+  };
+
+  // ===== WAITLIST ACTIONS =====
+  const acceptWaitlistedPlayer = async (playerId) => {
+    const player = players.find((p) => p.id === playerId);
+    if (!player) return;
+    const accepted = { ...player, waitlisted: false, waitingSince: Date.now() };
+    setPlayers((prev) => prev.map((p) => p.id === playerId ? accepted : p));
+    await savePlayer(accepted, club.id);
+    addToast(`${player.name} added to queue`, "success");
+  };
+
+  const acceptAllWaitlisted = async () => {
+    if (waitlistedPlayers.length === 0) return;
+    const updated = players.map((p) =>
+      p.waitlisted ? { ...p, waitlisted: false, waitingSince: Date.now() } : p
+    );
+    setPlayers(updated);
+    await Promise.all(
+      waitlistedPlayers.map((p) => savePlayer({ ...p, waitlisted: false, waitingSince: Date.now() }, club.id))
+    );
+    addToast(`${waitlistedPlayers.length} players added to queue`, "success");
+  };
+
+  const rejectWaitlistedPlayer = async (playerId) => {
+    const player = players.find((p) => p.id === playerId);
+    if (!player) return;
+    setPlayers((prev) => prev.filter((p) => p.id !== playerId));
+    removePlayerFromDb(playerId);
+    addToast(`${player.name} rejected`, "info");
   };
 
   const handleTogglePriority = async (player) => {
@@ -2012,6 +2049,31 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
       return;
     }
 
+    // ===== ELO MATCH MODE =====
+    // Pairs players by closest ELO rating (top vs top, mid vs mid)
+    if (isEloMatch) {
+      // Sort all waiting players by ELO (highest first)
+      const sortedByElo = [...waitingPlayers].sort((a, b) => (b.eloRating || 2.0) - (a.eloRating || 2.0));
+      let eloIdx = 0;
+
+      const updatedCourts = courts.map((court) => {
+        const maxP = court.format === "singles" ? 2 : 4;
+        if (court.locked || court.players.length >= maxP) return court;
+        const needed = maxP - court.players.length;
+        if (eloIdx + needed > sortedByElo.length) return court;
+
+        const selected = sortedByElo.slice(eloIdx, eloIdx + needed).map((p) => ({ ...p, consecutiveGames: (p.consecutiveGames || 0) + 1 }));
+        eloIdx += needed;
+        return { ...court, players: [...court.players, ...selected], startedAt: court.players.length + selected.length >= maxP ? (court.startedAt || Date.now()) : court.startedAt };
+      });
+
+      setCourts(updatedCourts);
+      const newlyAssignedIds = sortedByElo.slice(0, eloIdx).map((p) => p.id);
+      atomicAssignToCourts(updatedCourts, newlyAssignedIds);
+      newlyAssignedIds.forEach((id) => removePlayerFromDb(id));
+      return;
+    }
+
     if (isOpenMode) {
       // Open Mode: each court pulls from its matching result pool
       // "winner" court → winners first, fall back to new players
@@ -2860,7 +2922,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
         {/* Session badge (mobile) — compact */}
         <div className="sm:hidden text-center mb-2">
           <span className="inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600">
-            S{sessionId} · {sessionMode === "open" ? "Open" : sessionMode === "ladder" ? "Ladder" : sessionMode === "extended_ladder" ? "Extended" : sessionMode || "—"}
+            S{sessionId} · {sessionMode === "open" ? "Open" : sessionMode === "ladder" ? "Ladder" : sessionMode === "extended_ladder" ? "Extended" : sessionMode === "elo_match" ? "ELO Match" : sessionMode || "—"}
           </span>
         </div>
 
@@ -3028,6 +3090,50 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
               )}
 
               <div className="space-y-6">
+                {/* Waitlist Banner — shows when players are waiting for approval */}
+                {waitlistedPlayers.length > 0 && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-sm font-bold text-amber-800">
+                        📋 Waitlist <span className="ml-1 bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded-full text-xs">{waitlistedPlayers.length}</span>
+                      </div>
+                      <button
+                        onClick={acceptAllWaitlisted}
+                        className="h-7 px-3 rounded-lg bg-green-500 text-white text-xs font-medium hover:bg-green-600"
+                      >
+                        ✓ Accept All
+                      </button>
+                    </div>
+                    <div className="space-y-1.5 max-h-[200px] overflow-y-auto">
+                      {waitlistedPlayers.map((player) => (
+                        <div key={player.id} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-amber-100">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-sm font-medium text-slate-700 truncate">{player.name}</span>
+                            <span className="text-[10px] text-slate-400">{player.gamesPlayed || 0}GP</span>
+                            {(player.eloRating || 0) > 2.0 && (
+                              <span className="text-[10px] text-blue-600 font-medium">⭐{(player.eloRating || 2.0).toFixed(1)}</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              onClick={() => acceptWaitlistedPlayer(player.id)}
+                              className="h-7 px-2.5 rounded-lg bg-green-100 text-green-700 text-xs font-medium hover:bg-green-200"
+                            >
+                              ✓
+                            </button>
+                            <button
+                              onClick={() => rejectWaitlistedPlayer(player.id)}
+                              className="h-7 px-2.5 rounded-lg bg-red-100 text-red-600 text-xs font-medium hover:bg-red-200"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Queue Search Filter */}
                 <QueueSearch onSearch={setQueueSearchQuery} playerCount={waitingPlayers.length} />
 

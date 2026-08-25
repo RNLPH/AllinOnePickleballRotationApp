@@ -36,7 +36,7 @@ export default function PublicCheckin() {
     if (!trimmed) { setError("Enter your name."); return; }
     if (trimmed.length < 2) { setError("Name must be at least 2 characters."); return; }
     if (trimmed.length > 20) { setError("Name cannot exceed 20 characters."); return; }
-    if (!/^[a-zA-Z0-9\s]+$/.test(trimmed)) { setError("Only letters, numbers and spaces."); return; }
+    if (!/^[\p{L}\p{N}\s'.-]+$/u.test(trimmed)) { setError("Only letters, numbers, spaces, hyphens and apostrophes."); return; }
 
     setLoading(true);
     setError("");
@@ -87,6 +87,7 @@ export default function PublicCheckin() {
         kingCourtEntries: playerData.kingCourtEntries || 0,
         partnerHistory: playerData.partnerHistory || {},
         queueGroup: "unmatched",
+        waitlisted: true,
         waitingSince: Date.now(),
       },
     };
@@ -136,7 +137,7 @@ export default function PublicCheckin() {
       },
     });
 
-    setMessage(`✅ ${dirPlayer?.name || trimmed} checked in! You're in the queue.`);
+    setMessage(`✅ ${dirPlayer?.name || trimmed} checked in! Waiting for operator approval.`);
     setName("");
     setRecentCheckins((prev) => [...prev, dirPlayer?.name || trimmed]);
     setLoading(false);
