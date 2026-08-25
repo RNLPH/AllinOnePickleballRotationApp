@@ -1,9 +1,16 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../db/supabase";
 
-const APP_VERSION = "2.1.0";
+const APP_VERSION = "2.2.0";
 
 const RELEASE_NOTES = [
+  { version: "2.2.0", date: "2026-08-25", changes: [
+    "Waitlist Queue — self-check-in players go to waitlist, operator accepts/rejects before joining queue",
+    "ELO Match Mode — 10th game mode, pairs players by closest ELO rating for competitive matches",
+    "Enhanced Help Guide — 11 comprehensive sections with step-by-step operator walkthrough",
+    "Enhanced About page — feature stats grid (10 modes, 9 languages, ELO, PWA)",
+    "International names supported in public check-in (accents, hyphens, apostrophes)",
+  ]},
   { version: "2.1.0", date: "2026-08-24", changes: [
     "Find Me on Live Board — search your name to see your position/court",
     "Player Notes — add notes per player (e.g. left-handed, beginner)",

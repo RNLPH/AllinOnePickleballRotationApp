@@ -5,6 +5,7 @@ Court session manager for racket sports. Manage player queues, court rotation, s
 ## Features
 
 - **9 Game Modes** — Open, Ladder, Extended Ladder, King of Court, Round Robin, Swiss System, Random Draw, Fixed Teams, Challenge Mode
+- **ELO Match Mode** — 10th mode that pairs players by closest ELO rating for competitive matchups
 - **Singles & Doubles** — each court can independently be 1v1 or 2v2
 - **ELO Rating** — DUPR-style skill rating that updates after every match
 - **Auto-Rotation** — balanced team pairing with partner/opponent history
@@ -15,6 +16,7 @@ Court session manager for racket sports. Manage player queues, court rotation, s
 - **Live Board** — public URL for TV/tablet display at the venue
 - **Find Me** — players search their name on Live Board to see position/court
 - **Self Check-in** — players add themselves via a public link
+- **Waitlist Queue** — self-check-in players go to waitlist, operator accepts before they join
 - **Challenge Mode** — players challenge others via public link (singles & doubles)
 - **Dark Mode** — toggle light/dark theme
 - **Multi-language** — 9 languages (EN, DE, ES, FR, PT, JA, ZH, KO, FIL)
