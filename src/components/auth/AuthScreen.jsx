@@ -428,7 +428,7 @@ export default function AuthScreen() {
               <div className="space-y-4">
                 <div className="text-center space-y-2">
                   <img src="/logo.png" alt="KNGS Stack" className="w-12 h-12 mx-auto" />
-                  <h3 className="font-bold text-slate-800">KNGS Stack / RallyStack</h3>
+                  <h3 className="font-bold text-slate-800">KNGS Stack</h3>
                   <p className="text-xs text-slate-500">Version {APP_VERSION}</p>
                 </div>
                 <p className="text-xs text-slate-600 leading-relaxed text-center">
