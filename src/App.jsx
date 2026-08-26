@@ -2858,10 +2858,10 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
             {sessionMode && !viewMode && (
               <button
                 onClick={() => {
-                  if (hasActiveGames()) { addToast("Finish all active games first.", "warning"); return; }
                   setIsSwitchingMode(true);
                   setSessionMode(null);
                   localStorage.removeItem(STORAGE_KEYS.SESSION_MODE);
+                  if (hasActiveGames()) { addToast("Active courts will finish their current game.", "info"); }
                 }}
                 className="h-7 px-1.5 rounded text-[10px] text-[#7ABFED] hover:bg-white/10"
               >
@@ -2910,7 +2910,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
             </div>
             <div className="grid grid-cols-3 gap-2">
               {sessionMode && !viewMode && (
-                <button onClick={() => { if (hasActiveGames()) { addToast("Finish games first.", "warning"); return; } setIsSwitchingMode(true); setSessionMode(null); localStorage.removeItem(STORAGE_KEYS.SESSION_MODE); setShowMobileMenu(false); }} className="flex flex-col items-center gap-1 py-2 rounded-lg bg-white/5 hover:bg-white/10">
+                <button onClick={() => { setIsSwitchingMode(true); setSessionMode(null); localStorage.removeItem(STORAGE_KEYS.SESSION_MODE); setShowMobileMenu(false); if (hasActiveGames()) addToast("Active courts will finish their current game.", "info"); }} className="flex flex-col items-center gap-1 py-2 rounded-lg bg-white/5 hover:bg-white/10">
                   <span className="text-lg">⚙️</span>
                   <span className="text-[9px] text-[#7ABFED]">Mode</span>
                 </button>
