@@ -14,6 +14,7 @@ const PublicCheckin = lazy(() => import("./components/PublicCheckin.jsx"));
 const PublicInvite = lazy(() => import("./components/PublicInvite.jsx"));
 const PublicChallenge = lazy(() => import("./components/PublicChallenge.jsx"));
 const PlayerDashboard = lazy(() => import("./components/PlayerDashboard.jsx"));
+const LandingPage = lazy(() => import("./components/LandingPage.jsx"));
 
 registerSW({
   immediate: true,
@@ -43,6 +44,7 @@ createRoot(document.getElementById("root")).render(
                 <Route path="/challenge/:clubId" element={<PublicChallenge />} />
                 <Route path="/player/:clubId/:playerName" element={<PlayerDashboard />} />
                 <Route path="/invite/:inviteCode" element={<PublicInvite />} />
+                <Route path="/welcome" element={<LandingPage />} />
                 <Route path="*" element={<App />} />
               </Routes>
             </Suspense>

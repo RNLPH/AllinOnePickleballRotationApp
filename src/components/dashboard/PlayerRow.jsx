@@ -71,7 +71,9 @@ function PlayerRow({
     <div
       className={`rounded-xl shadow-sm overflow-hidden border transition-all ${
         isSelected ? "border-blue-400 bg-blue-50 ring-2 ring-blue-300" :
-        isWaitingLong ? "border-red-300 bg-red-50" : "border-slate-100 bg-white"
+        isWaitingLong ? "border-red-300 bg-red-50" :
+        index < 4 ? "border-blue-200 bg-blue-50/30 next-badge-glow" :
+        "border-slate-100 bg-white"
       }`}
       role="listitem"
       aria-label={`${player.name}, position ${index + 1}, ${player.gamesPlayed} games played`}
@@ -95,6 +97,7 @@ function PlayerRow({
         >
           <DraggablePlayer player={player} />
           {isSelected && <span className="text-[10px] bg-blue-500 text-white px-1.5 py-0.5 rounded font-bold shrink-0">TAP COURT</span>}
+          {!isSelected && index < 4 && <span className="text-[9px] bg-green-500 text-white px-1.5 py-0.5 rounded-full font-bold shrink-0 animate-pulse">NEXT</span>}
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">

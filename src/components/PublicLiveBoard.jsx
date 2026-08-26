@@ -375,6 +375,7 @@ export default function PublicLiveBoard() {
           <div className="text-[10px] text-slate-300">
             Auto-refreshes every 5s
           </div>
+          <div className="powered-by mt-4">Powered by RallyStack</div>
         </div>
       </main>
     </div>

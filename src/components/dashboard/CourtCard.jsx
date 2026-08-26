@@ -2,7 +2,7 @@ import { memo } from "react";
 import DroppableCourt from "../dnd/DroppableCourt";
 import DroppableCourtPlayer from "../dnd/DroppableCourtPlayer";
 import DraggableCourtPlayer from "../dnd/DraggableCourtPlayer";
-import CourtTimer from "./CourtTimer";
+import CountdownRing from "./CountdownRing";
 import { getCourtMinutes } from "../../utils/playerUtils";
 import { useI18n } from "../../i18n/index.jsx";
 import { alertCourtOvertime } from "../../utils/timerAlert";
@@ -57,7 +57,7 @@ function CourtCard({
   return (
     <DroppableCourt courtId={court.id}>
       <div
-        className={`bg-white rounded-2xl shadow-lg p-4 border-l-4 border border-slate-200 hover:shadow-xl transition-all ${borderColor}`}
+        className={`glass-card rounded-2xl p-4 border-l-4 hover:shadow-premium-hover transition-all animate-slide-up ${borderColor}`}
         role="region"
         aria-label={`${getCourtLabel(court.type)} number ${court.id}, ${court.players.length} of ${maxPlayers} players`}
       >
@@ -102,8 +102,8 @@ function CourtCard({
           </span>
         </div>
 
-        {/* Timer — self-contained, ticks independently */}
-        <CourtTimer startedAt={court.startedAt} onThresholdReached={alertCourtOvertime} />
+        {/* Timer — Countdown Ring with circular progress */}
+        <CountdownRing startedAt={court.startedAt} onThresholdReached={alertCourtOvertime} />
 
         {/* Partner repeat warning */}
         {partnerWarning && (partnerWarning.teamA > 0 || partnerWarning.teamB > 0) && (
@@ -359,12 +359,12 @@ function CourtCard({
           </button>
         )}
 
-        {/* End Game Buttons */}
+        {/* End Game Buttons — with micro-interactions */}
         <div className="grid grid-cols-2 gap-2 mt-4">
           <button
             onClick={() => onEndGame(court.id, "A")}
             disabled={!isFull}
-            className="bg-gradient-to-r from-blue-500 to-blue-700 text-white font-semibold py-2.5 rounded-xl shadow-sm hover:shadow-md disabled:opacity-40 disabled:cursor-not-allowed"
+            className="bg-gradient-to-r from-blue-500 to-blue-700 text-white font-semibold py-2.5 rounded-xl shadow-sm hover:shadow-md disabled:opacity-40 disabled:cursor-not-allowed active:animate-spring-bounce"
             aria-label={isSingles ? "Player A wins" : "Team A wins"}
           >
             {isSingles ? "Player A Wins" : t("team_a_wins")}
@@ -372,7 +372,7 @@ function CourtCard({
           <button
             onClick={() => onEndGame(court.id, "B")}
             disabled={!isFull}
-            className="bg-gradient-to-r from-purple-500 to-purple-700 text-white font-semibold py-2.5 rounded-xl shadow-sm hover:shadow-md disabled:opacity-40 disabled:cursor-not-allowed"
+            className="bg-gradient-to-r from-purple-500 to-purple-700 text-white font-semibold py-2.5 rounded-xl shadow-sm hover:shadow-md disabled:opacity-40 disabled:cursor-not-allowed active:animate-spring-bounce"
             aria-label={isSingles ? "Player B wins" : "Team B wins"}
           >
             {isSingles ? "Player B Wins" : t("team_b_wins")}

@@ -55,6 +55,9 @@ import { DashboardSkeleton } from "./components/ui/SkeletonLoader";
 import QueueSearch from "./components/dashboard/QueueSearch";
 import { isSoundEnabled, setSoundEnabled } from "./utils/timerAlert";
 import { generateSessionText } from "./utils/csvUtils";
+import Confetti from "./components/ui/Confetti";
+import GuidedTour, { shouldShowTour } from "./components/ui/GuidedTour";
+import ActivityFeed from "./components/dashboard/ActivityFeed";
 
 // ===== AUTH WRAPPER =====
 // Handles auth state and club selection. Renders the main App or auth/picker screens.
@@ -295,6 +298,9 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
   const [pendingEndGame, setPendingEndGame] = useState(null); // { courtId, winningTeam } — for score prompt
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [queueSearchQuery, setQueueSearchQuery] = useState("");
+  const [confetti, setConfetti] = useState(null); // { color: "blue"|"purple" } or null
+  const [activityEvents, setActivityEvents] = useState([]);
+  const [showTour, setShowTour] = useState(shouldShowTour);
   // { [courtId]: { teamA: count, teamB: count } }
 
   // ===== SESSION MODE =====
@@ -2544,6 +2550,20 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
       return updated;
     });
 
+    // Confetti celebration
+    setConfetti({ color: winningTeam === "A" ? "blue" : "purple" });
+
+    // Activity feed event
+    const winnerNames = winningTeam === "A"
+      ? (isSingles ? [court.players[0]?.name] : court.players.slice(0, 2).map((p) => p.name))
+      : (isSingles ? [court.players[1]?.name] : court.players.slice(2, 4).map((p) => p.name));
+    setActivityEvents((prev) => [{
+      id: Date.now(),
+      icon: "🏆",
+      text: `${winnerNames.join(" & ")} won on Court #${courtId}`,
+      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    }, ...prev].slice(0, 50));
+
     } catch (err) {
       console.error("endGame error:", err);
       addToast("Error ending game. Please try again.", "error");
@@ -2822,8 +2842,8 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
   return (
     <div className="min-h-screen w-full bg-slate-50 pb-20 sm:pb-6">
 
-      {/* Slim sticky header */}
-      <header className="sticky top-0 z-40 bg-[#003369] shadow-sm">
+      {/* Slim sticky header — Glassmorphism */}
+      <header className="sticky top-0 z-40 glass-header">
         <div className="max-w-7xl mx-auto px-3 py-2 flex items-center justify-between gap-2">
           {/* Left: Logo + Club name */}
           <div className="flex items-center gap-2 min-w-0">
@@ -2869,7 +2889,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
 
         {/* Mobile slide-down menu */}
         {showMobileMenu && (
-          <div className="sm:hidden bg-[#002244] border-t border-white/10 px-4 py-3 space-y-2">
+          <div className="sm:hidden glass-menu border-t border-white/10 px-4 py-3 space-y-2">
             <div className="grid grid-cols-4 gap-2">
               <button onClick={() => { setShowLiveBoard(true); setShowMobileMenu(false); }} className="flex flex-col items-center gap-1 py-2 rounded-lg bg-white/5 hover:bg-white/10">
                 <span className="text-lg">📺</span>
@@ -3215,19 +3235,28 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
                     ))}
                   </div>
                 </div>
+
+                {/* Activity Feed */}
+                {activityEvents.length > 0 && (
+                  <div className="mt-4">
+                    <ActivityFeed events={activityEvents} />
+                  </div>
+                )}
               </div>
 
               <DragOverlay>
                 {activePlayer ? (
                   <div
-                    className="
-                      w-12 h-12 rounded-full bg-blue-500 text-white
-                      flex items-center justify-center font-bold
-                      shadow-xl border-2 border-white
-                    "
+                    className="px-3 py-2 rounded-xl bg-blue-600 text-white shadow-2xl border-2 border-white flex items-center gap-2"
                     style={{ zIndex: 999999 }}
                   >
-                    {activePlayer.name.charAt(0).toUpperCase()}
+                    <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center font-bold text-sm">
+                      {activePlayer.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold">{activePlayer.name}</div>
+                      <div className="text-[9px] opacity-75">{activePlayer.gamesPlayed || 0}GP · {activePlayer.wins || 0}W</div>
+                    </div>
                   </div>
                 ) : null}
               </DragOverlay>
@@ -3283,7 +3312,7 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
       {!viewMode && activeTab === "dashboard" && waitingPlayers.length >= 4 && courts.some((c) => c.players.length < (c.format === "singles" ? 2 : 4)) && (
         <button
           onClick={startNextGame}
-          className="fixed bottom-16 right-4 z-50 sm:hidden w-14 h-14 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-xl flex items-center justify-center text-xl active:scale-95 transition-transform"
+          className="fixed bottom-16 right-4 z-50 sm:hidden w-14 h-14 rounded-full gradient-success text-white shadow-xl flex items-center justify-center text-xl active:animate-spring-bounce transition-transform"
         >
           ▶
         </button>
@@ -3520,6 +3549,12 @@ function AppMain({ club, authUser, clubs, onSwitchClub, onDeleteClub, onLogout }
           onClose={() => setShowSlugEditor(false)}
         />
       )}
+
+      {/* Confetti celebration */}
+      {confetti && <Confetti color={confetti.color} onComplete={() => setConfetti(null)} />}
+
+      {/* Guided Tour (first-run only) */}
+      {showTour && <GuidedTour onComplete={() => setShowTour(false)} />}
 
       {/* Undo Match Picker Modal */}
       {showUndoPicker && (
